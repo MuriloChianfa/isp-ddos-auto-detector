@@ -420,6 +420,11 @@ class DDoSDetectionSystem:
         dummy_train_data = pd.DataFrame({'flows_sum': np.random.normal(2000, 500, len(X_train))})
         return self._calculate_enhanced_thresholds(X_train, dummy_train_data)
     
+    def prepare_data_for_prediction(self, data):
+        """Prepare data for prediction with models - returns normalized features"""
+        X, _ = self.prepare_features(data, fit_scaler=False)
+        return X
+        
     def detect_anomalies_enhanced(self, data, model_name='standard_ae', use_flow_threshold=False):
         """Enhanced anomaly detection with flow-based sensitivity"""
         X, _ = self.prepare_features(data, fit_scaler=False)

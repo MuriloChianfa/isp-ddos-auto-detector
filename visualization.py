@@ -54,6 +54,9 @@ class DDoSVisualizer:
         
         # Generate confusion matrices alongside timeline charts
         self.plot_confusion_matrices(attack_data, test_data)
+        
+        # Generate daily separated charts
+        self.plot_daily_error_metrics(test_data)
 
     def plot_individual_model_timelines(self, attack_data, test_data):
         """Create separate timeline charts for each model"""
@@ -83,20 +86,23 @@ class DDoSVisualizer:
                     # Use the full dataset and filter for test data
                     full_data = self.features_df
                     
-                    # Calculate test date (day after train split)
+                    # Calculate extended timeline date range (include last training day + available test period)
                     train_date = datetime.strptime(TRAIN_SPLIT, "%Y-%m-%d")
-                    test_date = train_date + timedelta(days=1)
-                    test_date_str = test_date.strftime("%Y-%m-%d")
-                    next_date_str = (test_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                    # Start from the last day of training data for comprehensive timeline
+                    timeline_start_str = train_date.strftime("%Y-%m-%d")
                     
-                    # Include the entire test date plus test data for visualization
-                    test_day_data = full_data[
-                        (full_data['ts_bin'] >= test_date_str) & 
-                        (full_data['ts_bin'] < next_date_str)
+                    # Use the actual end date of available data instead of fixed extension
+                    data_end_date = pd.to_datetime(full_data['ts_bin'].max()).date()
+                    timeline_end_str = (data_end_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                    
+                    # Include last training day + entire available test period for comprehensive visualization
+                    test_period_data = full_data[
+                        (full_data['ts_bin'] >= timeline_start_str) & 
+                        (full_data['ts_bin'] < timeline_end_str)
                     ].copy()
                     
-                    # Combine test day data with test data
-                    combined_data = pd.concat([test_day_data, test_data], ignore_index=True)
+                    # Combine test period data with test data
+                    combined_data = pd.concat([test_period_data, test_data], ignore_index=True)
                     
                     # Sort by timestamp to ensure proper order
                     combined_data = combined_data.sort_values('ts_bin').reset_index(drop=True)
@@ -165,15 +171,19 @@ class DDoSVisualizer:
                         current_title = ax.get_title()
                         ax.set_title(f"{current_title} - {num_anomalies}/{total_points} anomalies ({anomaly_percentage:.1f}%)")
                     
-                    # Format x-axis for datetime with hourly ticks
-                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
-                    ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=30))
+                    # Format x-axis for datetime with appropriate ticks for multi-day timeline
+                    # Use day locator for major ticks and hour locator for minor ticks
+                    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=6))
+                    
+                    # Explicitly set x-axis limits to show all data
+                    ax.set_xlim(timestamps.min(), timestamps.max())
                     
                     # Rotate x-axis labels for better readability
-                    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+                    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha='center')
                     
-                    ax.set_xlabel('DateTime (MM-DD HH:MM)', fontsize=12, fontweight='bold')
+                    ax.set_xlabel('Date (MM-DD)', fontsize=12, fontweight='bold')
                     
                 else:
                     # Fallback to simple time steps if no timestamp column
@@ -303,17 +313,20 @@ class DDoSVisualizer:
                 # Use full dataset for comprehensive analysis
                 full_data = self.features_df
                 
-                # Calculate test date (day after train split)
+                # Calculate extended timeline date range (include last training day + available test period)
                 train_date = datetime.strptime(TRAIN_SPLIT, "%Y-%m-%d")
-                test_date = train_date + timedelta(days=1)
-                test_date_str = test_date.strftime("%Y-%m-%d")
-                next_date_str = (test_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                # Start from the last day of training data for comprehensive timeline
+                timeline_start_str = train_date.strftime("%Y-%m-%d")
                 
-                test_day_data = full_data[
-                    (full_data['ts_bin'] >= test_date_str) & 
-                    (full_data['ts_bin'] < next_date_str)
+                # Use the actual end date of available data instead of fixed extension
+                data_end_date = pd.to_datetime(full_data['ts_bin'].max()).date()
+                timeline_end_str = (data_end_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                
+                test_period_data = full_data[
+                    (full_data['ts_bin'] >= timeline_start_str) & 
+                    (full_data['ts_bin'] < timeline_end_str)
                 ].copy()
-                combined_data = pd.concat([test_day_data, test_data], ignore_index=True)
+                combined_data = pd.concat([test_period_data, test_data], ignore_index=True)
             else:
                 combined_data = pd.concat([test_data, attack_data], ignore_index=True)
             
@@ -471,3 +484,276 @@ class DDoSVisualizer:
             print(f"Error creating confusion matrix for {model_name}: {e}")
             import traceback
             traceback.print_exc()
+
+    def plot_model_history(self, model_name, model_history):
+        """Plot training history metrics for a model"""
+        if not hasattr(model_history, 'history'):
+            print(f"No training history available for {model_name}")
+            return
+            
+        history = model_history.history
+        epochs = range(1, len(history['loss']) + 1)
+            
+        plt.figure(figsize=(16, 8))
+        
+        # Plot loss
+        plt.subplot(1, 2, 1)
+        plt.plot(epochs, history['loss'], 'bo-', label='Training Loss (MSE)')
+        if 'val_loss' in history:
+            plt.plot(epochs, history['val_loss'], 'ro-', label='Validation Loss (MSE)')
+        plt.title(f'Training and Validation Loss: {model_name.upper().replace("_", " ")}', 
+                fontsize=16, fontweight='bold')
+        plt.xlabel('Epochs', fontsize=12)
+        plt.ylabel('Loss (MSE)', fontsize=12)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Plot MAE
+        plt.subplot(1, 2, 2)
+        if 'mae' in history:
+            plt.plot(epochs, history['mae'], 'bo-', label='Training MAE')
+        if 'val_mae' in history:
+            plt.plot(epochs, history['val_mae'], 'ro-', label='Validation MAE')
+        plt.title(f'Training and Validation MAE: {model_name.upper().replace("_", " ")}', 
+                fontsize=16, fontweight='bold')
+        plt.xlabel('Epochs', fontsize=12)
+        plt.ylabel('Mean Absolute Error', fontsize=12)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save figure
+        filename = f'training_history_{model_name}.png'
+        plt.savefig(os.path.join(RESULTS_DIR, filename), dpi=DPI, bbox_inches='tight')
+        plt.close()
+        print(f"Saved training history: {RESULTS_DIR}/{filename}")
+
+    def plot_daily_error_metrics(self, test_data):
+        """Plot error metrics separated by day for test and validation data"""
+        ready_models, _ = self._check_models_ready()
+        
+        if not ready_models:
+            print("No models ready for daily error metrics visualization")
+            return
+        
+        # Get extended data if available
+        if not hasattr(self, 'features_df') or self.features_df is None:
+            print("No extended features data available for daily analysis")
+            return
+        
+        # Calculate date ranges
+        train_date = datetime.strptime(TRAIN_SPLIT, "%Y-%m-%d")
+        
+        # Define day ranges based on available data
+        data_end_date = pd.to_datetime(self.features_df['ts_bin'].max()).date()
+        
+        day_configs = [
+            {
+                'name': 'Day_16_Test',
+                'start_date': train_date + timedelta(days=1),
+                'end_date': train_date + timedelta(days=2),
+                'label': 'Day 16 (Test)'
+            },
+            {
+                'name': 'Day_17_Validation', 
+                'start_date': train_date + timedelta(days=2),
+                'end_date': min(train_date + timedelta(days=3), datetime.combine(data_end_date + timedelta(days=1), datetime.min.time())),
+                'label': 'Day 17 (Validation)'
+            }
+        ]
+        
+        for model_name in ready_models:
+            model = self.detection_system.models[model_name]
+            
+            try:
+                # Get model thresholds
+                thresholds = self.detection_system.thresholds
+                if isinstance(thresholds, dict) and model_name in thresholds:
+                    standard_threshold = thresholds[model_name]
+                else:
+                    standard_threshold = 0.5
+                
+                # Create figure with subplots for multiple chart types per day
+                fig = plt.figure(figsize=(28, 12))
+                fig.suptitle(f'Daily Error Analysis: {model_name.upper().replace("_", " ")}', 
+                           fontsize=18, fontweight='bold')
+                
+                # Create grid: 2x6 layout (2 rows for days, 6 columns: histogram, boxplot, violin, timeline, table, spacer)
+                gs = fig.add_gridspec(2, 6, width_ratios=[1.2, 1, 1, 1.5, 1.2, 0.2], hspace=0.3, wspace=0.3)
+                
+                daily_stats = []
+                
+                for i, day_config in enumerate(day_configs):
+                    # Filter data for this specific day
+                    start_str = day_config['start_date'].strftime("%Y-%m-%d")
+                    
+                    # For the end date, use the actual available data end for the last day
+                    if i == len(day_configs) - 1:  # Last day (Day 17)
+                        # Use all available data from start of day 17 onwards
+                        daily_data = self.features_df[
+                            self.features_df['ts_bin'] >= start_str
+                        ].copy()
+                    else:
+                        # Normal day filtering
+                        end_str = day_config['end_date'].strftime("%Y-%m-%d")
+                        daily_data = self.features_df[
+                            (self.features_df['ts_bin'] >= start_str) & 
+                            (self.features_df['ts_bin'] < end_str)
+                        ].copy()
+                    
+                    if len(daily_data) == 0:
+                        print(f"No data available for {day_config['label']}")
+                        continue
+                    
+                    # Prepare data for prediction
+                    normalized_data = self.detection_system.prepare_data_for_prediction(daily_data)
+                    errors = model.predict(normalized_data)
+                    
+                    # Handle LSTM sequence alignment
+                    if model_name == 'lstm_ae':
+                        sequence_length = getattr(model, 'sequence_length', 10)
+                        if len(daily_data) > sequence_length:
+                            daily_data_aligned = daily_data.iloc[sequence_length-1:].copy()
+                            if len(daily_data_aligned) != len(errors):
+                                min_len = min(len(daily_data_aligned), len(errors))
+                                daily_data_aligned = daily_data_aligned.iloc[:min_len]
+                                errors = errors[:min_len]
+                            plot_data = daily_data_aligned
+                        else:
+                            plot_data = daily_data
+                    else:
+                        plot_data = daily_data
+                    
+                    # Calculate statistics
+                    mse = np.mean(errors)
+                    mae = np.mean(np.abs(errors))
+                    std_dev = np.std(errors)
+                    anomaly_count = np.sum(errors > standard_threshold)
+                    anomaly_percentage = (anomaly_count / len(errors)) * 100 if len(errors) > 0 else 0
+                    
+                    daily_stats.append({
+                        'day': day_config['label'],
+                        'mse': mse,
+                        'mae': mae,
+                        'std_dev': std_dev,
+                        'anomalies': anomaly_count,
+                        'anomaly_pct': anomaly_percentage,
+                        'total_points': len(errors)
+                    })
+                    
+                    # Plot 1: Error Distribution Histogram
+                    ax1 = fig.add_subplot(gs[i, 0])
+                    sns.histplot(errors, kde=True, ax=ax1, color=COLORS[i])
+                    ax1.axvline(standard_threshold, color='red', linestyle='--', 
+                              label=f'Threshold: {standard_threshold:.5f}')
+                    ax1.axvline(mse, color='green', linestyle='-', 
+                              label=f'MSE: {mse:.5f}')
+                    ax1.set_title(f'{day_config["label"]} - Histogram', 
+                                fontsize=12, fontweight='bold')
+                    ax1.set_xlabel('Reconstruction Error', fontsize=10)
+                    ax1.set_ylabel('Frequency', fontsize=10)
+                    ax1.legend(fontsize=8)
+                    
+                    # Plot 2: Box Plot
+                    ax2 = fig.add_subplot(gs[i, 1])
+                    sns.boxplot(y=errors, ax=ax2, color=COLORS[i])
+                    ax2.axhline(standard_threshold, color='red', linestyle='--', 
+                              label=f'Threshold')
+                    ax2.set_title(f'{day_config["label"]} - Box Plot', 
+                                fontsize=12, fontweight='bold')
+                    ax2.set_ylabel('Reconstruction Error', fontsize=10)
+                    ax2.legend(fontsize=8)
+                    
+                    # Plot 3: Violin Plot
+                    ax3 = fig.add_subplot(gs[i, 2])
+                    sns.violinplot(y=errors, ax=ax3, color=COLORS[i])
+                    ax3.axhline(standard_threshold, color='red', linestyle='--', 
+                              label=f'Threshold')
+                    ax3.set_title(f'{day_config["label"]} - Violin Plot', 
+                                fontsize=12, fontweight='bold')
+                    ax3.set_ylabel('Reconstruction Error', fontsize=10)
+                    ax3.legend(fontsize=8)
+                    
+                    # Plot 4: Error Timeline for this day
+                    ax4 = fig.add_subplot(gs[i, 3])
+                    timestamps = pd.to_datetime(plot_data['ts_bin'])
+                    ax4.plot(timestamps, errors, color=COLORS[i], linewidth=1)
+                    ax4.axhline(standard_threshold, color='red', linestyle='--', 
+                              label=f'Threshold: {standard_threshold:.5f}')
+                    ax4.axhline(mse, color='green', linestyle='-', 
+                              label=f'MSE: {mse:.5f}')
+                    
+                    # Highlight anomalies
+                    anomaly_mask = errors > standard_threshold
+                    if np.any(anomaly_mask):
+                        ax4.scatter(timestamps[anomaly_mask], errors[anomaly_mask], 
+                                  color='red', alpha=0.6, s=20, label='Anomalies')
+                    
+                    ax4.set_title(f'{day_config["label"]} - Timeline', 
+                                fontsize=12, fontweight='bold')
+                    ax4.set_xlabel('Time', fontsize=10)
+                    ax4.set_ylabel('Reconstruction Error', fontsize=10)
+                    ax4.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    plt.setp(ax4.xaxis.get_majorticklabels(), rotation=45, fontsize=8)
+                    ax4.legend(fontsize=8)
+                    ax4.grid(True, alpha=0.3)
+                    
+                    # Plot 5: Individual table for this day
+                    table_ax = fig.add_subplot(gs[i, 4])
+                    table_ax.axis('off')
+                    
+                    # Prepare table data for this specific day
+                    table_data = [
+                        ['MSE', f'{mse:.5f}'],
+                        ['MAE', f'{mae:.5f}'],
+                        ['Std Dev', f'{std_dev:.5f}'],
+                        ['Threshold', f'{standard_threshold:.5f}'],
+                        ['Anomalies', f'{anomaly_count}'],
+                        ['Anomaly %', f'{anomaly_percentage:.1f}%'],
+                        ['Total Points', f'{len(errors)}'],
+                        ['Min Error', f'{np.min(errors):.5f}'],
+                        ['Max Error', f'{np.max(errors):.5f}']
+                    ]
+                    
+                    headers = ['Metric', day_config['label']]
+                    
+                    # Create the table
+                    table = table_ax.table(cellText=table_data, colLabels=headers,
+                                         cellLoc='center', loc='center',
+                                         colWidths=[0.5, 0.5])
+                    
+                    # Style the table
+                    table.auto_set_font_size(False)
+                    table.set_fontsize(10)
+                    table.scale(1, 1.8)
+                    
+                    # Style header row with day-specific color
+                    for j in range(len(headers)):
+                        table[(0, j)].set_facecolor(COLORS[i])
+                        table[(0, j)].set_text_props(weight='bold', color='white')
+                    
+                    # Style data rows with alternating colors
+                    for row_idx in range(1, len(table_data) + 1):
+                        for col_idx in range(len(headers)):
+                            if row_idx % 2 == 0:
+                                table[(row_idx, col_idx)].set_facecolor('#f0f0f0')
+                            else:
+                                table[(row_idx, col_idx)].set_facecolor('#ffffff')
+                    
+                    table_ax.set_title(f'{day_config["label"]} Metrics', 
+                                     fontsize=12, fontweight='bold', pad=10)
+                
+                # Adjust layout
+                plt.subplots_adjust(top=0.93, bottom=0.05, left=0.05, right=0.95)
+                
+                # Save figure
+                filename = f'daily_error_analysis_{model_name}.png'
+                plt.savefig(os.path.join(RESULTS_DIR, filename), dpi=DPI, bbox_inches='tight')
+                plt.close()
+                print(f"Saved daily error analysis: {RESULTS_DIR}/{filename}")
+                
+            except Exception as e:
+                print(f"Error creating daily error analysis for {model_name}: {e}")
+                if 'fig' in locals():
+                    plt.close(fig)

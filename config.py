@@ -6,9 +6,9 @@ Configuration settings for DDoS Detection System
 import os
 
 # Directory Configuration
-INPUT_DIR = "/root/autoencoders/dataset/ramfs"
-MODELS_DIR = "/root/autoencoders/models"
-RESULTS_DIR = "/root/autoencoders/results"
+INPUT_DIR = "./datasets/ramfs"
+MODELS_DIR = "./models"
+RESULTS_DIR = "./results"
 
 # Data Processing Configuration
 AGG_PERIOD = "1Min"

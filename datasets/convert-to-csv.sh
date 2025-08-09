@@ -4,9 +4,9 @@ set -euo pipefail
 shopt -s extglob nullglob
 
 : "${TARGET_ASN:?TARGET_ASN must be set and a valid 4-byte ASNumber}"
-
-DATASET_DIR=./datasets
-OUTPUT_DIR="$DATASET_DIR/ramfs"
+DEFAULT_DATASET_DIR="./datasets"
+DATASET_DIR="${DATASET_DIR:-$DEFAULT_DATASET_DIR}"
+OUTPUT_DIR="$DEFAULT_DATASET_DIR/ramfs"
 
 mkdir -p "$OUTPUT_DIR"
 

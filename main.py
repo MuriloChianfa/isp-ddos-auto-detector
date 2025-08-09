@@ -18,6 +18,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 import time
+import numpy as np
 import pandas as pd
 import argparse
 
@@ -133,13 +134,36 @@ def main():
         print(f"     Test data:    {fp_rate:.1f}%")
         print(f"     Additional normal: {additional_fp_rate:.1f}%")
     
-    print(f"\nGenerating charts...")
+    print(f"\nGenerating charts and error metrics...")
 
     try:
         visualizer = DDoSVisualizer(detector)
         combined_attack_data = pd.concat([attack_info[name] for name in attack_info.keys()], ignore_index=True)
         visualizer.plot_detailed_timeline(combined_attack_data, test_data, features_df)
         print("Timeline charts saved to results/ directory.")
+
+        for model_name in detector.models.keys():
+            # Get model threshold
+            threshold = detector.thresholds.get(model_name, 0.5)
+            
+            # Get test data errors
+            X_test = detector.prepare_data_for_prediction(test_data)
+            errors = detector.models[model_name].predict(X_test)
+            
+            # Calculate metrics
+            mse = np.mean(errors)
+            mae = np.mean(np.abs(errors))
+            std_dev = np.std(errors)
+            
+            print(f"\n{model_name.upper().replace('_', ' ')}:")
+            print(f"  MSE:              {mse:.5f}")
+            print(f"  MAE:              {mae:.5f}")
+            print(f"  Standard Deviation: {std_dev:.5f}")
+            print(f"  Threshold:        {threshold:.5f}")
+            print(f"  Error Range:      [{np.min(errors):.5f}, {np.max(errors):.5f}]")
+        
+        print("\nAll charts saved to results/ directory.")
+        
     except Exception as e:
         print(f"Visualization error: {e}")
 
