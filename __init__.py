@@ -5,7 +5,6 @@ DDoS Detection System with Autoencoders
 Enhanced system for detecting DDoS attacks using multiple autoencoder variants:
 1. Standard Autoencoder
 2. LSTM Autoencoder (for temporal patterns)
-3. Isolation Forest (baseline)
 
 Features:
 - Advanced feature engineering

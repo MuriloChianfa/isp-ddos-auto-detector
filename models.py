@@ -42,6 +42,10 @@ class StandardAutoencoder:
         self.encoding_dim = encoding_dim
         self.model = None
         self.scaler = StandardScaler()
+        # Training metrics
+        self.training_mse = None
+        self.training_mae = None
+        self.training_stddev = None
         
     def build_model(self):
         """Build the autoencoder architecture"""
@@ -86,7 +90,46 @@ class StandardAutoencoder:
             callbacks=callbacks,
             verbose=1
         )
+        
+        # Calculate and store training metrics
+        self._calculate_training_metrics(X_train)
+        
         return history
+    
+    def _calculate_training_metrics(self, X_train):
+        """Calculate and store training performance metrics"""
+        try:
+            # Get actual reconstructions (not MSE)
+            reconstructed = self.model.predict(X_train, verbose=0)
+            
+            # Calculate raw errors (input - reconstruction)
+            raw_errors = X_train - reconstructed
+            
+            # Calculate MSE: mean of all squared errors across all features and samples
+            self.training_mse = np.mean(raw_errors ** 2)
+            
+            # Calculate MAE: mean of all absolute errors across all features and samples
+            self.training_mae = np.mean(np.abs(raw_errors))
+            
+            # Calculate standard deviation using per-sample reconstruction error (as used in predict method)
+            per_sample_mse = np.mean((raw_errors) ** 2, axis=1)
+            self.training_stddev = np.std(per_sample_mse)
+            
+            print(f"StandardAE Training Metrics - MSE: {self.training_mse:.5f}, MAE: {self.training_mae:.5f}, StdDev: {self.training_stddev:.5f}")
+            
+        except Exception as e:
+            print(f"Error calculating training metrics for StandardAE: {e}")
+            self.training_mse = 0.0
+            self.training_mae = 0.0
+            self.training_stddev = 0.0
+    
+    def get_training_metrics(self):
+        """Get training performance metrics"""
+        return {
+            'mse': self.training_mse or 0.0,
+            'mae': self.training_mae or 0.0,
+            'stddev': self.training_stddev or 0.0
+        }
     
     def predict(self, X):
         """Get reconstruction error using CPU"""
@@ -103,6 +146,10 @@ class LSTMAutoencoder:
         self.n_features = n_features
         self.model = None
         self.scaler = StandardScaler()
+        # Training metrics
+        self.training_mse = None
+        self.training_mae = None
+        self.training_stddev = None
         
     def build_model(self):
         """Build LSTM autoencoder"""
@@ -156,7 +203,56 @@ class LSTMAutoencoder:
             callbacks=callbacks,
             verbose=1
         )
+        
+        # Calculate and store training metrics
+        self._calculate_training_metrics(X_train)
+        
         return history
+    
+    def _calculate_training_metrics(self, X_train):
+        """Calculate and store training performance metrics"""
+        try:
+            # Prepare sequences for LSTM
+            X_train_seq = self.prepare_sequences(X_train, self.sequence_length)
+            
+            if len(X_train_seq) == 0:
+                print("No sequences available for LSTM training metrics calculation")
+                self.training_mse = 0.0
+                self.training_mae = 0.0
+                self.training_stddev = 0.0
+                return
+            
+            # Get actual reconstructions (not MSE)
+            reconstructed = self.model.predict(X_train_seq, verbose=0)
+            
+            # Calculate raw errors (input - reconstruction)
+            raw_errors = X_train_seq - reconstructed
+            
+            # Calculate MSE: mean of all squared errors across all timesteps, features and samples  
+            self.training_mse = np.mean(raw_errors ** 2)
+            
+            # Calculate MAE: mean of all absolute errors across all timesteps, features and samples
+            self.training_mae = np.mean(np.abs(raw_errors))
+            
+            # Calculate standard deviation using per-sample reconstruction error (as used in predict method)
+            per_sample_mse = np.mean((raw_errors) ** 2, axis=(1, 2))
+            self.training_stddev = np.std(per_sample_mse)
+            
+            print(f"LSTM-AE Training Metrics - MSE: {self.training_mse:.5f}, MAE: {self.training_mae:.5f}, StdDev: {self.training_stddev:.5f}")
+            
+        except Exception as e:
+            print(f"Error calculating training metrics for LSTM-AE: {e}")
+            self.training_mse = 0.0
+            self.training_mae = 0.0
+            self.training_stddev = 0.0
+    
+    def get_training_metrics(self):
+        """Get training performance metrics"""
+        return {
+            'mse': self.training_mse or 0.0,
+            'mae': self.training_mae or 0.0,
+            'stddev': self.training_stddev or 0.0
+        }
 
     def predict(self, X):
         """Get reconstruction error using CPU"""

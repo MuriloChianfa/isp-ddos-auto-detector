@@ -26,6 +26,15 @@ class DDoSVisualizer:
     
     def __init__(self, detection_system):
         self.detection_system = detection_system
+        # Ensure base results directory exists
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+
+    def _get_model_results_dir(self, model_name: str) -> str:
+        """Return the results directory for a specific model and ensure it exists."""
+        # Keep the raw model_name as subfolder to match keys like 'lstm_ae', 'standard_ae'
+        model_dir = os.path.join(RESULTS_DIR, str(model_name))
+        os.makedirs(model_dir, exist_ok=True)
+        return model_dir
     
     def _check_models_ready(self):
         """Check which models are ready for visualization"""
@@ -66,9 +75,10 @@ class DDoSVisualizer:
             
             plt.tight_layout(rect=[0, 0, 0.85, 1])  # Leave space for legend on the right
             filename = f'timeline_{model_name}.png'
-            plt.savefig(os.path.join(RESULTS_DIR, filename), dpi=DPI, bbox_inches='tight')
+            out_dir = self._get_model_results_dir(model_name)
+            plt.savefig(os.path.join(out_dir, filename), dpi=DPI, bbox_inches='tight')
             plt.close()
-            print(f"Saved individual timeline: {RESULTS_DIR}/{filename}")
+            print(f"Saved individual timeline: {os.path.join(out_dir, filename)}")
     
     def _plot_single_model_timeline(self, ax, model_name, model, attack_data, test_data, color_idx):
         """Helper function to plot timeline for a single model"""
@@ -470,7 +480,8 @@ class DDoSVisualizer:
             
             # Save the figure with enhanced quality
             filename = f'confusion_matrix_{model_name}.png'
-            filepath = os.path.join(RESULTS_DIR, filename)
+            out_dir = self._get_model_results_dir(model_name)
+            filepath = os.path.join(out_dir, filename)
             plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
             plt.close()
             
@@ -525,9 +536,10 @@ class DDoSVisualizer:
         
         # Save figure
         filename = f'training_history_{model_name}.png'
-        plt.savefig(os.path.join(RESULTS_DIR, filename), dpi=DPI, bbox_inches='tight')
+        out_dir = self._get_model_results_dir(model_name)
+        plt.savefig(os.path.join(out_dir, filename), dpi=DPI, bbox_inches='tight')
         plt.close()
-        print(f"Saved training history: {RESULTS_DIR}/{filename}")
+        print(f"Saved training history: {os.path.join(out_dir, filename)}")
 
     def plot_daily_error_metrics(self, test_data):
         """Plot error metrics separated by day for test and validation data"""
@@ -573,6 +585,12 @@ class DDoSVisualizer:
                     standard_threshold = thresholds[model_name]
                 else:
                     standard_threshold = 0.5
+                
+                # Calculate overall model metrics from training/validation data for reference lines
+                model_metrics = model.get_training_metrics()
+                model_mse = model_metrics['mse']
+                model_mae = model_metrics['mae'] 
+                model_stddev = model_metrics['stddev']
                 
                 # Create figure with subplots for multiple chart types per day
                 fig = plt.figure(figsize=(28, 12))
@@ -678,11 +696,25 @@ class DDoSVisualizer:
                     # Plot 4: Error Timeline for this day
                     ax4 = fig.add_subplot(gs[i, 3])
                     timestamps = pd.to_datetime(plot_data['ts_bin'])
-                    ax4.plot(timestamps, errors, color=COLORS[i], linewidth=1)
+                    ax4.plot(timestamps, errors, color=COLORS[i], linewidth=1, label='Reconstruction Error')
+                    
+                    # Add model reference metrics as horizontal lines
                     ax4.axhline(standard_threshold, color='red', linestyle='--', 
                               label=f'Threshold: {standard_threshold:.5f}')
-                    ax4.axhline(mse, color='green', linestyle='-', 
-                              label=f'MSE: {mse:.5f}')
+                    
+                    # Add overall model training MSE line
+                    ax4.axhline(model_mse, color='green', linestyle='-', 
+                              label=f'Training MSE: {model_mse:.5f}')
+                    
+                    # Add overall model training MAE line
+                    ax4.axhline(model_mae, color='orange', linestyle='-.', 
+                              label=f'Training MAE: {model_mae:.5f}')
+                    
+                    # Add overall model training Std Dev lines (model_mse ± model_stddev)
+                    ax4.axhline(model_mse + model_stddev, color='purple', linestyle=':', alpha=0.7,
+                              label=f'Training MSE+σ: {model_mse + model_stddev:.5f}')
+                    ax4.axhline(model_mse - model_stddev, color='purple', linestyle=':', alpha=0.7,
+                              label=f'Training MSE-σ: {model_mse - model_stddev:.5f}')
                     
                     # Highlight anomalies
                     anomaly_mask = errors > standard_threshold
@@ -696,7 +728,7 @@ class DDoSVisualizer:
                     ax4.set_ylabel('Reconstruction Error', fontsize=10)
                     ax4.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
                     plt.setp(ax4.xaxis.get_majorticklabels(), rotation=45, fontsize=8)
-                    ax4.legend(fontsize=8)
+                    ax4.legend(fontsize=7, loc='upper left')
                     ax4.grid(True, alpha=0.3)
                     
                     # Plot 5: Individual table for this day
@@ -749,9 +781,10 @@ class DDoSVisualizer:
                 
                 # Save figure
                 filename = f'daily_error_analysis_{model_name}.png'
-                plt.savefig(os.path.join(RESULTS_DIR, filename), dpi=DPI, bbox_inches='tight')
+                out_dir = self._get_model_results_dir(model_name)
+                plt.savefig(os.path.join(out_dir, filename), dpi=DPI, bbox_inches='tight')
                 plt.close()
-                print(f"Saved daily error analysis: {RESULTS_DIR}/{filename}")
+                print(f"Saved daily error analysis: {os.path.join(out_dir, filename)}")
                 
             except Exception as e:
                 print(f"Error creating daily error analysis for {model_name}: {e}")
