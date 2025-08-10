@@ -7,12 +7,14 @@ Supports multiple attack types and improved detection sensitivity
 # Configure TensorFlow logging at the very beginning
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+# Enable GPU usage - remove or comment out the line below to use GPUs
+# os.environ['CUDA_VISIBLE_DEVICES'] = ''  # This was disabling all GPUs
 os.environ['TF_ENABLE_DEPRECATION_WARNINGS'] = '0'
-os.environ['TF_ENABLE_XLA'] = '0'
+# Enable optimizations for better GPU performance
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_ENABLE_XLA'] = '1'
 os.environ['XLA_FLAGS'] = '--xla_gpu_cuda_data_dir=/usr/local/cuda'
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=true'
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -35,11 +37,27 @@ tf.get_logger().setLevel('ERROR')
 try:
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
+        print(f"Found {len(gpu_devices)} GPU(s): {[gpu.name for gpu in gpu_devices]}")
         for gpu in gpu_devices:
             tf.config.experimental.set_memory_growth(gpu, True)
         print("TensorFlow GPU memory growth configured")
+        
+        # Set device placement policy to handle mixed CPU/GPU tensors
+        tf.config.experimental.set_device_policy('warn')
+        
+        # Verify GPU is available for TensorFlow
+        print(f"TensorFlow built with CUDA: {tf.test.is_built_with_cuda()}")
+        print(f"GPU available to TensorFlow: {tf.test.is_gpu_available()}")
+        
+        # Set default placement to GPU
+        print("Using GPU for computations")
+    else:
+        print("No GPUs found. Running on CPU.")
+        tf.config.experimental.set_device_policy('silent')
 except Exception as e:
-    print(f"TensorFlow early configuration failed: {e}")
+    print(f"TensorFlow GPU configuration failed: {e}")
+    print("Falling back to CPU execution.")
+    tf.config.experimental.set_device_policy('silent')
 
 from detection_system import DDoSDetectionSystem
 from visualization import DDoSVisualizer
@@ -50,6 +68,8 @@ def main():
     parser = argparse.ArgumentParser(description='DDoS Detection System')
     parser.add_argument('--no-cache', action='store_true', 
                        help='Force retraining even if models exist')
+    parser.add_argument('--recalculate-thresholds', action='store_true',
+                       help='Force recalculation of thresholds with current config method')
     args = parser.parse_args()
     
     print("DDoS Detection System Starting...")
@@ -102,6 +122,14 @@ def main():
     else:
         print("\nLoading existing models...")
         detector.load_models()
+        # Recalculate training metrics for loaded models (this now includes automatic threshold verification)
+        detector._recalculate_training_metrics(train_data)
+        
+        # Force threshold recalculation if requested (for manual override)
+        if args.recalculate_thresholds:
+            print("\nForcing threshold recalculation as requested...")
+            detector.force_recalculate_thresholds(train_data)
+            print("Thresholds recalculated successfully!")
     
     print("\nEvaluating enhanced models...")
     eval_start = time.time()

@@ -7,7 +7,7 @@ import os
 
 # Directory Configuration
 INPUT_DIR = "./datasets/ramfs"
-MODELS_DIR = "./models"
+ARTEFACTS_DIR = "./artefacts"
 RESULTS_DIR = "./results"
 
 # Data Processing Configuration
@@ -19,13 +19,19 @@ ATTACK_PERIODS = [
     {
         "name": "flow_attack",
         "start": "2025-07-16 17:27:00",
-        "end": "2025-07-16 17:31:00",
+        "end": "2025-07-16 17:33:00",
         "type": "flow_based"
     },
     {
         "name": "volume_attack", 
-        "start": "2025-07-16 21:00:00",
-        "end": "2025-07-16 22:00:00",
+        "start": "2025-07-16 19:20:00",
+        "end": "2025-07-16 19:26:00",
+        "type": "volume_based"
+    },
+    {
+        "name": "volume_attack", 
+        "start": "2025-07-16 20:50:00",
+        "end": "2025-07-16 21:50:00",
         "type": "volume_based"
     }
 ]
@@ -43,13 +49,25 @@ STANDARD_AE_DROPOUT = 0.2
 LSTM_AE_LAYERS = [32, 16, 8, 16, 32]
 LSTM_AE_SEQUENCE_LENGTH = 10
 
+# Threshold calculation method
+# Options: 'statistical' (MSE + stddev), 'percentile', 'enhanced'
+THRESHOLD_METHOD = 'statistical'  # Change this to use MSE + stddev thresholds
+
 # Detection sensitivity thresholds
 # Higher percentiles = less sensitive (fewer detections)
 # Lower percentiles = more sensitive (more detections)
-ANOMALY_THRESHOLD_PERCENTILE = 98  # Only flag top 2% of anomalies
+THRESHOLD_PERCENTILES = {
+    'standard_ae': {
+        'standard': 99,  # Only flag top 1% of anomalies
+        'flow': 99       # Only flag top 1% of flow anomalies
+    },
+    'lstm_ae': {
+        'standard': 99,  # Only flag top 1% of anomalies  
+        'flow': 99       # Only flag top 1% of flow anomalies
+    }
+}
 
 # Flow-based attack specific thresholds
-FLOW_ANOMALY_THRESHOLD_PERCENTILE = 95 # Only flag top 5% of flow anomalies
 FLOW_MULTIPLIER_THRESHOLD = 10.0  # Alert only if flows > 10x baseline
 
 # Visualization Configuration
@@ -65,13 +83,14 @@ COLORS = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
 MARKERS = ['o', 's', '^', 'v']
 
 # Create necessary directories
-os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(ARTEFACTS_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # Required model files for loading
 REQUIRED_MODEL_FILES = [
-    "standard_ae.keras", 
+    "standard_ae.keras",
     "lstm_ae.keras", 
-    "scaler.pkl", 
-    "thresholds.pkl"
+    "scaler.pkl",
+    "thresholds.pkl",
+    "threshold_config.pkl"
 ]

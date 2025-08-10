@@ -200,6 +200,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+.vscode
 
 # Marimo
 marimo/_static/
@@ -208,7 +209,7 @@ __marimo__/
 
 # Application specific
 datasets/ramfs/*.csv
-models/cache/
-models/*.keras
-models/*.pkl
-models/*.h5
+artefacts/cache/
+artefacts/*.keras
+artefacts/*.pkl
+artefacts/*.h5

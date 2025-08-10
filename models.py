@@ -6,11 +6,12 @@ Machine Learning Models for DDoS Detection System
 # Configure TensorFlow logging at the very beginning
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+# GPU acceleration enabled - remove the lines below if you want CPU-only execution
+# os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_ENABLE_DEPRECATION_WARNINGS'] = '0'
-os.environ['TF_ENABLE_XLA'] = '0'
+# os.environ['TF_ENABLE_XLA'] = '0'
 os.environ['XLA_FLAGS'] = '--xla_gpu_cuda_data_dir=/usr/local/cuda'
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
+# os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
 
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -48,26 +49,32 @@ class StandardAutoencoder:
         self.training_stddev = None
         
     def build_model(self):
-        """Build the autoencoder architecture"""
-        input_layer = layers.Input(shape=(self.input_dim,))
-        encoded = layers.Dense(64, activation='relu')(input_layer)
-        encoded = layers.Dropout(STANDARD_AE_DROPOUT)(encoded)
-        encoded = layers.Dense(32, activation='relu')(encoded)
-        encoded = layers.Dropout(STANDARD_AE_DROPOUT)(encoded)
-        bottleneck = layers.Dense(self.encoding_dim, activation='relu', name='bottleneck')(encoded)
+        """Build the autoencoder architecture with explicit GPU placement"""
+        # Use GPU if available, otherwise fallback to CPU
+        device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
         
-        decoded = layers.Dense(32, activation='relu')(bottleneck)
-        decoded = layers.Dropout(STANDARD_AE_DROPOUT)(decoded)
-        decoded = layers.Dense(64, activation='relu')(decoded)
-        decoded = layers.Dropout(STANDARD_AE_DROPOUT)(decoded)
-        output_layer = layers.Dense(self.input_dim, activation='linear')(decoded)
+        with tf.device(device):
+            input_layer = layers.Input(shape=(self.input_dim,))
+            encoded = layers.Dense(64, activation='relu')(input_layer)
+            encoded = layers.Dropout(STANDARD_AE_DROPOUT)(encoded)
+            encoded = layers.Dense(32, activation='relu')(encoded)
+            encoded = layers.Dropout(STANDARD_AE_DROPOUT)(encoded)
+            bottleneck = layers.Dense(self.encoding_dim, activation='relu', name='bottleneck')(encoded)
+            
+            decoded = layers.Dense(32, activation='relu')(bottleneck)
+            decoded = layers.Dropout(STANDARD_AE_DROPOUT)(decoded)
+            decoded = layers.Dense(64, activation='relu')(decoded)
+            decoded = layers.Dropout(STANDARD_AE_DROPOUT)(decoded)
+            output_layer = layers.Dense(self.input_dim, activation='linear')(decoded)
+            
+            self.model = Model(input_layer, output_layer)
+            self.model.compile(
+                optimizer=optimizers.Adam(learning_rate=LEARNING_RATE),
+                loss='mse',
+                metrics=['mae']
+            )
         
-        self.model = Model(input_layer, output_layer)
-        self.model.compile(
-            optimizer=optimizers.Adam(learning_rate=LEARNING_RATE),
-            loss='mse',
-            metrics=['mae']
-        )
+        print(f"StandardAutoencoder built on device: {device}")
         return self.model
     
     def train(self, X_train, X_val=None, epochs=EPOCHS, batch_size=BATCH_SIZE):
@@ -152,23 +159,29 @@ class LSTMAutoencoder:
         self.training_stddev = None
         
     def build_model(self):
-        """Build LSTM autoencoder"""
-        input_layer = layers.Input(shape=(self.sequence_length, self.n_features))
-        encoded = layers.LSTM(32, return_sequences=True)(input_layer)
-        encoded = layers.LSTM(16, return_sequences=False)(encoded)
-        bottleneck = layers.Dense(8, activation='relu', name='bottleneck')(encoded)
+        """Build LSTM autoencoder with explicit GPU placement"""
+        # Use GPU if available, otherwise fallback to CPU
+        device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
         
-        decoded = layers.RepeatVector(self.sequence_length)(bottleneck)
-        decoded = layers.LSTM(16, return_sequences=True)(decoded)
-        decoded = layers.LSTM(32, return_sequences=True)(decoded)
-        output_layer = layers.TimeDistributed(layers.Dense(self.n_features))(decoded)
+        with tf.device(device):
+            input_layer = layers.Input(shape=(self.sequence_length, self.n_features))
+            encoded = layers.LSTM(32, return_sequences=True)(input_layer)
+            encoded = layers.LSTM(16, return_sequences=False)(encoded)
+            bottleneck = layers.Dense(8, activation='relu', name='bottleneck')(encoded)
+            
+            decoded = layers.RepeatVector(self.sequence_length)(bottleneck)
+            decoded = layers.LSTM(16, return_sequences=True)(decoded)
+            decoded = layers.LSTM(32, return_sequences=True)(decoded)
+            output_layer = layers.TimeDistributed(layers.Dense(self.n_features))(decoded)
+            
+            self.model = Model(input_layer, output_layer)
+            self.model.compile(
+                optimizer=optimizers.Adam(learning_rate=LEARNING_RATE),
+                loss='mse',
+                metrics=['mae']
+            )
         
-        self.model = Model(input_layer, output_layer)
-        self.model.compile(
-            optimizer=optimizers.Adam(learning_rate=LEARNING_RATE),
-            loss='mse',
-            metrics=['mae']
-        )
+        print(f"LSTMAutoencoder built on device: {device}")
         return self.model
     
     def prepare_sequences(self, data, sequence_length):
