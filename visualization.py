@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import seaborn as sns
+import traceback
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, confusion_matrix, classification_report
 from config import (
     RESULTS_DIR, DPI, FIGURE_SIZE_MAIN, FIGURE_SIZE_TIMELINE,
@@ -90,22 +91,23 @@ class DDoSVisualizer:
         
         if model_trained and has_predict and test_data is not None and attack_data is not None:
             try:
-                # Create extended dataset including more of July 16th for better visualization
-                # Use the full dataset if available to show more test data  
+                # Create dataset with only test days for timeline visualization
+                # Use the full dataset if available to show test data only  
                 if hasattr(self, 'features_df') and self.features_df is not None:
-                    # Use the full dataset and filter for test data
+                    # Use the full dataset and filter for test data only
                     full_data = self.features_df
                     
-                    # Calculate extended timeline date range (include last training day + available test period)
+                    # Calculate test period date range (start from day after training split)
                     train_date = datetime.strptime(TRAIN_SPLIT, "%Y-%m-%d")
-                    # Start from the last day of training data for comprehensive timeline
-                    timeline_start_str = train_date.strftime("%Y-%m-%d")
+                    # Start from the first test day (day after training split)
+                    test_start_date = train_date + timedelta(days=1)
+                    timeline_start_str = test_start_date.strftime("%Y-%m-%d")
                     
                     # Use the actual end date of available data instead of fixed extension
                     data_end_date = pd.to_datetime(full_data['ts_bin'].max()).date()
                     timeline_end_str = (data_end_date + timedelta(days=1)).strftime("%Y-%m-%d")
                     
-                    # Include last training day + entire available test period for comprehensive visualization
+                    # Include only test period for timeline visualization
                     test_period_data = full_data[
                         (full_data['ts_bin'] >= timeline_start_str) & 
                         (full_data['ts_bin'] < timeline_end_str)
@@ -117,7 +119,7 @@ class DDoSVisualizer:
                     # Sort by timestamp to ensure proper order
                     combined_data = combined_data.sort_values('ts_bin').reset_index(drop=True)
                 else:
-                    # Fallback to original approach if full dataset not available
+                    # Fallback to using only test_data if full dataset not available
                     combined_data = pd.concat([test_data, attack_data], ignore_index=True)
                 
                 # Get numerical features only
@@ -218,11 +220,11 @@ class DDoSVisualizer:
                         current_title = ax.get_title()
                         ax.set_title(f"{current_title} - {num_anomalies}/{total_points} anomalies ({anomaly_percentage:.1f}%)")
                     
-                    # Format x-axis for datetime with appropriate ticks for multi-day timeline
-                    # Use day locator for major ticks and hour locator for minor ticks
-                    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=6))
+                    # Format x-axis for datetime with test days only
+                    # Use hourly intervals for better granularity and format as MM-DD-YY HH:MM
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))  # Major ticks every hour
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%y %H:%M'))
+                    ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=30))  # Minor ticks every 30 minutes
                     
                     # Explicitly set x-axis limits to show all data
                     ax.set_xlim(timestamps.min(), timestamps.max())
@@ -253,10 +255,10 @@ class DDoSVisualizer:
                     except Exception as e:
                         print(f"Warning: Could not set y-axis limits for {model_name}: {e}")
                     
-                    # Rotate x-axis labels for better readability
-                    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha='center')
+                    # Rotate x-axis labels for better readability with longer date format
+                    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
                     
-                    ax.set_xlabel('Date (MM-DD)', fontsize=12, fontweight='bold')
+                    ax.set_xlabel('Date/Time (MM-DD-YY HH:MM)', fontsize=12, fontweight='bold')
                 
                 else:
                     # Fallback to simple time steps if no timestamp column
@@ -381,15 +383,16 @@ class DDoSVisualizer:
     def _prepare_confusion_matrix_data(self, attack_data, test_data, attack_periods, ready_models):
         """Prepare ground truth labels and model predictions for confusion matrix analysis"""
         try:
-            # Combine datasets
+            # Combine datasets for test days only
             if hasattr(self, 'features_df') and self.features_df is not None:
-                # Use full dataset for comprehensive analysis
+                # Use full dataset for analysis of test days only
                 full_data = self.features_df
                 
-                # Calculate extended timeline date range (include last training day + available test period)
+                # Calculate test period date range (start from day after training split)
                 train_date = datetime.strptime(TRAIN_SPLIT, "%Y-%m-%d")
-                # Start from the last day of training data for comprehensive timeline
-                timeline_start_str = train_date.strftime("%Y-%m-%d")
+                # Start from the first test day (day after training split)
+                test_start_date = train_date + timedelta(days=1)
+                timeline_start_str = test_start_date.strftime("%Y-%m-%d")
                 
                 # Use the actual end date of available data instead of fixed extension
                 data_end_date = pd.to_datetime(full_data['ts_bin'].max()).date()
