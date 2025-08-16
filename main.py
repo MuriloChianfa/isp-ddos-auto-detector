@@ -1,200 +1,356 @@
-#!/usr/bin/env python3
-"""
-Enhanced DDoS Detection System - Main Script
-Supports multiple attack types and improved detection sensitivity
-"""
-
-# Configure TensorFlow logging at the very beginning
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# Enable GPU usage - remove or comment out the line below to use GPUs
-# os.environ['CUDA_VISIBLE_DEVICES'] = ''  # This was disabling all GPUs
-os.environ['TF_ENABLE_DEPRECATION_WARNINGS'] = '0'
-# Enable optimizations for better GPU performance
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-os.environ['TF_ENABLE_XLA'] = '1'
-os.environ['XLA_FLAGS'] = '--xla_gpu_cuda_data_dir=/usr/local/cuda'
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=true'
-
-import warnings
-warnings.filterwarnings('ignore')
-
-import time
 import numpy as np
 import pandas as pd
-import argparse
-
-import logging
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-logging.getLogger('tensorflow').disabled = True
-logging.getLogger('absl').setLevel(logging.ERROR)
-
-from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
 import tensorflow as tf
-tf.get_logger().setLevel('ERROR')
+from tensorflow import keras
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import glob
+import os
+from datetime import datetime
+from scipy.stats import entropy
 
-try:
-    gpu_devices = tf.config.list_physical_devices('GPU')
-    if gpu_devices:
-        print(f"Found {len(gpu_devices)} GPU(s): {[gpu.name for gpu in gpu_devices]}")
-        for gpu in gpu_devices:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        print("TensorFlow GPU memory growth configured")
+# 1. Load Network Traffic Data with Train/Validation/Test Split
+def load_network_data_by_day(data_path="./datasets/ramfs/"):
+    """Load network traffic data organized by days for train/validation/test split"""
+    
+    # Define day patterns (include day 17 in test dataset)
+    day_patterns = {
+        'train': 'nfcapd.20250714*.csv',      # Day 14 for training
+        'validation': 'nfcapd.20250715*.csv', # Day 15 for validation
+        'test': 'nfcapd.2025071[67]*.csv'     # Day 16 and 17 for testing
+    }
+    
+    datasets = {}
+    
+    for split_name, pattern in day_patterns.items():
+        csv_files = sorted(glob.glob(os.path.join(data_path, pattern)))
         
-        # Set device placement policy to handle mixed CPU/GPU tensors
-        tf.config.experimental.set_device_policy('warn')
-        
-        # Verify GPU is available for TensorFlow
-        print(f"TensorFlow built with CUDA: {tf.test.is_built_with_cuda()}")
-        print(f"GPU available to TensorFlow: {tf.test.is_gpu_available()}")
-        
-        # Set default placement to GPU
-        print("Using GPU for computations")
-    else:
-        print("No GPUs found. Running on CPU.")
-        tf.config.experimental.set_device_policy('silent')
-except Exception as e:
-    print(f"TensorFlow GPU configuration failed: {e}")
-    print("Falling back to CPU execution.")
-    tf.config.experimental.set_device_policy('silent')
-
-from detection_system import DDoSDetectionSystem
-from visualization import DDoSVisualizer
-
-
-def main():
-    """Main function with multi-attack detection"""
-    parser = argparse.ArgumentParser(description='DDoS Detection System')
-    parser.add_argument('--no-cache', action='store_true', 
-                       help='Force retraining even if models exist')
-    parser.add_argument('--recalculate-thresholds', action='store_true',
-                       help='Force recalculation of thresholds with current config method')
-    args = parser.parse_args()
-    
-    print("DDoS Detection System Starting...")
-    print("=" * 60)
-    
-    detector = DDoSDetectionSystem()
-    
-    print("Loading and processing netflow data...")
-    start_time = time.time()
-    features_df = detector.load_and_process_data()
-    load_time = time.time() - start_time
-    print(f"Total time windows: {len(features_df)}")
-    print(f"Time range: {features_df.ts_bin.min()} to {features_df.ts_bin.max()}")
-    
-    print("\nSplitting data with enhanced attack period handling...")
-    train_data, attack_data, test_data, attack_info, additional_normal_data = detector.split_data_enhanced(features_df)
-    
-    print(f"Training data: {len(train_data)} windows (normal traffic)")
-    print(f"Attack data: {len(attack_data)} windows total")
-    for attack_name, data in attack_info.items():
-        attack_type = data['attack_type'].iloc[0] if len(data) > 0 else "unknown"
-        print(f"  - {attack_name} ({attack_type}): {len(data)} windows")
-    print(f"Test data: {len(test_data)} windows (normal traffic)")
-    print(f"Additional normal data: {len(additional_normal_data)} windows")
-    
-    # Check if models exist and determine whether to retrain
-    models_exist = detector.check_saved_models()
-    retrain = True
-    
-    if models_exist and not args.no_cache:
-        print("\nUsing existing models (use --no-cache to force retraining)...")
-        retrain = False
-    elif models_exist and args.no_cache:
-        print("\nForcing retraining (--no-cache specified)...")
-        retrain = True
-    else:
-        print("\nNo saved models found. Training new models...")
-        retrain = True
-    
-    if retrain:
-        print("\nTraining enhanced models...")
-        training_start = time.time()
-        detector.train_models_enhanced(train_data, attack_data)
-        training_time = time.time() - training_start
-        print(f"Training completed in {training_time:.2f} seconds")
-        
-        print("Saving enhanced models...")
-        detector.save_models()
-        print("Models saved successfully")
-    else:
-        print("\nLoading existing models...")
-        detector.load_models()
-        # Recalculate training metrics for loaded models (this now includes automatic threshold verification)
-        detector._recalculate_training_metrics(train_data)
-        
-        # Force threshold recalculation if requested (for manual override)
-        if args.recalculate_thresholds:
-            print("\nForcing threshold recalculation as requested...")
-            detector.force_recalculate_thresholds(train_data)
-            print("Thresholds recalculated successfully!")
-    
-    print("\nEvaluating enhanced models...")
-    eval_start = time.time()
-    results = detector.evaluate_models_enhanced(attack_info, test_data, additional_normal_data)
-    eval_time = time.time() - eval_start
-    print(f"Evaluation completed in {eval_time:.2f} seconds")
-    
-    print("\n" + "=" * 60)
-    print("ENHANCED DETECTION RESULTS")
-    print("=" * 60)
-    
-    for model_name, model_results in results.items():
-        print(f"\n{model_name.upper().replace('_', ' ')}")
-        print("-" * 40)
-        
-        for attack_name, attack_results in model_results['attack_detection_by_type'].items():
-            attack_type = attack_info[attack_name]['attack_type'].iloc[0]
-            windows_detected = attack_results['windows_detected']
-            total_windows = attack_results['total_windows']
-            standard_rate = attack_results['standard_detection_rate'] * 100
-            flow_rate = attack_results['flow_sensitive_rate'] * 100
+        if not csv_files:
+            print(f"Warning: No files found for {split_name} with pattern {pattern}")
+            continue
             
-            print(f"  {attack_name} ({attack_type}):")
-            print(f"     Standard detection: {standard_rate:.1f}% ({windows_detected}/{total_windows} windows)")
-            print(f"     Flow-sensitive:     {flow_rate:.1f}% ({windows_detected}/{total_windows} windows)")
+        data_frames = []
+        print(f"Loading {len(csv_files)} CSV files for {split_name} set...")
         
-        fp_rate = model_results['false_positive_rate'] * 100
-        additional_fp_rate = model_results['additional_fp_rate'] * 100
-        print(f"  False positives:")
-        print(f"     Test data:    {fp_rate:.1f}%")
-        print(f"     Additional normal: {additional_fp_rate:.1f}%")
+        for i, file in enumerate(csv_files):
+            if i % 50 == 0:
+                print(f"  Processing {split_name} file {i+1}/{len(csv_files)}: {os.path.basename(file)}")
+            
+            df = pd.read_csv(file)
+            # Add timestamp information for timeline analysis
+            filename = os.path.basename(file)
+            timestamp_str = filename.replace('nfcapd.', '').replace('.csv', '')
+            df['file_timestamp'] = pd.to_datetime(timestamp_str, format='%Y%m%d%H%M')
+            data_frames.append(df)
+        
+        # Combine data for this split
+        if data_frames:
+            combined_data = pd.concat(data_frames, ignore_index=True)
+            datasets[split_name] = combined_data
+            print(f"  {split_name.capitalize()} set: {len(combined_data)} records from {len(combined_data['file_timestamp'].unique())} time windows")
     
-    print(f"\nGenerating charts and error metrics...")
+    return datasets
 
-    try:
-        visualizer = DDoSVisualizer(detector)
-        combined_attack_data = pd.concat([attack_info[name] for name in attack_info.keys()], ignore_index=True)
-        visualizer.plot_detailed_timeline(combined_attack_data, test_data, features_df)
-        print("Timeline charts saved to results/ directory.")
+# Load the datasets split by days
+datasets = load_network_data_by_day()
 
-        for model_name in detector.models.keys():
-            # Get model threshold
-            threshold = detector.thresholds.get(model_name, 0.5)
+# Extract individual datasets
+train_data = datasets.get('train')
+validation_data = datasets.get('validation') 
+test_data = datasets.get('test')
+
+# 2. Advanced Feature Engineering for Network Anomaly Detection
+def calculate_port_entropy(ports):
+    """Calculate entropy of port distribution"""
+    if len(ports) == 0:
+        return 0
+    _, counts = np.unique(ports, return_counts=True)
+    return entropy(counts, base=2)
+
+def prepare_advanced_features(df):
+    """Extract comprehensive features for network anomaly detection"""
+    time_grouped = df.groupby('file_timestamp')
+    
+    features_list = []
+    timestamps = []
+    
+    for timestamp, group in time_grouped:
+        if len(group) == 0:
+            continue
             
-            # Get test data errors
-            X_test = detector.prepare_data_for_prediction(test_data)
-            errors = detector.models[model_name].predict(X_test)
-            
-            # Calculate metrics
-            mse = np.mean(errors)
-            mae = np.mean(np.abs(errors))
-            std_dev = np.std(errors)
-            
-            print(f"\n{model_name.upper().replace('_', ' ')}:")
-            print(f"  MSE:              {mse:.5f}")
-            print(f"  MAE:              {mae:.5f}")
-            print(f"  Standard Deviation: {std_dev:.5f}")
-            print(f"  Threshold:        {threshold:.5f}")
-            print(f"  Error Range:      [{np.min(errors):.5f}, {np.max(errors):.5f}]")
+        feature_row = {}
+        timestamps.append(timestamp)
         
-        print("\nAll charts saved to results/ directory.")
+        # Basic flow statistics
+        feature_row['total_flows'] = len(group)
+        feature_row['total_packets'] = group['packets'].sum()
+        feature_row['total_bytes'] = group['bytes'].sum()
+        feature_row['avg_duration'] = group['duration'].mean()
         
-    except Exception as e:
-        print(f"Visualization error: {e}")
+        # Traffic rate features (key for DDoS detection)
+        time_span = 300  # 5 minutes in seconds (typical nfcapd collection interval)
+        feature_row['packet_rate'] = feature_row['total_packets'] / time_span  # packets per second
+        feature_row['bit_rate'] = (feature_row['total_bytes'] * 8) / time_span  # bits per second
+        feature_row['flow_rate'] = feature_row['total_flows'] / time_span  # flows per second
+        
+        # Packet size statistics
+        feature_row['avg_packet_size'] = group['bytes'].sum() / (group['packets'].sum() + 1)
+        feature_row['packets_per_flow'] = group['packets'].mean()
+        feature_row['bytes_per_flow'] = group['bytes'].mean()
+        
+        # Port entropy (diversity indicators)
+        feature_row['src_port_entropy'] = calculate_port_entropy(group['srcPort'].values)
+        feature_row['dst_port_entropy'] = calculate_port_entropy(group['dstPort'].values)
+        
+        # Protocol distribution
+        proto_counts = group['proto'].value_counts()
+        feature_row['tcp_ratio'] = proto_counts.get(6, 0) / len(group)  # TCP
+        feature_row['udp_ratio'] = proto_counts.get(17, 0) / len(group)  # UDP
+        feature_row['icmp_ratio'] = proto_counts.get(1, 0) / len(group)  # ICMP
+        
+        # IP diversity (potential for DDoS detection)
+        feature_row['unique_src_ips'] = group['srcAddr'].nunique()
+        feature_row['unique_dst_ips'] = group['dstAddr'].nunique()
+        feature_row['src_ip_entropy'] = calculate_port_entropy(group['srcAddr'].values)
+        feature_row['dst_ip_entropy'] = calculate_port_entropy(group['dstAddr'].values)
+        
+        # Connection patterns
+        feature_row['avg_src_ports_per_ip'] = group.groupby('srcAddr')['srcPort'].nunique().mean()
+        feature_row['avg_dst_ports_per_ip'] = group.groupby('dstAddr')['dstPort'].nunique().mean()
+        
+        # Traffic volume distribution
+        feature_row['max_bytes_per_flow'] = group['bytes'].max()
+        feature_row['std_bytes_per_flow'] = group['bytes'].std()
+        feature_row['max_packets_per_flow'] = group['packets'].max()
+        feature_row['std_packets_per_flow'] = group['packets'].std()
+        
+        features_list.append(feature_row)
+    
+    features_df = pd.DataFrame(features_list)
+    features_df['timestamp'] = timestamps
+    
+    return features_df
 
+# Prepare advanced features for each dataset
+features_dict = {}
 
-if __name__ == "__main__":
-    main()
+for split_name, data in datasets.items():
+    if data is not None:
+        features_dict[split_name] = prepare_advanced_features(data)
+
+# Extract feature matrices
+train_features = features_dict.get('train')
+validation_features = features_dict.get('validation')
+test_features = features_dict.get('test')
+
+# Prepare training data (remove timestamp for model training)
+if train_features is not None:
+    feature_cols = [col for col in train_features.columns if col != 'timestamp']
+    training_features = train_features[feature_cols].copy()
+    
+    # Remove any infinite or NaN values
+    training_features = training_features.replace([np.inf, -np.inf], np.nan).fillna(0)
+    
+    # Use training data for fitting the scaler (normal traffic only)
+    normal_data = training_features.copy()
+else:
+    print("Error: No training data available!")
+    exit(1)
+
+# 3. Preprocessing: Scale the data using training data
+scaler = MinMaxScaler()
+scaled_train_data = scaler.fit_transform(normal_data)
+
+# Prepare validation data if available
+scaled_validation_data = None
+if validation_features is not None:
+    validation_training_features = validation_features[feature_cols].copy()
+    validation_training_features = validation_training_features.replace([np.inf, -np.inf], np.nan).fillna(0)
+    scaled_validation_data = scaler.transform(validation_training_features)
+
+# Prepare test data if available  
+scaled_test_data = None
+test_training_features = None
+if test_features is not None:
+    test_training_features = test_features[feature_cols].copy()
+    test_training_features = test_training_features.replace([np.inf, -np.inf], np.nan).fillna(0)
+    scaled_test_data = scaler.transform(test_training_features)
+
+# Define the Autoencoder Model
+input_dim = scaled_train_data.shape[1]
+latent_dim = 8
+
+autoencoder = keras.Sequential([
+    keras.layers.Input(shape=(input_dim,)),
+    keras.layers.Dense(32, activation='relu'),
+    keras.layers.Dense(16, activation='relu'),
+    keras.layers.Dense(latent_dim, activation='relu'),  # Bottleneck (encoder)
+    keras.layers.Dense(16, activation='relu'),
+    keras.layers.Dense(32, activation='relu'),
+    keras.layers.Dense(input_dim, activation='linear')  # Output layer (decoder)
+])
+
+autoencoder.compile(optimizer='adam', loss='mse')
+
+# Train the Autoencoder
+if scaled_validation_data is not None:
+    history = autoencoder.fit(scaled_train_data, scaled_train_data,
+                              epochs=30,
+                              batch_size=32,
+                              validation_data=(scaled_validation_data, scaled_validation_data),
+                              verbose=1)
+else:
+    history = autoencoder.fit(scaled_train_data, scaled_train_data,
+                              epochs=30,
+                              batch_size=32,
+                              validation_split=0.1,
+                              verbose=1)
+
+# Anomaly Detection on all datasets
+def detect_anomalies(scaled_data, features_df, dataset_name):
+    """Detect anomalies for a given dataset"""
+    if scaled_data is None or features_df is None:
+        return None, None, None
+        
+    reconstructions = autoencoder.predict(scaled_data)
+    mse = np.mean(np.power(scaled_data - reconstructions, 2), axis=1)
+    
+    return reconstructions, mse, features_df.copy()
+
+# Detect anomalies for each dataset
+results = {}
+all_mse_values = []
+
+train_reconstructions, train_mse, train_results_df = detect_anomalies(scaled_train_data, train_features, "training")
+if train_mse is not None:
+    results['train'] = (train_reconstructions, train_mse, train_results_df)
+    all_mse_values.extend(train_mse)
+
+val_reconstructions, val_mse, val_results_df = detect_anomalies(scaled_validation_data, validation_features, "validation")
+if val_mse is not None:
+    results['validation'] = (val_reconstructions, val_mse, val_results_df)
+    all_mse_values.extend(val_mse)
+
+test_reconstructions, test_mse, test_results_df = detect_anomalies(scaled_test_data, test_features, "test")
+if test_mse is not None:
+    results['test'] = (test_reconstructions, test_mse, test_results_df)
+    all_mse_values.extend(test_mse)
+
+# 7. Set a Threshold and Identify Anomalies (based on ALL normal traffic)
+# Combine MSE from both training and validation (both contain only normal traffic)
+normal_mse_values = []
+if train_mse is not None:
+    normal_mse_values.extend(train_mse)
+if val_mse is not None:
+    normal_mse_values.extend(val_mse)
+
+if len(normal_mse_values) == 0:
+    print("Error: No normal traffic data available for threshold calculation!")
+    exit(1)
+
+normal_mse_values = np.array(normal_mse_values)
+
+# Calculate threshold using MSE + StdDev of normal traffic reconstruction errors
+normal_mse_mean = np.mean(normal_mse_values)
+normal_mse_std = np.std(normal_mse_values)
+threshold = normal_mse_mean + normal_mse_std
+
+# Apply threshold to all datasets
+for split_name, (reconstructions, mse, features_df) in results.items():
+    anomalies = mse > threshold
+    features_df['reconstruction_error'] = mse
+    features_df['is_anomaly'] = anomalies
+    results[split_name] = (reconstructions, mse, features_df)
+
+print()
+
+# Combine all results for visualization
+all_features = []
+all_timestamps = []
+all_mse = []
+all_anomalies = []
+all_datasets = []
+
+for split_name, (_, mse, features_df) in results.items():
+    all_features.append(features_df)
+    all_timestamps.extend(features_df['timestamp'])
+    all_mse.extend(mse)
+    all_anomalies.extend(features_df['is_anomaly'])
+    all_datasets.extend([split_name] * len(features_df))
+
+# Create combined dataframe for visualization
+combined_features = pd.concat(all_features, ignore_index=True)
+combined_features['dataset'] = all_datasets
+
+# Analyze temporal distribution of anomalies in test set
+if 'test' in results:
+    test_features_df = results['test'][2]
+    test_anomalies = test_features_df[test_features_df['is_anomaly']]
+
+# Anomaly Detection Visualization
+timestamps = combined_features['timestamp']
+anomalies = combined_features['is_anomaly']
+anomaly_times = timestamps[anomalies]
+
+# Enhanced Anomaly Detection Chart - Test Dataset Only
+plt.figure(figsize=(20, 10))
+
+# Filter data to show only test dataset
+test_mask = combined_features['dataset'] == 'test'
+test_data = combined_features[test_mask]
+
+if len(test_data) > 0:
+    test_timestamps = test_data['timestamp']
+    test_anomaly_scores = test_data['reconstruction_error']
+    test_anomalies_mask = test_data['is_anomaly']
+
+    if np.sum(test_anomalies_mask) > 0:
+        anomaly_timestamps = test_timestamps[test_anomalies_mask]
+        for i, anomaly_time in enumerate(anomaly_timestamps):
+            # Assuming each data point represents a 5-minute window
+            window_start = anomaly_time - pd.Timedelta(minutes=2.5)
+            window_end = anomaly_time + pd.Timedelta(minutes=2.5)
+            plt.axvspan(window_start, window_end, alpha=0.25, color='red', 
+                       label='Detected Anomaly Period' if i == 0 else "", zorder=1)
+
+    plt.plot(test_timestamps, test_anomaly_scores, 
+            color='green', alpha=0.8, linewidth=1.5, 
+            label='Anomaly Scores', zorder=5)
+
+    # Add main anomaly detection threshold line
+    plt.axhline(y=threshold, color='red', linestyle='--', alpha=0.8, linewidth=2, 
+               label=f'Anomaly Threshold: {threshold:.6f}')
+
+    # Calculate statistical reference lines for normal traffic (training + validation only)
+    normal_mask = (combined_features['dataset'] == 'train') | (combined_features['dataset'] == 'validation')
+    normal_anomaly_scores = combined_features[normal_mask]['reconstruction_error']
+
+    mae_anomaly_score = np.mean(np.abs(normal_anomaly_scores))
+    mse_anomaly_score = np.mean(normal_anomaly_scores)
+    mse_plus_std_anomaly_score = np.mean(normal_anomaly_scores) + np.std(normal_anomaly_scores)
+
+    # Add statistical reference lines to the chart
+    plt.axhline(y=mae_anomaly_score, color='purple', linestyle='-.', alpha=0.7, linewidth=1.5, 
+               label=f'MAE (Normal): {mae_anomaly_score:.6f}')
+    plt.axhline(y=mse_anomaly_score, color='orange', linestyle='-.', alpha=0.7, linewidth=1.5, 
+               label=f'MSE (Normal): {mse_anomaly_score:.6f}')
+    plt.axhline(y=mse_plus_std_anomaly_score, color='brown', linestyle='-.', alpha=0.7, linewidth=1.5, 
+               label=f'MSE + STD (Normal): {mse_plus_std_anomaly_score:.6f}')
+
+    plt.xlabel('Time', fontsize=12)
+    plt.ylabel('Anomaly Score (Reconstruction Error)', fontsize=12)
+    plt.title('Network Traffic Anomaly Detection', fontsize=14, fontweight='bold')
+
+    # Configure x-axis to show hourly ticks
+    plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=1))  # Every hour
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+
+    plt.legend(fontsize=9, bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, alpha=0.3)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("No test data available for visualization")
