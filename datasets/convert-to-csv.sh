@@ -31,7 +31,7 @@ for dir in "$DATASET_DIR"/*; do
     fi
 
     echo "converting: $f to $out"
-    nfdump -r "$f" -o csv "dst as ${TARGET_ASN}" > "$out"
+    nfdump -r "$f" -o "csv:%ts,%td,%pr,%sa,%sp,%da,%dp,%pkt,%byt,%fl,%sas,%das,%sc,%dc,%flg" "dst as ${TARGET_ASN}" > "$out"
   done
 done
 

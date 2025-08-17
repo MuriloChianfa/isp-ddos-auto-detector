@@ -209,6 +209,7 @@ __marimo__/
 
 # Application specific
 datasets/ramfs/*.csv
+results/dataset/*
 artefacts/cache/
 artefacts/*.keras
 artefacts/*.pkl

@@ -6,6 +6,7 @@ from framework.features import NetworkFeatureExtractor
 from framework.models.autoencoder import AutoencoderAnomalyDetector
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
+# from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
 def main():
@@ -17,6 +18,10 @@ def main():
     feature_extractor = NetworkFeatureExtractor()
     features_dict = feature_extractor.process_datasets(datasets)
     processed_features = feature_extractor.prepare_training_data(features_dict)
+    
+    # print("\nGenerating dataset feature visualizations...")
+    # feature_viz = DatasetFeatureVisualizer()
+    # feature_viz.generate_all_feature_plots(features_dict, create_comparisons=True)
     
     print("\nInitializing autoencoder model...")
     model = AutoencoderAnomalyDetector(latent_dim=8)
@@ -32,6 +37,7 @@ def main():
     scaled_test_data = model.transform_data(test_features)
     
     input_dim = scaled_train_data.shape[1]
+    print(f"\nNumber of input features: {input_dim}")
     model.build_model(input_dim)
     
     print("\nTraining model...")

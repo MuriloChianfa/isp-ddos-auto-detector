@@ -17,16 +17,20 @@ class AutoencoderAnomalyDetector:
         self.autoencoder = keras.Sequential([
             keras.layers.Input(shape=(input_dim,)),
             
-            keras.layers.Dense(64, activation='relu'),
+            # Encoder: Progressive compression
             keras.layers.Dense(32, activation='relu'),
-            keras.layers.Dense(16, activation='relu'),
+            keras.layers.Dense(20, activation='relu'),
+            keras.layers.Dense(12, activation='relu'),
             
+            # Bottleneck (latent space)
             keras.layers.Dense(self.latent_dim, activation='relu'),
             
-            keras.layers.Dense(16, activation='relu'),
+            # Decoder: Progressive reconstruction
+            keras.layers.Dense(12, activation='relu'),
+            keras.layers.Dense(20, activation='relu'),
             keras.layers.Dense(32, activation='relu'),
-            keras.layers.Dense(64, activation='relu'),
             
+            # Output layer
             keras.layers.Dense(input_dim, activation='linear')
         ])
         
