@@ -31,7 +31,7 @@ class TrainingVisualizer:
         
         plt.tight_layout()
         
-        filename = os.path.join(self.results_dir, f"{model_name}_training_history.png")
+        filename = os.path.join(self.results_dir, f"training_history.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
         

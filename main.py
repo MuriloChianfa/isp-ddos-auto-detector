@@ -1,21 +1,24 @@
 import numpy as np
 import pandas as pd
+import os
+import argparse
 
 from framework.loader import NetworkDataLoader
 from framework.features import NetworkFeatureExtractor
 from framework.models.autoencoder import AutoencoderAnomalyDetector
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
+from framework.evaluation import GroundTruthEvaluator
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
-def main():
+def main(use_cache=True):
     print("Loading network traffic data...")
-    loader = NetworkDataLoader()
+    loader = NetworkDataLoader(use_cache=use_cache)
     datasets = loader.load_network_data_by_day()
     
     print("\nExtracting features...")
-    feature_extractor = NetworkFeatureExtractor()
+    feature_extractor = NetworkFeatureExtractor(use_cache=use_cache)
     features_dict = feature_extractor.process_datasets(datasets)
     processed_features = feature_extractor.prepare_training_data(features_dict)
     
@@ -53,7 +56,7 @@ def main():
     val_reconstructions, val_mse = model.predict(scaled_validation_data)
     test_reconstructions, test_mse = model.predict(scaled_test_data)
     
-    threshold, all_thresholds = model.calculate_threshold(train_mse, val_mse, 'mean_plus_2std')
+    threshold, all_thresholds = model.calculate_threshold(train_mse, val_mse, 'mean_plus_3std')
     
     results = {}
     all_features = []
@@ -95,8 +98,31 @@ def main():
     anomaly_viz.plot_anomaly_detection(combined_features, threshold)
     anomaly_viz.print_anomaly_statistics(combined_features, threshold)
     
+    # Ground Truth Evaluation
+    print("\nPerforming ground truth evaluation on test dataset...")
+    evaluator = GroundTruthEvaluator()
+
+    # Extract test dataset
+    test_data = combined_features[combined_features['dataset'] == 'test'].copy()
+
+    # Evaluate against ground truth
+    evaluation_metrics = evaluator.evaluate_test_dataset(test_data, threshold)
+    
     print("\nAnalysis completed. Results saved to ./results/autoencoder/")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="ISP DDoS Auto Detector")
+    parser.add_argument(
+        '--no-cache',
+        action='store_true',
+        help='Disable caching system (force reload all data)'
+    )
+    
+    args = parser.parse_args()
+    use_cache = not args.no_cache
+    
+    if not use_cache:
+        print("Caching disabled - will reload all data from scratch")
+    
+    main(use_cache=use_cache)

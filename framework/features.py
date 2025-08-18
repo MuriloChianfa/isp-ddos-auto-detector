@@ -1,17 +1,21 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import entropy
+from .cache import DataCache
 
 
 class NetworkFeatureExtractor:
-    def __init__(self, time_span=10):
+    def __init__(self, time_span=10, use_cache=True):
         """
         Initialize NetworkFeatureExtractor
         
         Args:
             time_span (int): Time window in seconds for rate calculations (default: 10 for real-time processing)
+            use_cache (bool): Whether to use caching for feature extraction
         """
         self.time_span = time_span
+        self.use_cache = use_cache
+        self.cache = DataCache() if use_cache else None
     
     @staticmethod
     def calculate_port_entropy(ports):
@@ -173,15 +177,41 @@ class NetworkFeatureExtractor:
 
     def process_datasets(self, datasets):
         """Process all datasets and extract features"""
+        
+        # Try to load from cache first
+        if self.use_cache and self.cache:
+            datasets_hash = DataCache.hash_dataframes(datasets)
+            cached_features = self.cache.get_features_cache(datasets_hash, self.time_span)
+            if cached_features is not None:
+                print("Using cached features!")
+                return cached_features
+        
+        print("Extracting features from datasets...")
         features_dict = {}
         
         for split_name, data in datasets.items():
+            print(f"Processing {split_name} dataset...")
             features_dict[split_name] = self.prepare_advanced_features(data)
+        
+        # Save to cache for next time
+        if self.use_cache and self.cache:
+            datasets_hash = DataCache.hash_dataframes(datasets)
+            self.cache.save_features_cache(features_dict, datasets_hash, self.time_span)
         
         return features_dict
 
     def prepare_training_data(self, features_dict):
         """Prepare and clean feature matrices for training"""
+        
+        # Try to load from cache first
+        if self.use_cache and self.cache:
+            features_hash = DataCache.hash_dataframes(features_dict)
+            cached_processed = self.cache.get_processed_features_cache(features_hash)
+            if cached_processed is not None:
+                print("Using cached processed features!")
+                return cached_processed
+        
+        print("Processing features for training...")
         processed_features = {}
         
         for split_name, features_df in features_dict.items():
@@ -192,5 +222,10 @@ class NetworkFeatureExtractor:
                 'features': training_features,
                 'timestamps': features_df['timestamp']
             }
+        
+        # Save to cache for next time
+        if self.use_cache and self.cache:
+            features_hash = DataCache.hash_dataframes(features_dict)
+            self.cache.save_processed_features_cache(processed_features, features_hash)
         
         return processed_features

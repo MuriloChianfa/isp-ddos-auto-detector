@@ -65,7 +65,7 @@ class AnomalyVisualizer:
         plt.xticks(rotation=45)
         plt.tight_layout()
         
-        filename = os.path.join(self.results_dir, f"{model_name}_anomaly_detection.png")
+        filename = os.path.join(self.results_dir, f"anomaly_detection.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
         
@@ -136,7 +136,7 @@ class AnomalyVisualizer:
         plt.xticks(rotation=45)
         plt.tight_layout()
         
-        focused_filename = os.path.join(self.results_dir, f"{model_name}_anomaly_detection_focused.png")
+        focused_filename = os.path.join(self.results_dir, f"anomaly_detection_focused.png")
         plt.savefig(focused_filename, dpi=300, bbox_inches='tight')
         plt.close()
         

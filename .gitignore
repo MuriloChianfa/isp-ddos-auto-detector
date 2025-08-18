@@ -214,3 +214,4 @@ artefacts/cache/
 artefacts/*.keras
 artefacts/*.pkl
 artefacts/*.h5
+cache/*.pkl
