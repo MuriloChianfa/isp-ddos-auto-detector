@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import (
+    confusion_matrix, classification_report, matthews_corrcoef,
+    precision_score, recall_score, roc_auc_score, fbeta_score,
+    accuracy_score, f1_score
+)
 import os
 from .visualization.evaluation_plots import EvaluationVisualizer
 from config import ATTACK_PERIODS
@@ -58,16 +62,31 @@ class GroundTruthEvaluator:
         return ground_truth_labels, detection_labels, gt_threshold
     
     def calculate_metrics(self, y_true, y_pred):
-        """Calculate performance metrics."""
+        """Calculate comprehensive performance metrics."""
         # Confusion matrix
         tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
         
-        # Calculate metrics
+        # Basic metrics
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         accuracy = (tp + tn) / (tp + tn + fp + fn)
         fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
+        
+        # Additional comprehensive metrics
+        mcc = matthews_corrcoef(y_true, y_pred)
+        missrate = fn / (fn + tp) if (fn + tp) > 0 else 0  # False Negative Rate
+        fallout = fp / (fp + tn) if (fp + tn) > 0 else 0   # False Positive Rate (same as fpr)
+        
+        # ROC AUC score
+        try:
+            auc = roc_auc_score(y_true, y_pred)
+        except ValueError:
+            # Handle case where only one class is present
+            auc = 0.0
+        
+        # F-beta scores
+        f2_score = fbeta_score(y_true, y_pred, beta=2, zero_division=0)
         
         return {
             'true_positives': tp,
@@ -79,6 +98,11 @@ class GroundTruthEvaluator:
             'f1_score': f1,
             'accuracy': accuracy,
             'false_positive_rate': fpr,
+            'matthews_corrcoef': mcc,
+            'miss_rate': missrate,
+            'fallout': fallout,
+            'roc_auc_score': auc,
+            'f2_score': f2_score,
             'total_samples': len(y_true),
             'attack_periods': np.sum(y_true),
             'detected_anomalies': np.sum(y_pred)
@@ -96,12 +120,23 @@ class GroundTruthEvaluator:
         print(f"Actual Normal   {metrics['true_negatives']:6d}  {metrics['false_positives']:6d}")
         print(f"       Attack   {metrics['false_negatives']:6d}  {metrics['true_positives']:6d}")
         
-        print(f"\nPerformance Metrics:")
+        print(f"\nBasic Performance Metrics:")
         print(f"  Accuracy:          {metrics['accuracy']:.4f}")
         print(f"  Precision:         {metrics['precision']:.4f}")
         print(f"  Recall:            {metrics['recall']:.4f}")
         print(f"  F1-Score:          {metrics['f1_score']:.4f}")
-        print(f"  False Positive Rate: {metrics['false_positive_rate']:.4f}\n")
+        print(f"  F2-Score:          {metrics['f2_score']:.4f}")
+        
+        print(f"\nAdvanced Performance Metrics:")
+        print(f"  Matthews Correlation Coefficient: {metrics['matthews_corrcoef']:.4f}")
+        print(f"  ROC AUC Score:     {metrics['roc_auc_score']:.4f}")
+        print(f"  Miss Rate (FNR):   {metrics['miss_rate']:.4f}")
+        print(f"  Fallout (FPR):     {metrics['fallout']:.4f}")
+        
+        print(f"\nSample Distribution:")
+        print(f"  Total Samples:     {metrics['total_samples']:,}")
+        print(f"  Attack Periods:    {metrics['attack_periods']:,}")
+        print(f"  Detected Anomalies: {metrics['detected_anomalies']:,}\n")
         
     def create_evaluation_plots(self, test_data, y_true, y_pred, detection_threshold, gt_threshold, metrics):
         """Create evaluation visualizations using the EvaluationVisualizer."""
@@ -130,3 +165,26 @@ class GroundTruthEvaluator:
         self.create_evaluation_plots(test_data, y_true, y_pred, detection_threshold, gt_threshold, metrics)
         
         return metrics
+    
+    def eval_learning(self, y_test, preds):
+        """
+        Comprehensive evaluation function similar to the suggested implementation.
+        Returns all metrics as individual values for easy use.
+        """
+        acc = accuracy_score(y_test, preds)
+        rec = recall_score(y_test, preds, zero_division=0)
+        prec = precision_score(y_test, preds, zero_division=0)
+        f1 = f1_score(y_test, preds, zero_division=0)
+        mcc = matthews_corrcoef(y_test, preds)
+        tn, fp, fn, tp = confusion_matrix(y_test, preds).ravel()
+        missrate = fn / (fn + tp) if (fn + tp) > 0 else 0
+        fallout = fp / (fp + tn) if (fp + tn) > 0 else 0
+        
+        try:
+            auc = roc_auc_score(y_test, preds)
+        except ValueError:
+            auc = 0.0
+            
+        f2_value = fbeta_score(y_test, preds, beta=2, zero_division=0)
+
+        return acc, rec, prec, f1, mcc, missrate, fallout, auc, f2_value

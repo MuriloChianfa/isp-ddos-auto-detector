@@ -54,9 +54,7 @@ class NetworkFeatureExtractor:
                 'ack_flag_ratio': 0,
                 'fin_flag_ratio': 0,
                 'rst_flag_ratio': 0,
-                'psh_flag_ratio': 0,
-                'urg_flag_ratio': 0,
-                'unique_flag_combinations': 0
+                'psh_flag_ratio': 0
             }
         
         # Convert to string and handle NaN values
@@ -69,9 +67,7 @@ class NetworkFeatureExtractor:
                 'ack_flag_ratio': 0,
                 'fin_flag_ratio': 0,
                 'rst_flag_ratio': 0,
-                'psh_flag_ratio': 0,
-                'urg_flag_ratio': 0,
-                'unique_flag_combinations': 0
+                'psh_flag_ratio': 0
             }
         
         # Count individual flags (assuming typical flag representation)
@@ -80,15 +76,12 @@ class NetworkFeatureExtractor:
         fin_count = sum(1 for f in valid_flags if 'F' in f)
         rst_count = sum(1 for f in valid_flags if 'R' in f)
         psh_count = sum(1 for f in valid_flags if 'P' in f)
-        urg_count = sum(1 for f in valid_flags if 'U' in f)
         
         flag_features['syn_flag_ratio'] = syn_count / total_flows
         flag_features['ack_flag_ratio'] = ack_count / total_flows
         flag_features['fin_flag_ratio'] = fin_count / total_flows
         flag_features['rst_flag_ratio'] = rst_count / total_flows
         flag_features['psh_flag_ratio'] = psh_count / total_flows
-        flag_features['urg_flag_ratio'] = urg_count / total_flows
-        flag_features['unique_flag_combinations'] = len(set(valid_flags))
         
         return flag_features
 
@@ -131,24 +124,18 @@ class NetworkFeatureExtractor:
             
             # IP diversity
             feature_row['unique_src_ips'] = group['srcAddr'].nunique()
-            feature_row['unique_dst_ips'] = group['dstAddr'].nunique()
             feature_row['src_ip_entropy'] = self.calculate_port_entropy(group['srcAddr'].values)
-            feature_row['dst_ip_entropy'] = self.calculate_port_entropy(group['dstAddr'].values)
             
             # AS (Autonomous System) features
             feature_row['unique_src_as'] = group['srcAS'].nunique()
-            feature_row['unique_dst_as'] = group['dstAS'].nunique()
             feature_row['src_as_entropy'] = self.calculate_as_entropy(group['srcAS'].values)
-            feature_row['dst_as_entropy'] = self.calculate_as_entropy(group['dstAS'].values)
             
             # AS diversity ratio
             feature_row['as_diversity_ratio'] = feature_row['unique_src_as'] / max(feature_row['unique_src_ips'], 1)
             
             # Geographic features
             feature_row['unique_src_geo'] = group['srcGeo'].nunique()
-            feature_row['unique_dst_geo'] = group['dstGeo'].nunique()
             feature_row['src_geo_entropy'] = self.calculate_geo_entropy(group['srcGeo'].values)
-            feature_row['dst_geo_entropy'] = self.calculate_geo_entropy(group['dstGeo'].values)
             
             # Cross-border traffic ratio
             cross_border = group[group['srcGeo'] != group['dstGeo']]
