@@ -6,9 +6,15 @@ import os
 
 
 class AnomalyVisualizer:
-    def __init__(self, results_dir="./results/autoencoder"):
-        self.results_dir = results_dir
-        os.makedirs(results_dir, exist_ok=True)
+    def __init__(self, dataset_name=None, results_dir=None):
+        if results_dir is None:
+            if dataset_name:
+                self.results_dir = f"./results/{dataset_name}/autoencoder"
+            else:
+                self.results_dir = "./results/autoencoder"
+        else:
+            self.results_dir = results_dir
+        os.makedirs(self.results_dir, exist_ok=True)
         
     def plot_anomaly_detection(self, combined_features, threshold, model_name="autoencoder"):
         """Create anomaly detection visualization focused on test dataset"""

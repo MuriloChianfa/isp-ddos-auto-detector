@@ -5,16 +5,18 @@ from .cache import DataCache
 
 
 class NetworkFeatureExtractor:
-    def __init__(self, time_span=10, use_cache=True):
+    def __init__(self, time_span=10, use_cache=True, dataset_name=None):
         """
         Initialize NetworkFeatureExtractor
         
         Args:
             time_span (int): Time window in seconds for rate calculations (default: 10 for real-time processing)
             use_cache (bool): Whether to use caching for feature extraction
+            dataset_name (str): Name of the dataset being processed (for result organization)
         """
         self.time_span = time_span
         self.use_cache = use_cache
+        self.dataset_name = dataset_name
         self.cache = DataCache() if use_cache else None
     
     @staticmethod

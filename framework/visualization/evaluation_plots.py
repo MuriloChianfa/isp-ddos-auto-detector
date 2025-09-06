@@ -10,7 +10,7 @@ class EvaluationVisualizer:
     Visualization class for evaluation plots including ground truth comparisons.
     """
     
-    def __init__(self, results_dir="./results/autoencoder"):
+    def __init__(self, results_dir):
         self.results_dir = results_dir
         self.evaluation_dir = os.path.join(results_dir, "evaluation")
         os.makedirs(self.evaluation_dir, exist_ok=True)

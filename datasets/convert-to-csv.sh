@@ -3,19 +3,13 @@
 set -euo pipefail
 shopt -s extglob nullglob
 
-: "${TARGET_ASN:?TARGET_ASN must be set and a valid 4-byte ASNumber}"
+: "${FILTER:?FILTER must be a valid nfdump filter}"
 DEFAULT_DATASET_DIR="./datasets"
 DATASET_DIR="${DATASET_DIR:-$DEFAULT_DATASET_DIR}"
-OUTPUT_DIR="$DEFAULT_DATASET_DIR/ramfs"
+DEFAULT_OUTPUT_DIR="$DEFAULT_DATASET_DIR/tmp"
+OUTPUT_DIR="${OUTPUT_DIR:-$DEFAULT_OUTPUT_DIR}"
 
 mkdir -p "$OUTPUT_DIR"
-
-if ! mountpoint -q "$OUTPUT_DIR"; then
-  echo "mounting $OUTPUT_DIR"
-  mount -t tmpfs -o size=5G tmpfs "$OUTPUT_DIR"
-else
-  echo "output dir already mounted"
-fi
 
 for dir in "$DATASET_DIR"/*; do
   [[ -d "$dir" && "$dir" != "$OUTPUT_DIR" ]] || continue
@@ -31,7 +25,7 @@ for dir in "$DATASET_DIR"/*; do
     fi
 
     echo "converting: $f to $out"
-    nfdump -r "$f" -o "csv:%ts,%td,%pr,%sa,%sp,%da,%dp,%pkt,%byt,%fl,%sas,%das,%sc,%dc,%flg" "dst as ${TARGET_ASN}" > "$out"
+    nfdump -r "$f" -o "csv:%ts,%td,%pr,%sa,%sp,%da,%dp,%pkt,%byt,%fl,%sas,%das,%sc,%dc,%flg" "${FILTER}" > "$out"
   done
 done
 

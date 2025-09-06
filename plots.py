@@ -14,12 +14,15 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from framework.loader import NetworkDataLoader
 from framework.features import NetworkFeatureExtractor
 from framework.visualization.dataset_plots import DatasetFeatureVisualizer
+from config import DATASETS, DEFAULT_DATASET
 
 
 def main():
     parser = argparse.ArgumentParser(description='Generate feature visualizations for network traffic datasets')
-    parser.add_argument('--output-dir', '-o', default='./results/dataset',
-                       help='Output directory for visualizations (default: ./results/dataset)')
+    parser.add_argument('--dataset', '-d', default=None,
+                       help=f'Dataset to analyze (default: {DEFAULT_DATASET}). Available: {", ".join(DATASETS.keys())}')
+    parser.add_argument('--output-dir', '-o', default='./results',
+                       help='Base output directory for visualizations (default: ./results)')
     parser.add_argument('--no-comparisons', action='store_true',
                        help='Skip generating cross-dataset comparison plots')
     parser.add_argument('--features', nargs='+',
@@ -27,13 +30,31 @@ def main():
     
     args = parser.parse_args()
     
+    # Select dataset configuration
+    dataset_name = args.dataset if args.dataset else DEFAULT_DATASET
+    
+    if dataset_name not in DATASETS:
+        print(f"Error: Dataset '{dataset_name}' not found in configuration.")
+        print(f"Available datasets: {', '.join(DATASETS.keys())}")
+        return 1
+    
+    dataset_config = DATASETS[dataset_name]
+    
+    # Create dataset-specific output directory
+    output_dir = os.path.join(args.output_dir, dataset_name)
+    
     print("=" * 60)
     print("NETWORK TRAFFIC FEATURE VISUALIZATION")
     print("=" * 60)
+    print(f"Using dataset: {dataset_name}")
+    print(f"Description: {dataset_config['description']}")
+    print(f"Path: {dataset_config['path']}")
+    print(f"Output directory: {os.path.abspath(output_dir)}")
+    print("=" * 60)
     
     try:
-        print("Loading network traffic data...")
-        loader = NetworkDataLoader()
+        print("\nLoading network traffic data...")
+        loader = NetworkDataLoader(dataset_config=dataset_config)
         datasets = loader.load_network_data_by_day()
         
         print("\nExtracting features...")
@@ -60,9 +81,8 @@ def main():
                     return 1
         
         print(f"\nGenerating visualizations...")
-        print(f"Output directory: {os.path.abspath(args.output_dir)}")
         
-        feature_viz = DatasetFeatureVisualizer(results_dir=args.output_dir)
+        feature_viz = DatasetFeatureVisualizer(results_dir=output_dir)
         feature_viz.generate_all_feature_plots(
             features_dict, 
             create_comparisons=not args.no_comparisons

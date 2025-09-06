@@ -208,10 +208,6 @@ marimo/_lsp/
 __marimo__/
 
 # Application specific
-datasets/ramfs/*.csv
-results/dataset/*
-artefacts/cache/
-artefacts/*.keras
-artefacts/*.pkl
-artefacts/*.h5
+datasets/**/*.csv
+results/**/*.png
 cache/*.pkl

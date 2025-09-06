@@ -9,16 +9,35 @@ from framework.models.autoencoder import AutoencoderAnomalyDetector
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
 from framework.evaluation import GroundTruthEvaluator
+from config import DATASETS, DEFAULT_DATASET
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
-def main(use_cache=True):
+def main(dataset_name=None, use_cache=True):
+    # Select dataset configuration
+    if dataset_name is None:
+        dataset_name = DEFAULT_DATASET
+        
+    if dataset_name not in DATASETS:
+        print(f"Error: Dataset '{dataset_name}' not found in configuration.")
+        print(f"Available datasets: {', '.join(DATASETS.keys())}")
+        return
+    
+    dataset_config = DATASETS[dataset_name]
+    print(f"Using dataset: {dataset_name}")
+    print(f"Description: {dataset_config['description']}")
+    print(f"Path: {dataset_config['path']}")
+    
     print("Loading network traffic data...")
-    loader = NetworkDataLoader(use_cache=use_cache)
+    loader = NetworkDataLoader(dataset_config=dataset_config, use_cache=use_cache)
     datasets = loader.load_network_data_by_day()
     
+    if not datasets:
+        print("Error: No datasets were loaded. Please check the dataset path and patterns.")
+        return
+    
     print("\nExtracting features...")
-    feature_extractor = NetworkFeatureExtractor(use_cache=use_cache)
+    feature_extractor = NetworkFeatureExtractor(use_cache=use_cache, dataset_name=dataset_name)
     features_dict = feature_extractor.process_datasets(datasets)
     processed_features = feature_extractor.prepare_training_data(features_dict)
     
@@ -47,7 +66,7 @@ def main(use_cache=True):
     history = model.train(scaled_train_data, scaled_validation_data)
     
     print("\nVisualizing training results...")
-    training_viz = TrainingVisualizer()
+    training_viz = TrainingVisualizer(dataset_name=dataset_name)
     training_viz.plot_training_history(history)
     training_viz.print_training_summary(history)
     
@@ -93,26 +112,55 @@ def main(use_cache=True):
     combined_features = pd.concat(all_features, ignore_index=True)
     
     print("\nVisualizing anomaly detection results...")
-    anomaly_viz = AnomalyVisualizer()
+    anomaly_viz = AnomalyVisualizer(dataset_name=dataset_name)
     anomaly_viz.print_threshold_comparison(test_mse, all_thresholds)
     anomaly_viz.plot_anomaly_detection(combined_features, threshold)
     anomaly_viz.print_anomaly_statistics(combined_features, threshold)
     
     # Ground Truth Evaluation
     print("\nPerforming ground truth evaluation on test dataset...")
-    evaluator = GroundTruthEvaluator()
+    evaluator = GroundTruthEvaluator(dataset_name=dataset_name)
 
     # Extract test dataset
     test_data = combined_features[combined_features['dataset'] == 'test'].copy()
 
-    # Evaluate against ground truth
-    evaluation_metrics = evaluator.evaluate_test_dataset(test_data, threshold)
+    # Use dataset-specific attack periods
+    attack_periods = dataset_config.get('attack_periods', [])
+    if attack_periods:
+        # Evaluate against ground truth using dataset-specific attack periods
+        evaluation_metrics = evaluator.evaluate_test_dataset(test_data, threshold, attack_periods)
+    else:
+        print("Warning: No attack periods defined for this dataset. Skipping ground truth evaluation.")
     
-    print("\nAnalysis completed. Results saved to ./results/autoencoder/")
+    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/autoencoder/")
+    print(f"Dataset used: {dataset_name} ({dataset_config['description']})")
+
+
+def list_datasets():
+    """Print available datasets and their descriptions"""
+    print("Available datasets:")
+    print("=" * 50)
+    for name, config in DATASETS.items():
+        print(f"  {name}:")
+        print(f"    Description: {config['description']}")
+        print(f"    Path: {config['path']}")
+        print(f"    Attack periods: {len(config.get('attack_periods', []))} defined")
+        print()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ISP DDoS Auto Detector")
+    parser.add_argument(
+        '--dataset', '-d',
+        type=str,
+        default=None,
+        help=f'Dataset to use for analysis. Available: {", ".join(DATASETS.keys())}. Default: {DEFAULT_DATASET}'
+    )
+    parser.add_argument(
+        '--list-datasets',
+        action='store_true',
+        help='List all available datasets and exit'
+    )
     parser.add_argument(
         '--no-cache',
         action='store_true',
@@ -120,9 +168,14 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
+    
+    if args.list_datasets:
+        list_datasets()
+        exit(0)
+    
     use_cache = not args.no_cache
     
     if not use_cache:
         print("Caching disabled - will reload all data from scratch")
     
-    main(use_cache=use_cache)
+    main(dataset_name=args.dataset, use_cache=use_cache)

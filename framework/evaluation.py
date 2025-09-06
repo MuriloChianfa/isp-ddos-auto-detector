@@ -7,7 +7,6 @@ from sklearn.metrics import (
 )
 import os
 from .visualization.evaluation_plots import EvaluationVisualizer
-from config import ATTACK_PERIODS
 
 
 class GroundTruthEvaluator:
@@ -15,24 +14,39 @@ class GroundTruthEvaluator:
     Ground truth evaluator focused on test dataset evaluation.
     """
     
-    def __init__(self, results_dir="./results/autoencoder"):
-        self.results_dir = results_dir
-        self.evaluation_dir = os.path.join(results_dir, "evaluation")
+    def __init__(self, dataset_name=None, results_dir=None):
+        if results_dir is None:
+            if dataset_name:
+                self.results_dir = f"./results/{dataset_name}/autoencoder"
+            else:
+                self.results_dir = "./results/autoencoder"
+        else:
+            self.results_dir = results_dir
+        self.evaluation_dir = os.path.join(self.results_dir, "evaluation")
         os.makedirs(self.evaluation_dir, exist_ok=True)
-        self.visualizer = EvaluationVisualizer(results_dir)
+        self.visualizer = EvaluationVisualizer(self.results_dir)
     
-    def generate_ground_truth(self, test_data: pd.DataFrame, detection_threshold: float):
+    def generate_ground_truth(self, test_data: pd.DataFrame, detection_threshold: float, attack_periods=None):
         """
         Generate ground truth based on predefined attack time periods.
-        Hard-codes specific timestamps when attacks occurred.
+        
+        Args:
+            test_data: DataFrame with test data
+            detection_threshold: Threshold for anomaly detection
+            attack_periods: List of tuples with (start_time, end_time) for attacks.
+                           If None, no ground truth will be generated.
         """
         errors = test_data['reconstruction_error'].values
         
         # Detection labels: True for detected anomalies (above detection threshold)  
         detection_labels = errors > detection_threshold
         
-        # Get attack periods from configuration
-        attack_periods = ATTACK_PERIODS
+        # If no attack periods provided, return empty ground truth
+        if not attack_periods:
+            print("Warning: No attack periods provided. Cannot generate ground truth.")
+            ground_truth_labels = np.zeros(len(test_data), dtype=bool)
+            gt_threshold = "No attack periods defined"
+            return ground_truth_labels, detection_labels, gt_threshold
         
         # Convert timestamps to datetime if they're strings
         attack_periods_dt = []
@@ -146,14 +160,24 @@ class GroundTruthEvaluator:
         # Create confusion matrix heatmap
         self.visualizer.plot_confusion_matrix_heatmap(metrics)
     
-    def evaluate_test_dataset(self, test_data: pd.DataFrame, detection_threshold: float):
+    def evaluate_test_dataset(self, test_data: pd.DataFrame, detection_threshold: float, attack_periods=None):
         """
         Complete evaluation of test dataset against ground truth.
+        
+        Args:
+            test_data: DataFrame with test data
+            detection_threshold: Threshold for anomaly detection
+            attack_periods: List of tuples with (start_time, end_time) for attacks.
+                           If None, evaluation will be skipped.
         """
+        if not attack_periods:
+            print("Warning: No attack periods provided. Skipping ground truth evaluation.")
+            return None
+            
         print("Evaluating test dataset against ground truth...")
         
         # Generate ground truth
-        y_true, y_pred, gt_threshold = self.generate_ground_truth(test_data, detection_threshold)
+        y_true, y_pred, gt_threshold = self.generate_ground_truth(test_data, detection_threshold, attack_periods)
         
         # Calculate metrics
         metrics = self.calculate_metrics(y_true, y_pred)
