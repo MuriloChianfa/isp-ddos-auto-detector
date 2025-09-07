@@ -5,12 +5,14 @@ from .cache import DataCache
 
 
 class NetworkFeatureExtractor:
-    def __init__(self, time_span=10, use_cache=True, dataset_name=None):
+    def __init__(self, time_span=300, use_cache=True, dataset_name=None):
         """
         Initialize NetworkFeatureExtractor
         
         Args:
-            time_span (int): Time window in seconds for rate calculations (default: 10 for real-time processing)
+            time_span (int): Time window in seconds for aggregation and rate calculations 
+                           - 60 for 1-minute windows (uses firstSeen timestamps)
+                           - 300 for 5-minute windows (uses file_timestamp) [default]
             use_cache (bool): Whether to use caching for feature extraction
             dataset_name (str): Name of the dataset being processed (for result organization)
         """
@@ -89,7 +91,17 @@ class NetworkFeatureExtractor:
 
     def prepare_advanced_features(self, df):
         """Extract comprehensive features for network anomaly detection"""
-        time_grouped = df.groupby('file_timestamp')
+
+        if self.time_span == 60:
+            # 1 MINUTE WINDOW - Group by actual flow timestamps
+            df['firstSeen'] = pd.to_datetime(df['firstSeen'])
+            df['minute_window'] = df['firstSeen'].dt.floor('T')  # 'T' means minute
+            time_grouped = df.groupby('minute_window')
+            print(f"Using 1-minute time windows (60 seconds)")
+        else:
+            # 5 MINUTE WINDOW - Group by file timestamps (default)
+            time_grouped = df.groupby('file_timestamp')
+            print(f"Using 5-minute time windows ({self.time_span} seconds)")
         
         features_list = []
         timestamps = []

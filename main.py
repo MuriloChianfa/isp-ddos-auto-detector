@@ -13,7 +13,7 @@ from config import DATASETS, DEFAULT_DATASET
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
-def main(dataset_name=None, use_cache=True):
+def main(dataset_name=None, use_cache=True, time_span=300):
     # Select dataset configuration
     if dataset_name is None:
         dataset_name = DEFAULT_DATASET
@@ -27,6 +27,7 @@ def main(dataset_name=None, use_cache=True):
     print(f"Using dataset: {dataset_name}")
     print(f"Description: {dataset_config['description']}")
     print(f"Path: {dataset_config['path']}")
+    print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
     
     print("Loading network traffic data...")
     loader = NetworkDataLoader(dataset_config=dataset_config, use_cache=use_cache)
@@ -37,7 +38,7 @@ def main(dataset_name=None, use_cache=True):
         return
     
     print("\nExtracting features...")
-    feature_extractor = NetworkFeatureExtractor(use_cache=use_cache, dataset_name=dataset_name)
+    feature_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=use_cache, dataset_name=dataset_name)
     features_dict = feature_extractor.process_datasets(datasets)
     processed_features = feature_extractor.prepare_training_data(features_dict)
     
@@ -157,6 +158,13 @@ if __name__ == "__main__":
         help=f'Dataset to use for analysis. Available: {", ".join(DATASETS.keys())}. Default: {DEFAULT_DATASET}'
     )
     parser.add_argument(
+        '--time-span', '-t',
+        type=int,
+        choices=[60, 300],
+        default=300,
+        help='Time span for feature aggregation in seconds. Options: 60 or 300. Default: 300'
+    )
+    parser.add_argument(
         '--list-datasets',
         action='store_true',
         help='List all available datasets and exit'
@@ -178,4 +186,4 @@ if __name__ == "__main__":
     if not use_cache:
         print("Caching disabled - will reload all data from scratch")
     
-    main(dataset_name=args.dataset, use_cache=use_cache)
+    main(dataset_name=args.dataset, use_cache=use_cache, time_span=args.time_span)
