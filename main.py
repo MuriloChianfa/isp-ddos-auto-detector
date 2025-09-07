@@ -13,7 +13,7 @@ from config import DATASETS, DEFAULT_DATASET
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
-def main(dataset_name=None, use_cache=True, time_span=300):
+def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=False, max_processes=None):
     # Select dataset configuration
     if dataset_name is None:
         dataset_name = DEFAULT_DATASET
@@ -28,18 +28,21 @@ def main(dataset_name=None, use_cache=True, time_span=300):
     print(f"Description: {dataset_config['description']}")
     print(f"Path: {dataset_config['path']}")
     print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
+    print("Using memory-efficient processing by default")
     
-    print("Loading network traffic data...")
-    loader = NetworkDataLoader(dataset_config=dataset_config, use_cache=use_cache)
-    datasets = loader.load_network_data_by_day()
+    print("Initializing data loader...")
+    loader = NetworkDataLoader(dataset_config=dataset_config, use_cache=use_cache, max_processes=max_processes)
     
-    if not datasets:
-        print("Error: No datasets were loaded. Please check the dataset path and patterns.")
+    print("Initializing feature extractor...")
+    feature_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=use_cache, dataset_name=dataset_name, max_processes=max_processes)
+    
+    print("\nExtracting features using memory-efficient approach...")
+    features_dict = feature_extractor.extract_features_to_csv(loader, force_regenerate=force_regenerate)
+    
+    if not features_dict:
+        print("Error: No features were extracted. Please check the data.")
         return
     
-    print("\nExtracting features...")
-    feature_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=use_cache, dataset_name=dataset_name)
-    features_dict = feature_extractor.process_datasets(datasets)
     processed_features = feature_extractor.prepare_training_data(features_dict)
     
     # print("\nGenerating dataset feature visualizations...")
@@ -133,7 +136,8 @@ def main(dataset_name=None, use_cache=True, time_span=300):
     else:
         print("Warning: No attack periods defined for this dataset. Skipping ground truth evaluation.")
     
-    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/autoencoder/")
+    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/")
+    print(f"Features saved to ./datasets/{dataset_name}/features/")
     print(f"Dataset used: {dataset_name} ({dataset_config['description']})")
 
 
@@ -174,6 +178,17 @@ if __name__ == "__main__":
         action='store_true',
         help='Disable caching system (force reload all data)'
     )
+    parser.add_argument(
+        '--force-regenerate',
+        action='store_true',
+        help='Force regeneration of feature CSV files even if they exist'
+    )
+    parser.add_argument(
+        '--max-processes',
+        type=int,
+        default=None,
+        help='Maximum number of processes to use for parallel processing (default: min(cpu_count(), files, 8))'
+    )
     
     args = parser.parse_args()
     
@@ -186,4 +201,10 @@ if __name__ == "__main__":
     if not use_cache:
         print("Caching disabled - will reload all data from scratch")
     
-    main(dataset_name=args.dataset, use_cache=use_cache, time_span=args.time_span)
+    main(
+        dataset_name=args.dataset, 
+        use_cache=use_cache, 
+        time_span=args.time_span,
+        force_regenerate=args.force_regenerate,
+        max_processes=args.max_processes
+    )

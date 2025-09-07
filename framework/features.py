@@ -1,11 +1,14 @@
 import numpy as np
 import pandas as pd
+import os
 from scipy.stats import entropy
 from .cache import DataCache
+from multiprocessing import Pool, cpu_count
+import functools
 
 
 class NetworkFeatureExtractor:
-    def __init__(self, time_span=300, use_cache=True, dataset_name=None):
+    def __init__(self, time_span=300, use_cache=True, dataset_name=None, max_processes=None):
         """
         Initialize NetworkFeatureExtractor
         
@@ -15,11 +18,132 @@ class NetworkFeatureExtractor:
                            - 300 for 5-minute windows (uses file_timestamp) [default]
             use_cache (bool): Whether to use caching for feature extraction
             dataset_name (str): Name of the dataset being processed (for result organization)
+            max_processes (int): Maximum number of processes to use for parallel processing.
+                               If None, will use min(cpu_count(), chunks, 8)
         """
         self.time_span = time_span
         self.use_cache = use_cache
         self.dataset_name = dataset_name
+        self.max_processes = max_processes
         self.cache = DataCache() if use_cache else None
+    
+    def _get_features_csv_path(self, split_name):
+        """Get the path for features CSV file"""
+        base_dir = f"./datasets/{self.dataset_name}/features"
+        os.makedirs(base_dir, exist_ok=True)
+        return os.path.join(base_dir, f"{split_name}_features_{self.time_span}s.csv")
+    
+    def _features_csv_exists(self, split_name):
+        """Check if features CSV already exists"""
+        csv_path = self._get_features_csv_path(split_name)
+        return os.path.exists(csv_path)
+    
+    def load_features_from_csv(self, split_name):
+        """Load features from CSV if it exists"""
+        csv_path = self._get_features_csv_path(split_name)
+        if os.path.exists(csv_path):
+            print(f"Loading existing features for {split_name} from {csv_path}")
+            df = pd.read_csv(csv_path)
+            # Ensure timestamp column is properly parsed as datetime
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            return df
+        return None
+    
+    def extract_features_to_csv(self, loader, force_regenerate=False, parallel=True):
+        """
+        Extract features on-demand and save to CSV files with parallel processing
+        
+        Args:
+            loader: NetworkDataLoader instance
+            force_regenerate (bool): Force regeneration even if CSV files exist
+            parallel (bool): Whether to use parallel processing for feature extraction
+            
+        Returns:
+            dict: Dictionary with split_name -> features_df
+        """
+        features_dict = {}
+        
+        for split_name in loader.patterns.keys():
+            csv_path = self._get_features_csv_path(split_name)
+            
+            # Check if we should use existing CSV
+            if not force_regenerate and self._features_csv_exists(split_name):
+                features_df = self.load_features_from_csv(split_name)
+                if features_df is not None:
+                    print(f"Using existing features for {split_name} from CSV")
+                    features_dict[split_name] = features_df
+                    continue
+            
+            print(f"Extracting features for {split_name} split...")
+            
+            # Show time window information once
+            if self.time_span == 60:
+                print(f"  Using 1-minute time windows (60 seconds)")
+            else:
+                print(f"  Using 5-minute time windows ({self.time_span} seconds)")
+            
+            # Collect all data chunks first
+            data_chunks = []
+            for i, data_chunk in enumerate(loader.get_data_generator(split_name, parallel=True)):
+                data_chunks.append(data_chunk)
+                if i % 20 == 0 and i > 0:
+                    print(f"  Collected {i} chunks for {split_name}...")
+            
+            print(f"  Processing {len(data_chunks)} chunks for {split_name}...")
+            
+            if parallel and len(data_chunks) > 1:
+                # Use parallel processing for feature extraction
+                if self.max_processes is not None:
+                    num_processes = min(cpu_count(), len(data_chunks), self.max_processes)
+                else:
+                    num_processes = min(cpu_count(), len(data_chunks), 8)  # Default cap at 8 processes
+                print(f"  Using {num_processes} parallel processes for feature extraction")
+                
+                # Create a partial function with the time_span
+                extract_func = functools.partial(self._extract_features_from_chunk, self.time_span)
+                
+                with Pool(num_processes) as pool:
+                    all_features = pool.map(extract_func, data_chunks)
+                
+                # Filter out None results
+                all_features = [f for f in all_features if f is not None]
+            else:
+                # Sequential processing
+                all_features = []
+                for i, chunk in enumerate(data_chunks):
+                    if i % 10 == 0 and i > 0:
+                        print(f"  Processing chunk {i}/{len(data_chunks)} for {split_name}...")
+                    
+                    chunk_features = self._extract_features_from_chunk(self.time_span, chunk)
+                    if chunk_features is not None:
+                        all_features.append(chunk_features)
+            
+            if all_features:
+                # Combine all features
+                combined_features = pd.concat(all_features, ignore_index=True)
+                
+                # Save to CSV
+                print(f"Saving {len(combined_features)} feature records to {csv_path}")
+                combined_features.to_csv(csv_path, index=False)
+                
+                features_dict[split_name] = combined_features
+                print(f"  {split_name.capitalize()} features: {len(combined_features)} records")
+            else:
+                print(f"  Warning: No features extracted for {split_name}")
+        
+        return features_dict
+    
+    @staticmethod
+    def _extract_features_from_chunk(time_span, data_chunk):
+        """Static method to extract features from a data chunk - used for parallel processing"""
+        try:
+            # Create a temporary feature extractor for this chunk
+            temp_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=False)
+            return temp_extractor.prepare_advanced_features(data_chunk)
+        except Exception as e:
+            print(f"    Error extracting features from chunk: {str(e)}")
+            return None
     
     @staticmethod
     def calculate_port_entropy(ports):
@@ -97,11 +221,9 @@ class NetworkFeatureExtractor:
             df['firstSeen'] = pd.to_datetime(df['firstSeen'])
             df['minute_window'] = df['firstSeen'].dt.floor('T')  # 'T' means minute
             time_grouped = df.groupby('minute_window')
-            print(f"Using 1-minute time windows (60 seconds)")
         else:
             # 5 MINUTE WINDOW - Group by file timestamps (default)
             time_grouped = df.groupby('file_timestamp')
-            print(f"Using 5-minute time windows ({self.time_span} seconds)")
         
         features_list = []
         timestamps = []
@@ -177,7 +299,10 @@ class NetworkFeatureExtractor:
         return features_df
 
     def process_datasets(self, datasets):
-        """Process all datasets and extract features"""
+        """
+        Process all datasets and extract features (backward compatibility)
+        Use extract_features_to_csv() for memory-efficient processing
+        """
         
         # Try to load from cache first
         if self.use_cache and self.cache:

@@ -23,7 +23,8 @@ class AnomalyVisualizer:
         test_mask = combined_features['dataset'] == 'test'
         test_data = combined_features[test_mask]
         
-        test_timestamps = test_data['timestamp']
+        # Ensure timestamps are datetime objects
+        test_timestamps = pd.to_datetime(test_data['timestamp'])
         test_anomaly_scores = test_data['reconstruction_error']
         test_anomalies_mask = test_data['is_anomaly']
         
