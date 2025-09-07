@@ -18,7 +18,6 @@ class NetworkDataLoader:
             use_cache (bool): Whether to use caching
             batch_size (int): Number of records to process at once
             max_processes (int): Maximum number of processes to use for parallel processing. 
-                               If None, will use min(cpu_count(), files, 8)
         """
         self.data_path = dataset_config['path']
         self.patterns = dataset_config['patterns']
@@ -77,7 +76,8 @@ class NetworkDataLoader:
             if self.max_processes is not None:
                 num_processes = min(cpu_count(), len(file_info), self.max_processes)
             else:
-                num_processes = min(cpu_count(), len(file_info), 8)  # Default cap at 8 processes
+                num_processes = min(cpu_count(), len(file_info), 16)
+
             print(f"  Using {num_processes} parallel processes")
             
             # Process files in chunks to avoid memory issues

@@ -12,8 +12,9 @@ class DatasetFeatureVisualizer:
     Creates separate plots for each feature and saves them organized by dataset type.
     """
     
-    def __init__(self, results_dir="./results/dataset"):
+    def __init__(self, results_dir="./results/dataset", save_format="png"):
         self.results_dir = results_dir
+        self.save_format = save_format.lower()
         self.setup_directories()
         
         # Set plotting style
@@ -92,7 +93,7 @@ class DatasetFeatureVisualizer:
         plt.tight_layout()
         
         # Save the plot
-        filename = f"{feature_name.replace('/', '_').replace(' ', '_')}.png"
+        filename = f"{feature_name.replace('/', '_').replace(' ', '_')}.{self.save_format}"
         filepath = os.path.join(self.results_dir, dataset_type, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close(fig)
@@ -180,7 +181,7 @@ class DatasetFeatureVisualizer:
         # Save comparison plot in a separate comparisons directory
         comparison_dir = os.path.join(self.results_dir, 'comparisons')
         os.makedirs(comparison_dir, exist_ok=True)
-        filename = f"{feature_name.replace('/', '_').replace(' ', '_')}_comparison.png"
+        filename = f"{feature_name.replace('/', '_').replace(' ', '_')}_comparison.{self.save_format}"
         filepath = os.path.join(comparison_dir, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close(fig)
@@ -258,13 +259,13 @@ class DatasetFeatureVisualizer:
             indent = ' ' * 2 * level
             print(f"{indent}{os.path.basename(root)}/")
             subindent = ' ' * 2 * (level + 1)
-            png_files = [f for f in files if f.endswith('.png')]
-            if png_files:
-                print(f"{subindent}{len(png_files)} plot files generated")
+            plot_files = [f for f in files if f.endswith(f'.{self.save_format}')]
+            if plot_files:
+                print(f"{subindent}{len(plot_files)} plot files generated")
         
         print(f"\nPlots are organized as follows:")
-        print(f"  • Individual dataset plots: {self.results_dir}/[train|validation|test]/*.png")
-        print(f"  • Cross-dataset comparisons: {self.results_dir}/comparisons/*.png")
+        print(f"  • Individual dataset plots: {self.results_dir}/[train|validation|test]/*.{self.save_format}")
+        print(f"  • Cross-dataset comparisons: {self.results_dir}/comparisons/*.{self.save_format}")
         
         # Feature categories
         feature_categories = self.categorize_features(all_features)

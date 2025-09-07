@@ -14,12 +14,12 @@ class GroundTruthEvaluator:
     Ground truth evaluator focused on test dataset evaluation.
     """
     
-    def __init__(self, dataset_name=None, results_dir=None):
+    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
         if results_dir is None:
             if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/autoencoder"
+                self.results_dir = f"./results/{dataset_name}/{model_name}"
             else:
-                self.results_dir = "./results/autoencoder"
+                self.results_dir = f"./results/{model_name}"
         else:
             self.results_dir = results_dir
         self.evaluation_dir = os.path.join(self.results_dir, "evaluation")

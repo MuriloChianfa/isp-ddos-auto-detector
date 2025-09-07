@@ -18,15 +18,22 @@ from config import DATASETS, DEFAULT_DATASET
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate feature visualizations for network traffic datasets')
+    parser = argparse.ArgumentParser(
+        description='Generate PNG visualizations for all network traffic dataset features',
+        epilog="""
+Examples:
+  %(prog)s                                    # Generate all plots for default dataset
+  %(prog)s -d isp-synflood-multiple-days     # Generate plots for specific dataset
+  %(prog)s --no-comparisons                  # Skip cross-dataset comparison plots
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument('--dataset', '-d', default=None,
                        help=f'Dataset to analyze (default: {DEFAULT_DATASET}). Available: {", ".join(DATASETS.keys())}')
     parser.add_argument('--output-dir', '-o', default='./results',
                        help='Base output directory for visualizations (default: ./results)')
     parser.add_argument('--no-comparisons', action='store_true',
                        help='Skip generating cross-dataset comparison plots')
-    parser.add_argument('--features', nargs='+',
-                       help='Specific features to visualize (default: all features)')
     
     args = parser.parse_args()
     
@@ -53,36 +60,26 @@ def main():
     print("=" * 60)
     
     try:
-        print("\nLoading network traffic data...")
+        print("\nInitializing data loader...")
         loader = NetworkDataLoader(dataset_config=dataset_config)
-        datasets = loader.load_network_data_by_day()
         
         print("\nExtracting features...")
-        feature_extractor = NetworkFeatureExtractor()
-        features_dict = feature_extractor.process_datasets(datasets)
+        feature_extractor = NetworkFeatureExtractor(dataset_name=dataset_name)
         
-        # Filter features if specified
-        if args.features:
-            print(f"\nFiltering to specified features: {', '.join(args.features)}")
-            for dataset_type in features_dict:
-                available_features = [col for col in features_dict[dataset_type].columns if col != 'timestamp']
-                requested_features = [f for f in args.features if f in available_features]
-                missing_features = [f for f in args.features if f not in available_features]
-                
-                if missing_features:
-                    print(f"Warning: Features not found in {dataset_type}: {missing_features}")
-                
-                if requested_features:
-                    # Keep timestamp and requested features
-                    cols_to_keep = ['timestamp'] + requested_features
-                    features_dict[dataset_type] = features_dict[dataset_type][cols_to_keep]
-                else:
-                    print(f"Error: No valid features found for {dataset_type} dataset")
-                    return 1
+        # Use the new CSV-based feature extraction method to get all features
+        features_dict = feature_extractor.extract_features_to_csv(loader, force_regenerate=False, parallel=True)
         
-        print(f"\nGenerating visualizations...")
+        # Show summary of available features
+        print(f"\nAnalyzing all available features:")
+        total_features = 0
+        for dataset_type in features_dict:
+            available_features = [col for col in features_dict[dataset_type].columns if col != 'timestamp']
+            total_features = len(available_features)
+            print(f"  {dataset_type}: {len(available_features)} features")
         
-        feature_viz = DatasetFeatureVisualizer(results_dir=output_dir)
+        print(f"\nGenerating PNG visualizations for all {total_features} features...")
+        
+        feature_viz = DatasetFeatureVisualizer(results_dir=output_dir, save_format='png')
         feature_viz.generate_all_feature_plots(
             features_dict, 
             create_comparisons=not args.no_comparisons
@@ -91,6 +88,27 @@ def main():
         print("\n" + "=" * 60)
         print("VISUALIZATION COMPLETED SUCCESSFULLY!")
         print("=" * 60)
+        print(f"Generated PNG visualizations for:")
+        
+        # Show summary of what was generated
+        for dataset_type in features_dict:
+            available_features = [col for col in features_dict[dataset_type].columns if col != 'timestamp']
+            print(f"  - {dataset_type.capitalize()}: {len(available_features)} features")
+        
+        if not args.no_comparisons:
+            all_features = set()
+            for df in features_dict.values():
+                all_features.update([col for col in df.columns if col != 'timestamp'])
+            print(f"  - Cross-dataset comparisons: {len(all_features)} features")
+        
+        print(f"\nOutput directory: {os.path.abspath(output_dir)}")
+        print("Plot types generated:")
+        print("  - Distribution histograms with statistics")
+        print("  - Box plots for outlier analysis") 
+        print("  - Time series plots")
+        print("  - Q-Q plots for normality assessment")
+        if not args.no_comparisons:
+            print("  - Cross-dataset comparison plots")
         
         return 0
         

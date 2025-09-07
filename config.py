@@ -1,6 +1,8 @@
 # Dataset configurations
 # Each dataset should specify the path and date patterns for train/validation/test splits
 
+from framework.constants import FEATURES_BY_ATTACK_TYPE
+
 DATASETS = {
     'itp-downstream-http-flood': {
         'path': './datasets/itp-downstream-http-flood/',
@@ -12,17 +14,18 @@ DATASETS = {
         },
         'attack_periods': [
             ('2025-07-16 20:25:00', '2025-07-16 20:35:00'),
-            ('2025-07-16 22:25:00', '2025-07-16 22:30:00'),
+            ('2025-07-16 22:20:00', '2025-07-16 22:30:00'),
             ('2025-07-17 00:05:00', '2025-07-17 00:05:00'),
-            ('2025-07-17 00:30:00', '2025-07-17 00:30:00'),
+            ('2025-07-17 00:20:00', '2025-07-17 00:30:00'),
             ('2025-07-17 00:40:00', '2025-07-17 00:45:00'),
-        ]
+        ],
+        'feature_config': FEATURES_BY_ATTACK_TYPE['http_flood']
     },
     'isp-synflood-multiple-days': {
         'path': './datasets/isp-synflood-multiple-days/',
         'description': 'ISP SYN-Flood attack during multiple days',
         'patterns': {
-            'train': 'nfcapd.20250819*.csv',
+            'train': 'nfcapd.2025081[6789]*.csv',
             'validation': 'nfcapd.20250820*.csv',
             'test': 'nfcapd.2025082[1-8]*.csv'
         },
@@ -39,7 +42,8 @@ DATASETS = {
             ('2025-08-26 12:00:00', '2025-08-26 12:10:00'),
             ('2025-08-26 22:00:00', '2025-08-26 22:10:00'),
             ('2025-08-27 08:00:00', '2025-08-27 08:10:00'),
-        ]
+        ],
+        'feature_config': FEATURES_BY_ATTACK_TYPE['syn_flood']
     }
 }
 
