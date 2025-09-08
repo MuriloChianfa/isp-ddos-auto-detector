@@ -108,13 +108,17 @@ class AnomalyVisualizer:
         print("="*60)
 
     def _plot_train_validation_splits(self, combined_features, threshold, model_name="autoencoder"):
-        """Create separate plots for train and validation datasets"""
+        """Create separate plots for train, validation, and horizon datasets"""
         
         # Plot training data
         self._plot_dataset_split(combined_features, threshold, 'train', model_name)
         
         # Plot validation data
         self._plot_dataset_split(combined_features, threshold, 'validation', model_name)
+        
+        # Plot horizon data if available
+        if 'horizon' in combined_features['dataset'].values:
+            self._plot_dataset_split(combined_features, threshold, 'horizon', model_name)
     
     def _plot_dataset_split(self, combined_features, threshold, dataset_split, model_name="autoencoder"):
         """Create a plot for a specific dataset split (train/validation)"""
@@ -127,7 +131,13 @@ class AnomalyVisualizer:
             return None
         
         # Use the common plotting function with dataset-specific parameters
-        color = 'blue' if dataset_split == 'train' else 'orange'
+        color_map = {
+            'train': 'blue',
+            'validation': 'orange', 
+            'test': 'green',
+            'horizon': 'purple'
+        }
+        color = color_map.get(dataset_split, 'gray')
         title = f'Network Traffic Anomaly Detection - {dataset_split.capitalize()} Dataset'
         filename = f"anomaly_detection_{dataset_split}.png"
         

@@ -27,7 +27,8 @@ DATASETS = {
         'patterns': {
             'train': 'nfcapd.2025081[6789]*.csv',
             'validation': 'nfcapd.20250820*.csv',
-            'test': 'nfcapd.2025082[1-8]*.csv'
+            'test': 'nfcapd.2025082[1-8]*.csv',
+            'horizon': 'nfcapd.20250829*.csv'
         },
         'attack_periods': [
             ('2025-08-21 09:35:00', '2025-08-21 09:50:00'),
@@ -45,6 +46,18 @@ DATASETS = {
         'feature_config': FEATURES_BY_ATTACK_TYPE['syn_flood']
     }
 }
+
+
+# Model threshold calculation strategies
+# Each model type has a default threshold calculation method
+MODEL_THRESHOLD_STRATEGIES = {
+    'autoencoder': 'exponential_threshold',
+    'lstm_autoencoder': 'exponential_threshold', 
+    'tcn_autoencoder': 'exponential_threshold',
+    'isolation_forest': 'percentile_99_5',
+    'one_class_svm': 'mean_plus_3std'
+}
+
 
 # Default dataset to use when none is specified
 DEFAULT_DATASET = 'itp-downstream-http-flood'

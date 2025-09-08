@@ -542,17 +542,15 @@ class NetworkFeatureExtractor:
             return []
 
         if self.time_span == 60:
-            # 1 MINUTE WINDOW - Group by actual flow timestamps
-            # Handle datetime format with milliseconds
+            # 1 MINUTE WINDOW - Group by flow timestamps
             df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
-            # Check for parsing failures
             nan_count = df['firstSeen'].isna().sum()
             if nan_count > 0:
                 print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
             df['minute_window'] = df['firstSeen'].dt.floor('min')
             time_grouped = df.groupby('minute_window')
         else:
-            # 5 MINUTE WINDOW - Group by file timestamps (default)
+            # 5 MINUTE WINDOW - Group by file timestamps
             time_grouped = df.groupby('file_timestamp')
         
         features_list = []

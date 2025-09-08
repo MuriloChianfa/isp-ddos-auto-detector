@@ -11,7 +11,7 @@ from framework.models import create_model, list_available_models, get_model_desc
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
 from framework.evaluation import GroundTruthEvaluator
-from config import DATASETS, DEFAULT_DATASET
+from config import DATASETS, DEFAULT_DATASET, MODEL_THRESHOLD_STRATEGIES
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
@@ -85,9 +85,10 @@ def save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold
     print(f"Anomalies saved to: {csv_filename}")
     print(f"Total anomalies detected: {len(anomalies_output)}")
     print(f"Anomalies by dataset:")
-    for dataset in ['train', 'validation', 'test']:
+    for dataset in ['train', 'validation', 'test', 'horizon']:
         count = len(anomalies_output[anomalies_output['dataset'] == dataset])
-        print(f"  {dataset}: {count} anomalies")
+        if count > 0:  # Only show datasets that have data
+            print(f"  {dataset}: {count} anomalies")
     
     if len(anomalies_output) > 0:
         print(f"Severity distribution:")
@@ -126,10 +127,14 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     dataset_config = DATASETS[dataset_name]
     feature_config = dataset_config.get('feature_config', {})
     
+    # Get the default threshold strategy for this model
+    default_threshold_strategy = MODEL_THRESHOLD_STRATEGIES.get(model_name, 'sigmoid_threshold')
+    
     print(f"Using dataset: {dataset_name}")
     print(f"Description: {dataset_config['description']}")
     print(f"Path: {dataset_config['path']}")
     print(f"Model: {model_name}")
+    print(f"Default threshold strategy: {default_threshold_strategy}")
     print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
     print("Using memory-efficient processing by default")
     
@@ -172,6 +177,12 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     train_features = processed_features['train']['features']
     val_features = processed_features['validation']['features']
     test_features = processed_features['test']['features']
+    
+    # Check if horizon split exists (optional)
+    horizon_features = None
+    if 'horizon' in processed_features:
+        horizon_features = processed_features['horizon']['features']
+        print(f"Horizon features detected: {len(horizon_features)} samples")
 
     print(f"\nInitializing {model_name} model...")
     
@@ -248,6 +259,13 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     val_reconstructions, val_scores = model.predict(scaled_validation_data)
     test_reconstructions, test_scores = model.predict(scaled_test_data)
     
+    # Process horizon data if available
+    horizon_reconstructions, horizon_scores = None, None
+    if horizon_features is not None:
+        scaled_horizon_data = model.transform_data(horizon_features)
+        horizon_reconstructions, horizon_scores = model.predict(scaled_horizon_data)
+        print(f"Horizon anomaly scores computed: {len(horizon_scores)} samples")
+    
     # Feature importance analysis
     feature_names = train_features.columns.tolist()
     print("\nAnalyzing feature importance...")
@@ -282,8 +300,12 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
             print("Creating temporal-specific visualizations...")
             # You can add temporal-specific plots here in the future
     
-    # Calculate base threshold first
-    threshold, all_thresholds = model.calculate_threshold(train_scores, val_scores)
+    # Get the default threshold strategy for this model
+    default_strategy = MODEL_THRESHOLD_STRATEGIES.get(model_name, 'exponential_threshold')
+    print(f"\nUsing default threshold strategy for {model_name}: {default_strategy}")
+    
+    # Calculate threshold using the default strategy
+    threshold, all_thresholds = model.calculate_threshold(train_scores, val_scores, default_strategy)
     
     # For TCN autoencoder, decide between fixed and adaptive threshold
     if model_name == 'tcn_autoencoder':
@@ -294,11 +316,8 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
                 threshold = model.threshold
                 print(f"Using model's FIXED threshold: {threshold:.6f}")
             else:
-                print("No model threshold found, falling back to adaptive calculation...")
-                adaptive_threshold = model.calculate_adaptive_threshold(train_scores, val_scores, 'adaptive_percentile')
-                robust_threshold = model.calculate_adaptive_threshold(train_scores, val_scores, 'robust_iqr')
-                final_threshold = max(adaptive_threshold, robust_threshold, threshold)
-                threshold = final_threshold
+                print("No model threshold found, falling back to default strategy...")
+                threshold, all_thresholds = model.calculate_threshold(train_scores, val_scores, default_strategy)
         else:
             print("Using ADAPTIVE threshold calculation for TCN autoencoder...")
             adaptive_threshold = model.calculate_adaptive_threshold(train_scores, val_scores, 'adaptive_percentile')
@@ -307,7 +326,7 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
             print(f"Adaptive thresholds:")
             print(f"  Adaptive percentile: {adaptive_threshold:.6f}")
             print(f"  Robust IQR: {robust_threshold:.6f}")
-            print(f"  Standard threshold: {threshold:.6f}")
+            print(f"  Default strategy ({default_strategy}): {threshold:.6f}")
             
             # Use the most conservative (highest) threshold
             final_threshold = max(adaptive_threshold, robust_threshold, threshold)
@@ -321,19 +340,27 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
         temp_threshold, _ = model.calculate_threshold(train_scores, val_scores, method)
         test_anomalies = test_scores > temp_threshold
         anomaly_rate = np.sum(test_anomalies) / len(test_anomalies) * 100
-        print(f"  {method}: {temp_threshold:.6f} -> {anomaly_rate:.2f}% anomalies detected")
-    print(f"Selected threshold method: sigmoid_threshold = {threshold:.6f}")
+        indicator = " (DEFAULT)" if method == default_strategy else ""
+        print(f"  {method}: {temp_threshold:.6f} -> {anomaly_rate:.2f}% anomalies detected{indicator}")
+    print(f"Selected threshold method: {default_strategy} = {threshold:.6f}")
     print()
     
     results = {}
     all_features = []
     all_datasets = []
     
-    for split_name, scaled_data, scores, features_data in [
+    # Build the processing list dynamically
+    processing_list = [
         ('train', scaled_train_data, train_scores, processed_features['train']),
         ('validation', scaled_validation_data, val_scores, processed_features['validation']),
         ('test', scaled_test_data, test_scores, processed_features['test'])
-    ]:
+    ]
+    
+    # Add horizon if available
+    if horizon_features is not None and horizon_scores is not None:
+        processing_list.append(('horizon', scaled_horizon_data, horizon_scores, processed_features['horizon']))
+    
+    for split_name, scaled_data, scores, features_data in processing_list:
         # Ensure the model threshold is set before detection
         model.threshold = threshold
         # Use real-time mode for TCN autoencoder to get point-wise detection like Isolation Forest
