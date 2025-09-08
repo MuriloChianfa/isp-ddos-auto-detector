@@ -9,9 +9,9 @@ class AnomalyVisualizer:
     def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
         if results_dir is None:
             if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/{model_name}"
+                self.results_dir = f"./results/{dataset_name}/models/{model_name}"
             else:
-                self.results_dir = f"./results/{model_name}"
+                self.results_dir = f"./results/models/{model_name}"
         else:
             self.results_dir = results_dir
         os.makedirs(self.results_dir, exist_ok=True)
@@ -149,9 +149,9 @@ class AnomalyVisualizer:
         # Highlight anomaly periods
         self._add_anomaly_highlights(timestamps, anomalies_mask)
         
-        # Plot anomaly scores
+        # Plot anomaly scores with thinner line for better visibility
         plt.plot(timestamps, anomaly_scores, 
-                color=line_color, alpha=0.8, linewidth=1.5, 
+                color=line_color, alpha=0.7, linewidth=1.0, 
                 label=f'{data_label}', zorder=5)
         
         # Add threshold and reference lines

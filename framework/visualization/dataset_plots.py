@@ -12,8 +12,14 @@ class DatasetFeatureVisualizer:
     Creates separate plots for each feature and saves them organized by dataset type.
     """
     
-    def __init__(self, results_dir="./results/dataset", save_format="png"):
-        self.results_dir = results_dir
+    def __init__(self, dataset_name=None, results_dir=None, save_format="png"):
+        if results_dir is None:
+            if dataset_name:
+                self.results_dir = f"./results/{dataset_name}/features"
+            else:
+                self.results_dir = "./results/features"
+        else:
+            self.results_dir = results_dir
         self.save_format = save_format.lower()
         self.setup_directories()
         

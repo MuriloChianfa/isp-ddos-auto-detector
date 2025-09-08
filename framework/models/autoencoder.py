@@ -14,7 +14,7 @@ import logging
 import tensorflow as tf
 from tensorflow import keras
 
-from .base_model import BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin
+from .core.template import BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         return reconstructions, mse
         
     def calculate_threshold(self, train_mse: np.ndarray, val_mse: np.ndarray, 
-                          strategy: str = 'percentile_99') -> Tuple[float, Dict[str, float]]:
+                          strategy: str = 'exponential_threshold') -> Tuple[float, Dict[str, float]]:
         """Calculate anomaly detection threshold"""
         self.validate_threshold_strategy(strategy)
         

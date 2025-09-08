@@ -30,8 +30,6 @@ Examples:
     )
     parser.add_argument('--dataset', '-d', default=None,
                        help=f'Dataset to analyze (default: {DEFAULT_DATASET}). Available: {", ".join(DATASETS.keys())}')
-    parser.add_argument('--output-dir', '-o', default='./results',
-                       help='Base output directory for visualizations (default: ./results)')
     parser.add_argument('--no-comparisons', action='store_true',
                        help='Skip generating cross-dataset comparison plots')
     
@@ -47,8 +45,8 @@ Examples:
     
     dataset_config = DATASETS[dataset_name]
     
-    # Create dataset-specific output directory
-    output_dir = os.path.join(args.output_dir, dataset_name)
+    # Create dataset-specific output directory for features
+    output_dir = os.path.join("./results", dataset_name, "features")
     
     print("=" * 60)
     print("NETWORK TRAFFIC FEATURE VISUALIZATION")
@@ -79,7 +77,7 @@ Examples:
         
         print(f"\nGenerating PNG visualizations for all {total_features} features...")
         
-        feature_viz = DatasetFeatureVisualizer(results_dir=output_dir, save_format='png')
+        feature_viz = DatasetFeatureVisualizer(dataset_name=dataset_name, save_format='png')
         feature_viz.generate_all_feature_plots(
             features_dict, 
             create_comparisons=not args.no_comparisons

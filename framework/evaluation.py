@@ -17,9 +17,9 @@ class GroundTruthEvaluator:
     def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
         if results_dir is None:
             if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/{model_name}"
+                self.results_dir = f"./results/{dataset_name}/models/{model_name}"
             else:
-                self.results_dir = f"./results/{model_name}"
+                self.results_dir = f"./results/models/{model_name}"
         else:
             self.results_dir = results_dir
         self.evaluation_dir = os.path.join(self.results_dir, "evaluation")
@@ -36,10 +36,16 @@ class GroundTruthEvaluator:
             attack_periods: List of tuples with (start_time, end_time) for attacks.
                            If None, no ground truth will be generated.
         """
-        errors = test_data['reconstruction_error'].values
-        
-        # Detection labels: True for detected anomalies (above detection threshold)  
-        detection_labels = errors > detection_threshold
+        # Use the actual detection results from the model (which includes our improved algorithm)
+        # instead of just applying a simple threshold
+        if 'is_anomaly' in test_data.columns:
+            detection_labels = test_data['is_anomaly'].values
+            print("Using model's actual detection results (including peak detection algorithm)")
+        else:
+            # Fallback to simple threshold if is_anomaly column doesn't exist
+            errors = test_data['reconstruction_error'].values
+            detection_labels = errors > detection_threshold
+            print("Fallback: Using simple threshold detection")
         
         # If no attack periods provided, return empty ground truth
         if not attack_periods:

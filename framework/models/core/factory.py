@@ -7,7 +7,7 @@ of different anomaly detection models with proper configuration and validation.
 
 from typing import Dict, Type, List, Any, Optional
 import logging
-from .base_model import BaseAnomalyDetector
+from .template import BaseAnomalyDetector
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class ModelFactory:
         """Register default models that come with the framework."""
         try:
             # Import and register autoencoder
-            from .autoencoder import AutoencoderAnomalyDetector
+            from ..autoencoder import AutoencoderAnomalyDetector
             self.register_model(
                 'autoencoder', 
                 AutoencoderAnomalyDetector,
@@ -162,8 +162,44 @@ class ModelFactory:
             logger.warning(f"Could not register autoencoder model: {e}")
         
         try:
+            # Import and register LSTM autoencoder
+            from ..lstm_autoencoder import LSTMAutoencoder
+            self.register_model(
+                'lstm_autoencoder',
+                LSTMAutoencoder,
+                {
+                    'sequence_length': 60,
+                    'latent_dim': 32,
+                    'encoder_units': [128, 64],
+                    'decoder_units': [64, 128],
+                    'dropout_rate': 0.1
+                }
+            )
+        except ImportError as e:
+            logger.warning(f"Could not register LSTM autoencoder model: {e}")
+        
+        try:
+            # Import and register TCN autoencoder
+            from ..tcn_autoencoder import TCNAutoencoder
+            self.register_model(
+                'tcn_autoencoder',
+                TCNAutoencoder,
+                {
+                    'sequence_length': 60,
+                    'latent_dim': 8,   # Ultra-small for maximum compression
+                    'num_blocks': 3,   
+                    'filters': 24,     # Optimized filters
+                    'kernel_size': 3,
+                    'dropout_rate': 0.25,  # Higher regularization
+                    'l2_reg': 2e-4     # Stronger L2 regularization
+                }
+            )
+        except ImportError as e:
+            logger.warning(f"Could not register TCN autoencoder model: {e}")
+        
+        try:
             # Import and register isolation forest
-            from .isolation_forest import IsolationForestAnomalyDetector
+            from ..isolation_forest import IsolationForestAnomalyDetector
             self.register_model(
                 'isolation_forest',
                 IsolationForestAnomalyDetector,
@@ -174,7 +210,7 @@ class ModelFactory:
         
         try:
             # Import and register one-class SVM
-            from .one_class_svm import OneClassSVMAnomalyDetector
+            from ..one_class_svm import OneClassSVMAnomalyDetector
             self.register_model(
                 'one_class_svm',
                 OneClassSVMAnomalyDetector,
@@ -255,6 +291,8 @@ def validate_model_config(name: str, config: Dict[str, Any]) -> bool:
 # Model descriptions for user-friendly display
 MODEL_DESCRIPTIONS = {
     'autoencoder': 'Neural network autoencoder for unsupervised anomaly detection using reconstruction error',
+    'lstm_autoencoder': 'LSTM-based temporal autoencoder for sequential anomaly detection in network traffic',
+    'tcn_autoencoder': 'Optimized Temporal Convolutional Network autoencoder with maximum compression (8D latent) specifically tuned for SYN flood detection',
     'isolation_forest': 'Ensemble method using isolation trees to identify anomalies by isolation efficiency',
     'one_class_svm': 'Support Vector Machine trained on normal data to identify outliers in feature space',
 }

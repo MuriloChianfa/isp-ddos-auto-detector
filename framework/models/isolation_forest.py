@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from typing import Dict, Tuple, Any, Optional, List
 import logging
 
-from .base_model import BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin, DummyTrainingHistory
+from .core.template import BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin, DummyTrainingHistory
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
         return data, anomaly_scores
         
     def calculate_threshold(self, train_scores: np.ndarray, val_scores: np.ndarray, 
-                          strategy: str = 'percentile_99') -> Tuple[float, Dict[str, float]]:
+                          strategy: str = 'exponential_threshold') -> Tuple[float, Dict[str, float]]:
         """Calculate anomaly detection threshold"""
         self.validate_threshold_strategy(strategy)
         
