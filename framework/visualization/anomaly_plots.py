@@ -3,15 +3,13 @@ import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import os
+from ..utils import get_results_path
 
 
 class AnomalyVisualizer:
-    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
+    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder", time_span=300):
         if results_dir is None:
-            if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/models/{model_name}"
-            else:
-                self.results_dir = f"./results/models/{model_name}"
+            self.results_dir = get_results_path(dataset_name, model_name, time_span, "models")
         else:
             self.results_dir = results_dir
         os.makedirs(self.results_dir, exist_ok=True)
@@ -54,7 +52,7 @@ class AnomalyVisualizer:
         # Add anomaly highlights and plot data
         self._add_anomaly_highlights(timestamps, anomalies_mask)
         
-        plt.plot(timestamps, anomaly_scores, 
+        plt.step(timestamps, anomaly_scores, where='post',
                 color='green', alpha=0.8, linewidth=1.5, 
                 label='Anomaly Scores', zorder=5)
         
@@ -159,9 +157,9 @@ class AnomalyVisualizer:
         # Highlight anomaly periods
         self._add_anomaly_highlights(timestamps, anomalies_mask)
         
-        # Plot anomaly scores with thinner line for better visibility
-        plt.plot(timestamps, anomaly_scores, 
-                color=line_color, alpha=0.7, linewidth=1.0, 
+        # Plot anomaly scores - use step plot for discrete time intervals (like 1-minute windows)
+        plt.step(timestamps, anomaly_scores, where='post',
+                color=line_color, alpha=0.8, linewidth=1.5, 
                 label=f'{data_label}', zorder=5)
         
         # Add threshold and reference lines

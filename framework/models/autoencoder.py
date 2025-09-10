@@ -49,8 +49,8 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         self.history = None
         
     def build_model(self, input_dim: int) -> None:
-        """Build the enhanced autoencoder architecture with more capacity"""
-        print(f"Building enhanced autoencoder for {input_dim} features...")
+        """Build the autoencoder architecture with more capacity"""
+        print(f"Building autoencoder for {input_dim} features...")
         
         # Validate input
         if input_dim <= 0:
@@ -112,17 +112,15 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             metrics=['mae']
         )
         
-        logger.info(f"Enhanced autoencoder architecture:")
+        logger.info(f"autoencoder architecture:")
         logger.info(f"  Input: {input_dim} features")
         logger.info(f"  Hidden layers: {hidden_dim1} -> {hidden_dim2} -> {hidden_dim3}")
         logger.info(f"  Latent dimension: {self.latent_dim}")
-        logger.info(f"  Total parameters: {self.autoencoder.count_params():,}")
         
-        print(f"Enhanced autoencoder architecture:")
+        print(f"autoencoder architecture:")
         print(f"  Input: {input_dim} features")
         print(f"  Hidden layers: {hidden_dim1} -> {hidden_dim2} -> {hidden_dim3}")
         print(f"  Latent dimension: {self.latent_dim}")
-        print(f"  Total parameters: {self.autoencoder.count_params():,}")
         
     def fit_scaler(self, training_features: np.ndarray) -> None:
         """Fit the scaler on training data"""
@@ -141,7 +139,7 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
     def train(self, scaled_train_data: np.ndarray, scaled_validation_data: Optional[np.ndarray] = None, 
               epochs: int = 100, batch_size: int = 64, **kwargs) -> Dict[str, Any]:
-        """Train the enhanced autoencoder with improved training strategy"""
+        """Train the autoencoder with improved training strategy"""
         
         # Validate training data
         self.validate_training_data(scaled_train_data, scaled_validation_data)
@@ -164,7 +162,7 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             )
         ]
         
-        print("Training enhanced autoencoder...")
+        print("Training autoencoder...")
         print(f"Training samples: {len(scaled_train_data)}")
         if scaled_validation_data is not None:
             print(f"Validation samples: {len(scaled_validation_data)}")

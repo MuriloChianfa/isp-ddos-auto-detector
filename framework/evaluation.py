@@ -7,6 +7,7 @@ from sklearn.metrics import (
 )
 import os
 from .visualization.evaluation_plots import EvaluationVisualizer
+from .utils import get_results_path
 
 
 class GroundTruthEvaluator:
@@ -14,12 +15,9 @@ class GroundTruthEvaluator:
     Ground truth evaluator focused on test dataset evaluation.
     """
     
-    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
+    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder", time_span=300):
         if results_dir is None:
-            if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/models/{model_name}"
-            else:
-                self.results_dir = f"./results/models/{model_name}"
+            self.results_dir = get_results_path(dataset_name, model_name, time_span, "models")
         else:
             self.results_dir = results_dir
         self.evaluation_dir = os.path.join(self.results_dir, "evaluation")
@@ -59,6 +57,15 @@ class GroundTruthEvaluator:
         for start, end in attack_periods:
             start_dt = pd.to_datetime(start)
             end_dt = pd.to_datetime(end)
+            
+            # Check if test_data timestamps are timezone-aware
+            if hasattr(test_data['timestamp'].iloc[0], 'tz') and test_data['timestamp'].iloc[0].tz is not None:
+                # If test data is timezone-aware, make attack periods timezone-aware too
+                # Attack periods in config are already in local time, so just localize them to the same timezone
+                timezone = test_data['timestamp'].iloc[0].tz
+                start_dt = start_dt.tz_localize(timezone)
+                end_dt = end_dt.tz_localize(timezone)
+            
             attack_periods_dt.append((start_dt, end_dt))
         
         # Generate ground truth labels based on timestamps

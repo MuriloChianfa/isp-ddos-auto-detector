@@ -25,6 +25,7 @@ Examples:
   %(prog)s                                    # Generate all plots for default dataset
   %(prog)s -d isp-synflood-multiple-days     # Generate plots for specific dataset
   %(prog)s --no-comparisons                  # Skip cross-dataset comparison plots
+  %(prog)s -t 60                             # Use 60-second time windows instead of default 300
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -32,6 +33,13 @@ Examples:
                        help=f'Dataset to analyze (default: {DEFAULT_DATASET}). Available: {", ".join(DATASETS.keys())}')
     parser.add_argument('--no-comparisons', action='store_true',
                        help='Skip generating cross-dataset comparison plots')
+    parser.add_argument(
+        '--time-span', '-t',
+        type=int,
+        choices=[60, 300],
+        default=300,
+        help='Time span for feature aggregation in seconds. Options: 60 or 300. Default: 300'
+    )
     
     args = parser.parse_args()
     
@@ -45,8 +53,11 @@ Examples:
     
     dataset_config = DATASETS[dataset_name]
     
+    # Get time_span from arguments
+    time_span = args.time_span
+    
     # Create dataset-specific output directory for features
-    output_dir = os.path.join("./results", dataset_name, "features")
+    output_dir = os.path.join("./results", dataset_name, f"{time_span}seconds", "features")
     
     print("=" * 60)
     print("NETWORK TRAFFIC FEATURE VISUALIZATION")
@@ -54,6 +65,7 @@ Examples:
     print(f"Using dataset: {dataset_name}")
     print(f"Description: {dataset_config['description']}")
     print(f"Path: {dataset_config['path']}")
+    print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
     print(f"Output directory: {os.path.abspath(output_dir)}")
     print("=" * 60)
     
@@ -62,7 +74,10 @@ Examples:
         loader = NetworkDataLoader(dataset_config=dataset_config)
         
         print("\nExtracting features...")
-        feature_extractor = NetworkFeatureExtractor(dataset_name=dataset_name)
+        feature_extractor = NetworkFeatureExtractor(
+            time_span=time_span, 
+            dataset_name=dataset_name
+        )
         
         # Use the new CSV-based feature extraction method to get all features
         features_dict = feature_extractor.extract_features_to_csv(loader, force_regenerate=False, parallel=True)
@@ -77,7 +92,11 @@ Examples:
         
         print(f"\nGenerating PNG visualizations for all {total_features} features...")
         
-        feature_viz = DatasetFeatureVisualizer(dataset_name=dataset_name, save_format='png')
+        feature_viz = DatasetFeatureVisualizer(
+            dataset_name=dataset_name, 
+            save_format='png',
+            time_span=time_span
+        )
         feature_viz.generate_all_feature_plots(
             features_dict, 
             create_comparisons=not args.no_comparisons
@@ -107,6 +126,7 @@ Examples:
         print("  - Q-Q plots for normality assessment")
         if not args.no_comparisons:
             print("  - Cross-dataset comparison plots")
+        print(f"\nAll plots saved with {time_span}-second time windows ({'1-minute' if time_span == 60 else '5-minute'} aggregation)")
         
         return 0
         

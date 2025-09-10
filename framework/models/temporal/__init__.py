@@ -13,7 +13,7 @@ Available Components:
 Training Utilities:
 - WarmupLearningRateScheduler: Learning rate scheduler with warmup
 - TemporalRegularizationCallback: Regularization callback for temporal models
-- Enhanced temporal callbacks and data augmentation
+- Temporal callbacks and data augmentation
 
 Usage:
     from framework.models.temporal import BaseTemporalAutoencoder

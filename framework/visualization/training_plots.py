@@ -1,14 +1,12 @@
 import matplotlib.pyplot as plt
 import os
+from ..utils import get_results_path
 
 
 class TrainingVisualizer:
-    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder"):
+    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder", time_span=300):
         if results_dir is None:
-            if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/models/{model_name}"
-            else:
-                self.results_dir = f"./results/models/{model_name}"
+            self.results_dir = get_results_path(dataset_name, model_name, time_span, "models")
         else:
             self.results_dir = results_dir
         os.makedirs(self.results_dir, exist_ok=True)

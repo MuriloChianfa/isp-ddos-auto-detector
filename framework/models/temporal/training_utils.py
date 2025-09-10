@@ -104,7 +104,7 @@ def get_enhanced_temporal_callbacks(
     patience_lr: int = 25
 ) -> list:
     """
-    Get enhanced callbacks for temporal model training.
+    Get callbacks for temporal model training.
     
     Args:
         warmup_epochs: Number of warmup epochs

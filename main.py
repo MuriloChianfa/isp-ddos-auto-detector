@@ -11,13 +11,14 @@ from framework.models import create_model, list_available_models, get_model_desc
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
 from framework.evaluation import GroundTruthEvaluator
+from framework.utils import get_results_path
 from config import DATASETS, DEFAULT_DATASET, MODEL_THRESHOLD_STRATEGIES
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
 
-def save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold):
+def save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold, time_span=300):
     """Save detected anomalies to a CSV file for each model"""
-    results_dir = f"./results/{dataset_name}/models/{model_name}"
+    results_dir = get_results_path(dataset_name, model_name, time_span, "models")
     os.makedirs(results_dir, exist_ok=True)
     
     # Filter only the detected anomalies
@@ -165,7 +166,6 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
         feature_config=feature_config
     )
     
-    print("\nExtracting features using memory-efficient approach...")
     features_dict = feature_extractor.extract_features_to_csv(loader, force_regenerate=force_regenerate)
     
     if not features_dict:
@@ -250,7 +250,7 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
         history = model.train(scaled_train_data, scaled_validation_data)
     
     print("\nVisualizing training results...")
-    training_viz = TrainingVisualizer(dataset_name=dataset_name, model_name=model_name)
+    training_viz = TrainingVisualizer(dataset_name=dataset_name, model_name=model_name, time_span=time_span)
     training_viz.plot_training_history(history, model_name=model_name)
     training_viz.print_training_summary(history)
     
@@ -291,7 +291,7 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     if model_name in ['autoencoder', 'lstm_autoencoder', 'tcn_autoencoder']:
         print("Creating feature importance visualizations...")
         from framework.visualization.evaluation_plots import EvaluationVisualizer
-        eval_viz = EvaluationVisualizer(f"./results/{dataset_name}/models/{model_name}")
+        eval_viz = EvaluationVisualizer(get_results_path(dataset_name, model_name, time_span, "models"))
         eval_viz.plot_feature_importance(feature_errors, feature_names, importance_indices, top_n=20)
         eval_viz.plot_feature_importance_detailed(feature_errors, feature_names, importance_indices, top_n=15)
         
@@ -444,17 +444,17 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     
     # Save anomalies detected to CSV file
     print(f"\nSaving detected anomalies to CSV...")
-    save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold)
+    save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold, time_span)
     
     print("\nVisualizing anomaly detection results...")
-    anomaly_viz = AnomalyVisualizer(dataset_name=dataset_name, model_name=model_name)
+    anomaly_viz = AnomalyVisualizer(dataset_name=dataset_name, model_name=model_name, time_span=time_span)
     anomaly_viz.print_threshold_comparison(test_scores, all_thresholds)
     anomaly_viz.plot_anomaly_detection(combined_features, threshold)
     anomaly_viz.print_anomaly_statistics(combined_features, threshold)
     
     # Ground Truth Evaluation
     print("\nPerforming ground truth evaluation on test dataset...")
-    evaluator = GroundTruthEvaluator(dataset_name=dataset_name, model_name=model_name)
+    evaluator = GroundTruthEvaluator(dataset_name=dataset_name, model_name=model_name, time_span=time_span)
 
     # Extract test dataset
     test_data = combined_features[combined_features['dataset'] == 'test'].copy()
@@ -467,7 +467,7 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     else:
         print("Warning: No attack periods defined for this dataset. Skipping ground truth evaluation.")
     
-    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/")
+    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/{time_span}seconds/")
     print(f"Features saved to ./datasets/{dataset_name}/features/")
     print(f"Dataset used: {dataset_name} ({dataset_config['description']})")
 

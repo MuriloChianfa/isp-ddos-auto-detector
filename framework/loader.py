@@ -33,7 +33,15 @@ class NetworkDataLoader:
             return self._file_metadata[split_name]
             
         pattern = self.patterns[split_name]
-        csv_files = sorted(glob.glob(os.path.join(self.data_path, pattern)))
+        
+        # Handle both single patterns and lists of patterns
+        if isinstance(pattern, list):
+            csv_files = []
+            for p in pattern:
+                csv_files.extend(glob.glob(os.path.join(self.data_path, p)))
+            csv_files = sorted(csv_files)
+        else:
+            csv_files = sorted(glob.glob(os.path.join(self.data_path, pattern)))
         
         file_info = []
         for file in csv_files:
@@ -45,9 +53,10 @@ class NetworkDataLoader:
             
             try:
                 timestamp = pd.to_datetime(timestamp_str, format='%Y%m%d%H%M')
+                timestamp_utc = timestamp.tz_localize('UTC')
                 file_info.append({
                     'path': file,
-                    'timestamp': timestamp,
+                    'timestamp': timestamp_utc,
                     'timestamp_str': timestamp_str
                 })
             except Exception:

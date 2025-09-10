@@ -28,7 +28,7 @@ DATASETS = {
             'train': 'nfcapd.2025081[6789]*.csv',
             'validation': 'nfcapd.20250820*.csv',
             'test': 'nfcapd.2025082[1-8]*.csv',
-            'horizon': 'nfcapd.20250829*.csv'
+            'horizon': ['nfcapd.20250829*.csv', 'nfcapd.20250830*.csv', 'nfcapd.20250831*.csv', 'nfcapd.2025090[1-9]*.csv']
         },
         'attack_periods': [
             ('2025-08-21 09:35:00', '2025-08-21 09:50:00'),

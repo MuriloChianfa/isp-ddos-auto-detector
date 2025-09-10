@@ -547,15 +547,30 @@ class NetworkFeatureExtractor:
             nan_count = df['firstSeen'].isna().sum()
             if nan_count > 0:
                 print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
+                # Remove rows with invalid timestamps to prevent issues
+                df = df.dropna(subset=['firstSeen'])
+            
+            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
+
+            start_time = df['firstSeen'].min().floor('min')
+            end_time = df['firstSeen'].max().ceil('min')
+            complete_time_range = pd.date_range(start=start_time, end=end_time, freq='1min')
+
             df['minute_window'] = df['firstSeen'].dt.floor('min')
             time_grouped = df.groupby('minute_window')
+            
+            # Create a set to track which minutes have data
+            existing_minutes = set(time_grouped.groups.keys())
         else:
-            # 5 MINUTE WINDOW - Group by file timestamps
+            # 5 MINUTE WINDOW - Group by file timestamps (timezone-aware, UTC-3)
             time_grouped = df.groupby('file_timestamp')
+            complete_time_range = None
+            existing_minutes = None
         
         features_list = []
         timestamps = []
         
+        # Process existing time windows
         for timestamp, group in time_grouped:
             feature_row = {}
             timestamps.append(timestamp)
@@ -705,8 +720,29 @@ class NetworkFeatureExtractor:
             
             features_list.append(feature_row)
         
+        # Fill missing minutes with zero values for 1-minute windows
+        if self.time_span == 60 and complete_time_range is not None:
+            missing_minutes = [t for t in complete_time_range if t not in existing_minutes]
+            
+            if missing_minutes:
+                print(f"    Filling {len(missing_minutes)} missing minute windows with zeros")
+                
+                # Create zero feature template from the first feature row if available
+                zero_feature_template = {}
+                if features_list:
+                    zero_feature_template = {k: 0 for k in features_list[0].keys()}
+                
+                # Add zero rows for missing minutes
+                for missing_minute in missing_minutes:
+                    zero_row = zero_feature_template.copy()
+                    features_list.append(zero_row)
+                    timestamps.append(missing_minute)
+        
         features_df = pd.DataFrame(features_list)
         features_df['timestamp'] = timestamps
+        
+        # Sort by timestamp to ensure proper chronological order
+        features_df = features_df.sort_values('timestamp').reset_index(drop=True)
         
         # Apply feature filtering based on configuration
         features_df = self._filter_features(features_df)

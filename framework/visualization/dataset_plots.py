@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
+from ..utils import get_results_path
 
 
 class DatasetFeatureVisualizer:
@@ -12,12 +13,9 @@ class DatasetFeatureVisualizer:
     Creates separate plots for each feature and saves them organized by dataset type.
     """
     
-    def __init__(self, dataset_name=None, results_dir=None, save_format="png"):
+    def __init__(self, dataset_name=None, results_dir=None, save_format="png", time_span=300):
         if results_dir is None:
-            if dataset_name:
-                self.results_dir = f"./results/{dataset_name}/features"
-            else:
-                self.results_dir = "./results/features"
+            self.results_dir = get_results_path(dataset_name, None, time_span, "features")
         else:
             self.results_dir = results_dir
         self.save_format = save_format.lower()
@@ -29,7 +27,7 @@ class DatasetFeatureVisualizer:
         
     def setup_directories(self):
         """Create directory structure for organizing plots"""
-        for dataset_type in ['train', 'validation', 'test']:
+        for dataset_type in ['train', 'validation', 'test', 'horizon']:
             dataset_dir = os.path.join(self.results_dir, dataset_type)
             os.makedirs(dataset_dir, exist_ok=True)
             

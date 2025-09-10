@@ -148,7 +148,6 @@ class TCNAutoencoder(BaseAnomalyDetector, ModelValidationMixin, ThresholdCalcula
             
         self._feature_dim = input_dim
         
-        print(f"Building Feature-Focused Autoencoder (instead of TCN):")
         print(f"  Input shape: ({self.sequence_length}, {input_dim})")
         print(f"  Latent dimension: {self.latent_dim}")
         print(f"  Compression ratio: {self.latent_dim / input_dim:.3f}")
@@ -262,7 +261,7 @@ class TCNAutoencoder(BaseAnomalyDetector, ModelValidationMixin, ThresholdCalcula
             val_sequences = self.create_sequences(validation_data, step=1)
             print(f"Created {len(val_sequences)} validation sequences")
         
-        # Enhanced callbacks for better training
+        # Callbacks for better training
         callbacks = [
             keras.callbacks.EarlyStopping(
                 monitor='val_loss' if validation_data is not None else 'loss',
