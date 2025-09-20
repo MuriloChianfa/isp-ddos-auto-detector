@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from framework.loader import NetworkDataLoader
 from framework.features import NetworkFeatureExtractor
 from framework.visualization.dataset_plots import DatasetFeatureVisualizer
+from framework.utils import get_time_span_description, get_time_span_detailed_description
 from config import DATASETS, DEFAULT_DATASET
 
 
@@ -36,9 +37,9 @@ Examples:
     parser.add_argument(
         '--time-span', '-t',
         type=int,
-        choices=[60, 300],
+        choices=[10, 60, 300],
         default=300,
-        help='Time span for feature aggregation in seconds. Options: 60 or 300. Default: 300'
+        help='Time span for feature aggregation in seconds. Options: 10, 60 or 300. Default: 300'
     )
     
     args = parser.parse_args()
@@ -65,7 +66,7 @@ Examples:
     print(f"Using dataset: {dataset_name}")
     print(f"Description: {dataset_config['description']}")
     print(f"Path: {dataset_config['path']}")
-    print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
+    print(f"Time span: {time_span} seconds ({get_time_span_description(time_span)} windows)")
     print(f"Output directory: {os.path.abspath(output_dir)}")
     print("=" * 60)
     
@@ -126,7 +127,7 @@ Examples:
         print("  - Q-Q plots for normality assessment")
         if not args.no_comparisons:
             print("  - Cross-dataset comparison plots")
-        print(f"\nAll plots saved with {time_span}-second time windows ({'1-minute' if time_span == 60 else '5-minute'} aggregation)")
+        print(f"\nAll plots saved with {time_span}-second time windows ({get_time_span_description(time_span)} aggregation)")
         
         return 0
         

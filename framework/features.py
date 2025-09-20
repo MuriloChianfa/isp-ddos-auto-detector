@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from scipy.stats import entropy
 from .cache import DataCache
+from .utils import get_time_span_frequency, get_time_span_floor, get_time_span_detailed_description
 from multiprocessing import Pool, cpu_count
 import functools
 
@@ -148,10 +149,8 @@ class NetworkFeatureExtractor:
             print(f"Extracting features for {split_name} split...")
             
             # Show time window information once
-            if self.time_span == 60:
-                print(f"  Using 1-minute time windows (60 seconds)")
-            else:
-                print(f"  Using 5-minute time windows ({self.time_span} seconds)")
+            time_desc = get_time_span_detailed_description(self.time_span)
+            print(f"  Using {time_desc} time windows ({self.time_span} seconds)")
             
             # Collect all data chunks first
             data_chunks = []
@@ -194,7 +193,18 @@ class NetworkFeatureExtractor:
                 # Combine all features
                 combined_features = pd.concat(all_features, ignore_index=True)
                 
-                # Save to CSV
+                # Remove duplicate timestamps that occur from overlapping file processing
+                original_count = len(combined_features)
+                # Keep the first occurrence of each timestamp
+                combined_features = combined_features.drop_duplicates(subset=['timestamp'], keep='first')
+                dedup_count = len(combined_features)
+                
+                if original_count != dedup_count:
+                    print(f"  Removed {original_count - dedup_count} duplicate timestamp records")
+                
+                # Sort by timestamp to ensure proper chronological order
+                combined_features = combined_features.sort_values('timestamp').reset_index(drop=True)
+                
                 print(f"Saving {len(combined_features)} feature records to {csv_path}")
                 combined_features.to_csv(csv_path, index=False)
                 
@@ -541,7 +551,25 @@ class NetworkFeatureExtractor:
         if df is None or len(df) == 0:
             return []
 
-        if self.time_span == 60:
+        if self.time_span == 10:
+            # 10 SECOND WINDOW - Ultra high-resolution time windows
+            df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            nan_count = df['firstSeen'].isna().sum()
+            if nan_count > 0:
+                print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
+                df = df.dropna(subset=['firstSeen'])
+            
+            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
+            
+            start_time = df['firstSeen'].min().floor(get_time_span_floor(self.time_span))
+            end_time = df['firstSeen'].max().ceil(get_time_span_floor(self.time_span))
+            complete_time_range = pd.date_range(start=start_time, end=end_time, freq=get_time_span_frequency(self.time_span))
+
+            df['time_window'] = df['firstSeen'].dt.floor(get_time_span_floor(self.time_span))
+            time_grouped = df.groupby('time_window')
+            
+            existing_windows = set(time_grouped.groups.keys())
+        elif self.time_span == 60:
             # 1 MINUTE WINDOW - Group by flow timestamps
             df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
             nan_count = df['firstSeen'].isna().sum()
@@ -560,12 +588,12 @@ class NetworkFeatureExtractor:
             time_grouped = df.groupby('minute_window')
             
             # Create a set to track which minutes have data
-            existing_minutes = set(time_grouped.groups.keys())
+            existing_windows = set(time_grouped.groups.keys())
         else:
             # 5 MINUTE WINDOW - Group by file timestamps (timezone-aware, UTC-3)
             time_grouped = df.groupby('file_timestamp')
             complete_time_range = None
-            existing_minutes = None
+            existing_windows = None
         
         features_list = []
         timestamps = []
@@ -720,23 +748,26 @@ class NetworkFeatureExtractor:
             
             features_list.append(feature_row)
         
-        # Fill missing minutes with zero values for 1-minute windows
-        if self.time_span == 60 and complete_time_range is not None:
-            missing_minutes = [t for t in complete_time_range if t not in existing_minutes]
+        # Fill missing time windows with zero values for 10-second and 1-minute windows
+        if self.time_span in [10, 60] and complete_time_range is not None:
+            missing_windows = [t for t in complete_time_range if t not in existing_windows]
             
-            if missing_minutes:
-                print(f"    Filling {len(missing_minutes)} missing minute windows with zeros")
+            if missing_windows:
+                time_desc = get_time_span_detailed_description(self.time_span)
+                print(f"    Filling {len(missing_windows)} missing {time_desc} windows with zeros")
                 
                 # Create zero feature template from the first feature row if available
                 zero_feature_template = {}
                 if features_list:
                     zero_feature_template = {k: 0 for k in features_list[0].keys()}
                 
-                # Add zero rows for missing minutes
-                for missing_minute in missing_minutes:
-                    zero_row = zero_feature_template.copy()
-                    features_list.append(zero_row)
-                    timestamps.append(missing_minute)
+                # Add zero rows for missing time windows (avoid duplicates)
+                existing_timestamps = set(timestamps)
+                for missing_window in missing_windows:
+                    if missing_window not in existing_timestamps:
+                        zero_row = zero_feature_template.copy()
+                        features_list.append(zero_row)
+                        timestamps.append(missing_window)
         
         features_df = pd.DataFrame(features_list)
         features_df['timestamp'] = timestamps

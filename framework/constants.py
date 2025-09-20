@@ -2,6 +2,34 @@
 Constants and feature group definitions for the ISP DDoS Auto Detector
 """
 
+# Time span configurations
+TIME_SPANS = {
+    10: {
+        'description': '10-second',
+        'detailed_description': 'ultra high-resolution',
+        'frequency': '10s',
+        'pandas_floor': '10s',
+        'sequence_multiplier': 6.0  # Longer sequences for micro-patterns
+    },
+    60: {
+        'description': '1-minute', 
+        'detailed_description': 'high-resolution',
+        'frequency': '1min',
+        'pandas_floor': 'min',
+        'sequence_multiplier': 1.0  # Standard sequences
+    },
+    300: {
+        'description': '5-minute',
+        'detailed_description': 'standard resolution', 
+        'frequency': '5min',
+        'pandas_floor': '5min',
+        'sequence_multiplier': 1.0  # Standard sequences
+    }
+}
+
+# Supported time spans
+SUPPORTED_TIME_SPANS = list(TIME_SPANS.keys())
+
 # Feature group definitions
 FEATURE_GROUPS = {
     'basic': [

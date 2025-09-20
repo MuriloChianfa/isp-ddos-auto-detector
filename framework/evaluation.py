@@ -68,9 +68,20 @@ class GroundTruthEvaluator:
             
             attack_periods_dt.append((start_dt, end_dt))
         
-        # Generate ground truth labels based on timestamps
-        ground_truth_labels = np.zeros(len(test_data), dtype=bool)
+        # Just count unique timestamps
+        print(f"  Original test data size: {len(test_data)}")
+        unique_timestamps = test_data['timestamp'].unique()
+        print(f"  Unique timestamps: {len(unique_timestamps)}")
         
+        # Count how many unique timestamps fall within attack periods
+        unique_ground_truth_count = 0
+        for start_time, end_time in attack_periods_dt:
+            matching_timestamps = [ts for ts in unique_timestamps if start_time <= ts <= end_time]
+            unique_ground_truth_count += len(matching_timestamps)
+        print(f"  Unique timestamps in attack periods: {unique_ground_truth_count}")
+        
+        # Generate the original ground truth labels
+        ground_truth_labels = np.zeros(len(test_data), dtype=bool)
         for start_time, end_time in attack_periods_dt:
             mask = (test_data['timestamp'] >= start_time) & (test_data['timestamp'] <= end_time)
             ground_truth_labels = ground_truth_labels | mask.values
@@ -83,8 +94,6 @@ class GroundTruthEvaluator:
         print(f"  Attack periods defined:")
         for i, (start, end) in enumerate(attack_periods_dt, 1):
             print(f"    {i}. {start} to {end}")
-        print(f"  Total ground truth anomalies: {np.sum(ground_truth_labels)}")
-        print(f"  Total detected anomalies: {np.sum(detection_labels)}")
         
         return ground_truth_labels, detection_labels, gt_threshold
     
