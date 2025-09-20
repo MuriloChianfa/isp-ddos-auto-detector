@@ -11,7 +11,7 @@ from framework.models import create_model, list_available_models, get_model_desc
 from framework.visualization.training_plots import TrainingVisualizer
 from framework.visualization.anomaly_plots import AnomalyVisualizer
 from framework.evaluation import GroundTruthEvaluator
-from framework.utils import get_results_path
+from framework.utils import get_results_path, get_time_span_description, get_time_span_detailed_description, get_sequence_multiplier, get_time_window_label
 from config import DATASETS, DEFAULT_DATASET, MODEL_THRESHOLD_STRATEGIES
 # from framework.visualization.dataset_feature_plots import DatasetFeatureVisualizer
 
@@ -78,8 +78,9 @@ def save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold
                                  labels=['Low', 'Medium', 'High'],
                                  include_lowest=True))
     
-    # Save to CSV
-    csv_filename = os.path.join(results_dir, "anomalies_detected.csv")
+    # Save to CSV with time span information
+    time_window_label = get_time_window_label(time_span)
+    csv_filename = os.path.join(results_dir, f"anomalies_detected.csv")
     anomalies_output.to_csv(csv_filename, index=False)
     
     # Print summary statistics
@@ -108,7 +109,8 @@ def save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold
 
 
 def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=False, 
-         max_processes=None, model_name='autoencoder', use_fixed_threshold=False):
+         max_processes=None, model_name='autoencoder', use_fixed_threshold=False,
+         generate_reconstruction_error=False):
     # Select dataset configuration
     if dataset_name is None:
         dataset_name = DEFAULT_DATASET
@@ -136,7 +138,7 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     print(f"Path: {dataset_config['path']}")
     print(f"Model: {model_name}")
     print(f"Default threshold strategy: {default_threshold_strategy}")
-    print(f"Time span: {time_span} seconds ({'1-minute' if time_span == 60 else '5-minute'} windows)")
+    print(f"Time span: {time_span} seconds ({get_time_span_description(time_span)} - {get_time_span_detailed_description(time_span)} windows)")
     print("Using memory-efficient processing by default")
     
     # Display feature configuration info
@@ -190,34 +192,63 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     if model_name == 'autoencoder':
         model = create_model(model_name, latent_dim=42)
     elif model_name == 'lstm_autoencoder':
-        # Configure LSTM autoencoder with more conservative parameters for stable learning
-        sequence_length = min(80, max(50, len(train_features) // 8))  # More conservative sequence length
+        # Configure LSTM autoencoder with time-span specific parameters
+        base_sequence_length = min(80, max(50, len(train_features) // 8))
+        sequence_multiplier = get_sequence_multiplier(time_span)
+        sequence_length = int(base_sequence_length * sequence_multiplier)
+        
+        # Adjust latent dimension based on time span granularity
+        if time_span == 10:
+            latent_dim = 64  # Larger latent space for micro-patterns
+        elif time_span == 60:
+            latent_dim = 48  # Standard latent space
+        else:  # 300 seconds
+            latent_dim = 48  # Standard latent space
+        
         model = create_model(
             model_name, 
             sequence_length=sequence_length,
-            latent_dim=48,  # Reduced from 64 for simpler patterns
-            encoder_units=[128, 64],  # Simpler architecture  
-            decoder_units=[64, 128],  # Simpler architecture
-            dropout_rate=0.2  # Higher dropout for better generalization
+            latent_dim=latent_dim,
+            encoder_units=[128, 64],  # Consistent architecture
+            decoder_units=[64, 128],  # Consistent architecture
+            dropout_rate=0.2  # Standard dropout for generalization
         )
-        print(f"LSTM Autoencoder configured with sequence_length={sequence_length} (conservative mode for stability)")
+        time_desc = get_time_span_description(time_span)
+        print(f"LSTM Autoencoder configured for {time_desc} windows:")
+        print(f"  - Sequence length: {sequence_length} (base: {base_sequence_length}, multiplier: {sequence_multiplier})")
+        print(f"  - Latent dimension: {latent_dim}")
     elif model_name == 'tcn_autoencoder':
-        # Configure feature-focused autoencoder (not true TCN anymore)
-        # Use minimal sequence length since we're focusing on features, not temporal patterns
-        sequence_length = 5  # Very short - just for compatibility
+        # Configure TCN autoencoder with time-span specific parameters
+        if time_span == 10:
+            sequence_length = 3  # Very short for micro-patterns
+            latent_dim = 8      # Smaller for micro-patterns
+            filters = 24        # Fewer filters for fine-grained detection
+        elif time_span == 60:
+            sequence_length = 5
+            latent_dim = 12
+            filters = 32
+        else:  # 300 seconds
+            sequence_length = 5
+            latent_dim = 12
+            filters = 32
+        
         model = create_model(
             model_name,
             sequence_length=sequence_length,
-            latent_dim=12,   # Smaller latent space for better compression
-            num_blocks=2,    # Not used in new architecture
-            filters=32,      # Not used in new architecture
-            kernel_size=3,   # Not used in new architecture
-            dropout_rate=0.3,   # Higher dropout for regularization
-            l2_reg=1e-4,        # Moderate regularization
-            use_fixed_threshold=use_fixed_threshold  # Pass the threshold parameter
+            latent_dim=latent_dim,
+            num_blocks=2,
+            filters=filters,
+            kernel_size=3,
+            dropout_rate=0.3,
+            l2_reg=1e-4,
+            use_fixed_threshold=use_fixed_threshold
         )
-        print(f"Feature-focused autoencoder configured with sequence_length={sequence_length} (feature-based detection)")
-        print(f"Threshold mode: {'Fixed' if use_fixed_threshold else 'Adaptive'}")
+        time_desc = get_time_span_description(time_span)
+        print(f"TCN Autoencoder configured for {time_desc} windows:")
+        print(f"  - Sequence length: {sequence_length}")
+        print(f"  - Latent dimension: {latent_dim}")
+        print(f"  - Filters: {filters}")
+        print(f"  - Threshold mode: {'Fixed' if use_fixed_threshold else 'Adaptive'}")
     elif model_name == 'isolation_forest':
         model = create_model(model_name, contamination=0.1, n_estimators=100)
     elif model_name == 'one_class_svm':
@@ -442,6 +473,14 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     
     combined_features = pd.concat(all_features, ignore_index=True)
     
+    # Optional feature reconstruction error visualizations
+    if generate_reconstruction_error:
+        from framework.visualization.feature_error_plots import generate_feature_reconstruction_error_plots
+        generate_feature_reconstruction_error_plots(
+            model, processing_list, features_dict, feature_names,
+            dataset_name, model_name, time_span
+        )
+    
     # Save anomalies detected to CSV file
     print(f"\nSaving detected anomalies to CSV...")
     save_anomalies_to_csv(combined_features, dataset_name, model_name, threshold, time_span)
@@ -467,9 +506,12 @@ def main(dataset_name=None, use_cache=True, time_span=300, force_regenerate=Fals
     else:
         print("Warning: No attack periods defined for this dataset. Skipping ground truth evaluation.")
     
-    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/{time_span}seconds/")
+    time_window_label = get_time_window_label(time_span)
+    time_desc = get_time_span_description(time_span)
+    print(f"\nAnalysis completed. Results saved to ./results/{dataset_name}/{time_window_label}/")
     print(f"Features saved to ./datasets/{dataset_name}/features/")
     print(f"Dataset used: {dataset_name} ({dataset_config['description']})")
+    print(f"Time window configuration: {time_desc} ({time_span} seconds)")
 
 
 def list_datasets():
@@ -513,14 +555,19 @@ if __name__ == "__main__":
     parser.add_argument(
         '--time-span', '-t',
         type=int,
-        choices=[60, 300],
+        choices=[10, 60, 300],
         default=300,
-        help='Time span for feature aggregation in seconds. Options: 60 or 300. Default: 300'
+        help='Time span for feature aggregation in seconds. Options: 10, 60 or 300. Default: 300'
     )
     parser.add_argument(
         '--use-fixed-threshold',
         action='store_true',
         help='Use the model\'s built-in fixed threshold instead of adaptive calculation (for TCN autoencoder)'
+    )
+    parser.add_argument(
+        '--generate-reconstruction-error',
+        action='store_true',
+        help='Generate detailed feature reconstruction error visualizations (creates many plots)'
     )
     parser.add_argument(
         '--list-datasets',
@@ -571,5 +618,6 @@ if __name__ == "__main__":
         force_regenerate=args.force_regenerate,
         max_processes=args.max_processes,
         model_name=args.model,
-        use_fixed_threshold=args.use_fixed_threshold
+        use_fixed_threshold=args.use_fixed_threshold,
+        generate_reconstruction_error=args.generate_reconstruction_error
     )
