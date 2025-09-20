@@ -172,6 +172,17 @@ class GroundTruthEvaluator:
         
         # Create confusion matrix heatmap
         self.visualizer.plot_confusion_matrix_heatmap(metrics)
+        
+        # Create ROC curve (using reconstruction errors as scores)
+        # For ROC curve, we need continuous scores, not just binary predictions
+        if 'reconstruction_error' in test_data.columns:
+            y_scores = test_data['reconstruction_error'].values
+            self.visualizer.plot_roc_curve(y_true, y_scores)
+        
+        # Create Precision-Recall curve
+        if 'reconstruction_error' in test_data.columns:
+            y_scores = test_data['reconstruction_error'].values
+            self.visualizer.plot_precision_recall_curve(y_true, y_scores)
     
     def evaluate_test_dataset(self, test_data: pd.DataFrame, detection_threshold: float, attack_periods=None):
         """

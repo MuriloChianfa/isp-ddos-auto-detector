@@ -3,6 +3,7 @@ import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import os
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 
 
 class EvaluationVisualizer:
@@ -314,4 +315,154 @@ Min Error: {np.min(feature_errors):.4f}"""
         plt.close()
         
         print(f"Detailed feature importance plot saved to: {filename}")
+        return filename
+    
+    def plot_roc_curve(self, y_true, y_scores, title_suffix=""):
+        """
+        Create a scientifically rigorous ROC curve plot.
+        
+        Args:
+            y_true: True binary labels (0 for normal, 1 for anomaly)
+            y_scores: Anomaly scores or probabilities (higher values indicate higher anomaly likelihood)
+            title_suffix: Optional suffix for the plot title
+            
+        Returns:
+            str: Path to saved plot
+        """
+        # Calculate ROC curve
+        fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+        roc_auc = auc(fpr, tpr)
+        
+        # Find optimal threshold using Youden's J statistic
+        optimal_idx = np.argmax(tpr - fpr)
+        optimal_threshold = thresholds[optimal_idx]
+        optimal_fpr = fpr[optimal_idx]
+        optimal_tpr = tpr[optimal_idx]
+        
+        # Create the plot with scientific styling
+        fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+        
+        # Plot ROC curve
+        ax.plot(fpr, tpr, color='blue', linewidth=2.5, 
+                label=f'ROC Curve (AUC = {roc_auc:.3f})')
+        
+        # Plot diagonal reference line (random classifier)
+        ax.plot([0, 1], [0, 1], color='red', linestyle='--', linewidth=1.5, 
+                alpha=0.7, label='Random Classifier (AUC = 0.500)')
+        
+        # Mark optimal threshold point
+        ax.plot(optimal_fpr, optimal_tpr, marker='o', markersize=10, 
+                color='orange', markerfacecolor='yellow', markeredgewidth=2,
+                label=f'Optimal Threshold = {optimal_threshold:.3f}\n(TPR = {optimal_tpr:.3f}, FPR = {optimal_fpr:.3f})')
+        
+        # Styling with scientific best practices
+        ax.set_xlabel('False Positive Rate (1 - Specificity)', fontsize=14, fontweight='bold')
+        ax.set_ylabel('True Positive Rate (Sensitivity)', fontsize=14, fontweight='bold')
+        ax.set_title(f'Receiver Operating Characteristic (ROC) Curve{title_suffix}', 
+                     fontsize=16, fontweight='bold', pad=20)
+        
+        # Grid and formatting
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        
+        # Legend with scientific information
+        legend = ax.legend(loc='lower right', fontsize=12, frameon=True, 
+                          fancybox=True, shadow=True, framealpha=0.9)
+        legend.get_frame().set_facecolor('white')
+        
+        # Enhance axis appearance
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.5)
+        ax.spines['bottom'].set_linewidth(1.5)
+        
+        plt.tight_layout()
+        
+        # Save the plot
+        filename = os.path.join(self.evaluation_dir, "roc_curve.png")
+        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"ROC curve plot saved to: {filename}")
+        return filename
+    
+    def plot_precision_recall_curve(self, y_true, y_scores, title_suffix=""):
+        """
+        Create a scientifically rigorous Precision-Recall curve plot.
+        
+        Args:
+            y_true: True binary labels (0 for normal, 1 for anomaly)
+            y_scores: Anomaly scores or probabilities (higher values indicate higher anomaly likelihood)
+            title_suffix: Optional suffix for the plot title
+            
+        Returns:
+            str: Path to saved plot
+        """
+        # Calculate Precision-Recall curve
+        precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
+        pr_auc = average_precision_score(y_true, y_scores)
+        
+        # Calculate baseline (random classifier performance)
+        positive_rate = np.sum(y_true) / len(y_true)
+        
+        # Find optimal threshold using F1-score
+        # Add a threshold of 0 at the end to match precision/recall arrays
+        thresholds_extended = np.append(thresholds, 0)
+        f1_scores = 2 * (precision * recall) / (precision + recall)
+        f1_scores = np.nan_to_num(f1_scores)  # Handle division by zero
+        optimal_idx = np.argmax(f1_scores)
+        optimal_threshold = thresholds_extended[optimal_idx]
+        optimal_precision = precision[optimal_idx]
+        optimal_recall = recall[optimal_idx]
+        optimal_f1 = f1_scores[optimal_idx]
+        
+        # Create the plot with scientific styling
+        fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+        
+        # Plot Precision-Recall curve
+        ax.plot(recall, precision, color='blue', linewidth=2.5, 
+                label=f'PR Curve (AP = {pr_auc:.3f})')
+        
+        # Plot baseline (random classifier)
+        ax.axhline(y=positive_rate, color='red', linestyle='--', linewidth=1.5, 
+                   alpha=0.7, label=f'Random Classifier (AP = {positive_rate:.3f})')
+        
+        # Mark optimal threshold point
+        ax.plot(optimal_recall, optimal_precision, marker='o', markersize=10, 
+                color='orange', markerfacecolor='yellow', markeredgewidth=2,
+                label=f'Optimal Threshold = {optimal_threshold:.3f}\n(F1 = {optimal_f1:.3f})')
+        
+        # Styling with scientific best practices
+        ax.set_xlabel('Recall (Sensitivity, True Positive Rate)', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Precision (Positive Predictive Value)', fontsize=14, fontweight='bold')
+        ax.set_title(f'Precision-Recall Curve{title_suffix}', 
+                     fontsize=16, fontweight='bold', pad=20)
+        
+        # Grid and formatting
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        
+        # Legend with scientific information
+        legend = ax.legend(loc='lower left', fontsize=12, frameon=True, 
+                          fancybox=True, shadow=True, framealpha=0.9)
+        legend.get_frame().set_facecolor('white')
+        
+        # Enhance axis appearance
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.5)
+        ax.spines['bottom'].set_linewidth(1.5)
+        
+        plt.tight_layout()
+        
+        # Save the plot
+        filename = os.path.join(self.evaluation_dir, "precision_recall_curve.png")
+        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"Precision-Recall curve plot saved to: {filename}")
         return filename

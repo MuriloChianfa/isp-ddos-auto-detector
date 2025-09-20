@@ -1,5 +1,4 @@
-# Dataset configurations
-# Each dataset should specify the path and date patterns for train/validation/test splits
+# System constants and configurations
 
 from framework.constants import FEATURES_BY_ATTACK_TYPE
 
@@ -49,7 +48,6 @@ DATASETS = {
 
 
 # Model threshold calculation strategies
-# Each model type has a default threshold calculation method
 MODEL_THRESHOLD_STRATEGIES = {
     'autoencoder': 'exponential_threshold',
     'lstm_autoencoder': 'exponential_threshold', 
