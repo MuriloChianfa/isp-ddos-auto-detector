@@ -55,12 +55,12 @@ class BaseAnomalyDetector(ABC):
         pass
     
     @abstractmethod
-    def fit_scaler(self, training_features: np.ndarray) -> None:
+    def fit_scaler(self, training_features) -> None:
         """
         Fit the data scaler on training data.
         
         Args:
-            training_features: Training feature matrix
+            training_features: Training feature matrix (DataFrame or numpy array)
             
         Raises:
             NotImplementedError: Must be implemented by subclasses
@@ -68,12 +68,12 @@ class BaseAnomalyDetector(ABC):
         pass
     
     @abstractmethod
-    def transform_data(self, features: np.ndarray) -> np.ndarray:
+    def transform_data(self, features) -> np.ndarray:
         """
         Transform features using the fitted scaler.
         
         Args:
-            features: Feature matrix to transform
+            features: Feature matrix to transform (DataFrame or numpy array)
             
         Returns:
             Transformed feature matrix

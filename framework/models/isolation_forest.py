@@ -79,20 +79,32 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
         print(f"  Contamination: {self.contamination}")
         print(f"  Max samples: {self.max_samples}")
         
-    def fit_scaler(self, training_features: np.ndarray) -> None:
+    def fit_scaler(self, training_features) -> None:
         """Fit the scaler on training data"""
         if training_features is None or len(training_features) == 0:
             raise ValueError("Training features cannot be empty")
         
-        self.scaler.fit(training_features)
+        # Convert to numpy array if it's a DataFrame to avoid feature name warnings
+        if hasattr(training_features, 'values'):
+            training_data = training_features.values
+        else:
+            training_data = training_features
+            
+        self.scaler.fit(training_data)
         logger.info(f"Fitted scaler on {len(training_features)} training samples")
         
-    def transform_data(self, features: np.ndarray) -> np.ndarray:
+    def transform_data(self, features) -> np.ndarray:
         """Transform features using the fitted scaler"""
         if self.scaler is None:
             raise ValueError("Scaler not fitted. Call fit_scaler first.")
         
-        return self.scaler.transform(features)
+        # Convert to numpy array if it's a DataFrame to avoid feature name warnings
+        if hasattr(features, 'values'):
+            feature_data = features.values
+        else:
+            feature_data = features
+            
+        return self.scaler.transform(feature_data)
         
     def train(self, train_data: np.ndarray, validation_data: Optional[np.ndarray] = None, 
               **kwargs) -> Dict[str, Any]:

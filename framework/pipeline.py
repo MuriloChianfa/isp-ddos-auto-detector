@@ -6,6 +6,7 @@ Coordinates all components and manages the complete analysis workflow.
 import os
 import numpy as np
 import pandas as pd
+import logging
 from typing import Dict, Optional, Tuple, List, Any
 
 from framework.settings import SettingsManager
@@ -15,6 +16,11 @@ from framework.models.core.manager import ModelManager
 from framework.detector import AnomalyDetector
 from framework.visualizator import VisualizationManager
 from framework.results import ResultsManager
+from framework.performance import RealTimePerformanceEvaluator, PerformanceReporter, PerformanceMetrics
+from framework.visualization.performance_plots import PerformancePlotter
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class DDoSDetectorPipeline:
@@ -42,6 +48,10 @@ class DDoSDetectorPipeline:
         self.force_retrain = kwargs.get('force_retrain', False)
         self.force_regenerate = kwargs.get('force_regenerate', False)
         self.generate_reconstruction_error = kwargs.get('generate_reconstruction_error', False)
+        
+        # Performance evaluation parameters
+        self.evaluate_performance = kwargs.get('evaluate_performance', False)
+        self.performance_samples = kwargs.get('performance_samples', 1000)
         
         # Initialize components
         self.settings_manager = SettingsManager()
@@ -361,12 +371,197 @@ class DDoSDetectorPipeline:
             print("PIPELINE EXECUTION COMPLETED SUCCESSFULLY")
             print("="*60)
             
+            # Step 8: Evaluate real-time performance if requested
+            if self.evaluate_performance:
+                performance_metrics = self.evaluate_realtime_performance()
+                analysis_results['performance_metrics'] = performance_metrics
+            
             return analysis_results
             
         except Exception as e:
             print(f"\\nPipeline execution failed: {e}")
             print("="*60)
             raise e
+    
+    def evaluate_realtime_performance(self) -> Dict[str, PerformanceMetrics]:
+        """
+        Evaluate real-time performance of the trained model
+        
+        Returns:
+            Dictionary containing performance metrics for different test scenarios
+        """
+        if self.model is None:
+            raise ValueError("Model must be trained before performance evaluation")
+        
+        print("\\n" + "="*60)
+        print("EVALUATING REAL-TIME PERFORMANCE")
+        print("="*60)
+        
+        # Get test data for performance evaluation
+        test_features = self.processed_features['test']['features']
+        
+        # Limit test data size if needed
+        if len(test_features) > self.performance_samples:
+            # Randomly sample test data
+            sample_indices = np.random.choice(
+                len(test_features), self.performance_samples, replace=False
+            )
+            test_data = test_features.iloc[sample_indices].values
+        else:
+            test_data = test_features.values
+        
+        # Create performance evaluator
+        # Use the trained model directly for prediction (it includes both transformation and prediction)
+        evaluator = RealTimePerformanceEvaluator(
+            model=self.model,  # Use the trained model that has transform_data method
+            preprocessor=None  # No separate preprocessor needed
+        )
+        
+        performance_results = {}
+        
+        # Test 1: Single sample performance
+        print("\\nRunning single sample performance test...")
+        single_sample_metrics = evaluator.evaluate_single_sample_performance(
+            test_data=test_data,
+            num_samples=min(1000, len(test_data)),
+            model_name=self.model_name
+        )
+        performance_results['single_sample'] = single_sample_metrics
+        PerformanceReporter.print_metrics(single_sample_metrics)
+        
+        # Test 2: Batch performance (small batches)
+        print("\\nRunning batch performance test (batch_size=1)...")
+        batch_metrics_1 = evaluator.evaluate_batch_performance(
+            test_data=test_data,
+            batch_size=1,
+            num_iterations=min(500, len(test_data)),
+            model_name=self.model_name
+        )
+        performance_results['batch_size_1'] = batch_metrics_1
+        PerformanceReporter.print_metrics(batch_metrics_1)
+        
+        # Test 3: Batch performance (larger batches)
+        print("\\nRunning batch performance test (batch_size=10)...")
+        batch_metrics_10 = evaluator.evaluate_batch_performance(
+            test_data=test_data,
+            batch_size=10,
+            num_iterations=min(100, len(test_data) // 10),
+            model_name=self.model_name
+        )
+        performance_results['batch_size_10'] = batch_metrics_10
+        PerformanceReporter.print_metrics(batch_metrics_10)
+        
+        # Test 4: Streaming simulation (if we have enough data)
+        if len(test_data) >= 100:
+            print("\\nRunning streaming performance test (10 Hz, 30 seconds)...")
+            streaming_metrics = evaluator.evaluate_streaming_performance(
+                test_data=test_data,
+                stream_rate_hz=10,  # 10 samples per second
+                duration_seconds=30,
+                model_name=self.model_name
+            )
+            performance_results['streaming_10hz'] = streaming_metrics
+            PerformanceReporter.print_metrics(streaming_metrics)
+        
+        # Save performance metrics to file
+        self._save_performance_metrics(performance_results)
+        
+        # Generate performance visualization charts
+        self._generate_performance_charts(performance_results)
+        
+        # Print summary comparison
+        self._print_performance_summary(performance_results)
+        
+        return performance_results
+    
+    def _save_performance_metrics(self, performance_results: Dict[str, PerformanceMetrics]) -> None:
+        """
+        Save performance metrics to CSV file
+        
+        Args:
+            performance_results: Dictionary of performance metrics
+        """
+        if self.results_manager is None:
+            return
+        
+        results_dir = self.results_manager.get_results_directory()
+        performance_dir = os.path.join(results_dir, 'performance')
+        os.makedirs(performance_dir, exist_ok=True)
+        performance_file = os.path.join(performance_dir, 'metrics.csv')
+        
+        for test_type, metrics in performance_results.items():
+            PerformanceReporter.save_metrics(metrics, performance_file)
+        
+        print(f"\\nPerformance metrics saved to: {performance_file}")
+    
+    def _generate_performance_charts(self, performance_results: Dict[str, PerformanceMetrics]) -> None:
+        """
+        Generate performance visualization charts
+        
+        Args:
+            performance_results: Dictionary of performance metrics
+        """
+        if self.results_manager is None:
+            return
+        
+        try:
+            results_dir = self.results_manager.get_results_directory()
+            performance_charts_dir = os.path.join(results_dir, 'performance')
+            
+            # Create performance visualizer
+            visualizer = PerformancePlotter(performance_charts_dir)
+            
+            # Generate all performance charts
+            chart_paths = visualizer.generate_all_charts(performance_results, self.model_name)
+            
+            print(f"\\nPerformance charts generated:")
+            for chart_path in chart_paths:
+                print(f"  • {os.path.basename(chart_path)}")
+            print(f"Charts saved to: {performance_charts_dir}")
+            
+        except Exception as e:
+            print(f"Warning: Failed to generate performance charts: {e}")
+            logger.warning(f"Performance chart generation failed: {e}")
+    
+    def _print_performance_summary(self, performance_results: Dict[str, PerformanceMetrics]) -> None:
+        """
+        Print a summary comparison of all performance tests
+        
+        Args:
+            performance_results: Dictionary of performance metrics
+        """
+        print("\\n" + "="*80)
+        print("PERFORMANCE SUMMARY COMPARISON")
+        print("="*80)
+        
+        # Create comparison table
+        metrics_list = list(performance_results.values())
+        if metrics_list:
+            comparison_df = PerformanceReporter.compare_metrics(metrics_list)
+            print(comparison_df.to_string(index=False, float_format='%.3f'))
+        
+        # Print recommendations
+        print("\\n" + "-"*80)
+        print("RECOMMENDATIONS:")
+        
+        best_throughput = max(performance_results.items(), 
+                             key=lambda x: x[1].throughput_samples_per_sec)
+        best_latency = min(performance_results.items(), 
+                          key=lambda x: x[1].avg_latency_ms)
+        
+        print(f"• Best throughput: {best_throughput[0]} ({best_throughput[1].throughput_samples_per_sec:.2f} samples/sec)")
+        print(f"• Best latency: {best_latency[0]} ({best_latency[1].avg_latency_ms:.3f} ms)")
+        
+        # Real-time capability assessment
+        for test_name, metrics in performance_results.items():
+            if metrics.throughput_samples_per_sec >= 100:  # Can handle 100+ samples/sec
+                print(f"• {test_name}: Suitable for high-frequency real-time detection")
+            elif metrics.throughput_samples_per_sec >= 10:  # Can handle 10+ samples/sec
+                print(f"• {test_name}: Suitable for medium-frequency real-time detection")
+            else:
+                print(f"• {test_name}: May not be suitable for real-time detection")
+        
+        print("="*80)
     
     def get_results_summary(self) -> Dict:
         """

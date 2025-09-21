@@ -457,18 +457,32 @@ class TCNAutoencoder(BaseAnomalyDetector, ModelValidationMixin, ThresholdCalcula
         
         return config
     
-    def fit_scaler(self, training_features: np.ndarray) -> None:
+    def fit_scaler(self, training_features) -> None:
         """Fit the data scaler on training data."""
         from sklearn.preprocessing import StandardScaler
         self.scaler = StandardScaler()
-        self.scaler.fit(training_features)
+        
+        # Convert to numpy array if it's a DataFrame to avoid feature name warnings
+        if hasattr(training_features, 'values'):
+            training_data = training_features.values
+        else:
+            training_data = training_features
+            
+        self.scaler.fit(training_data)
         print(f"Fitted scaler on {len(training_features)} training samples")
     
-    def transform_data(self, features: np.ndarray) -> np.ndarray:
+    def transform_data(self, features) -> np.ndarray:
         """Transform features using the fitted scaler."""
         if self.scaler is None:
             raise ValueError("Scaler not fitted. Call fit_scaler first.")
-        return self.scaler.transform(features)
+            
+        # Convert to numpy array if it's a DataFrame to avoid feature name warnings
+        if hasattr(features, 'values'):
+            feature_data = features.values
+        else:
+            feature_data = features
+            
+        return self.scaler.transform(feature_data)
     
     def calculate_threshold(self, train_scores: np.ndarray, val_scores: np.ndarray, 
                           strategy: str = 'exponential_threshold') -> Tuple[float, Dict[str, float]]:

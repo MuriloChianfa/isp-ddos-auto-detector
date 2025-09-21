@@ -117,6 +117,17 @@ if __name__ == "__main__":
         action='store_true',
         help='Force retraining of the model even if saved artifacts exist'
     )
+    parser.add_argument(
+        '--evaluate-performance',
+        action='store_true',
+        help='Include real-time performance evaluation in the analysis'
+    )
+    parser.add_argument(
+        '--performance-samples',
+        type=int,
+        default=1000,
+        help='Number of samples to use for performance testing (default: 1000)'
+    )
     
     args = parser.parse_args()
     
@@ -136,7 +147,9 @@ if __name__ == "__main__":
         'max_processes': args.max_processes,
         'use_fixed_threshold': args.use_fixed_threshold,
         'generate_reconstruction_error': args.generate_reconstruction_error,
-        'force_retrain': args.force_retrain
+        'force_retrain': args.force_retrain,
+        'evaluate_performance': args.evaluate_performance,
+        'performance_samples': args.performance_samples
     }
 
     if not kwargs['use_cache']:
