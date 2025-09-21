@@ -35,7 +35,7 @@ def get_results_path(dataset_name=None, model_name="autoencoder", time_span=300,
         dataset_name (str): Name of the dataset
         model_name (str): Name of the model
         time_span (int): Time span in seconds (10, 60 or 300)
-        path_type (str): Type of path ("models", "features", "evaluation", etc.)
+        path_type (str): Type of path ("models", "features", "evaluation", "artifacts", etc.)
     
     Returns:
         str: Formatted results path
@@ -49,6 +49,8 @@ def get_results_path(dataset_name=None, model_name="autoencoder", time_span=300,
             return f"./results/{dataset_name}/{time_label}/features"
         elif path_type == "evaluation":
             return f"./results/{dataset_name}/{time_label}/models/{model_name}/evaluation"
+        elif path_type == "artifacts":
+            return f"./results/{dataset_name}/{time_label}/models/{model_name}/artifacts"
         else:
             return f"./results/{dataset_name}/{time_label}/{path_type}"
     else:
@@ -58,5 +60,21 @@ def get_results_path(dataset_name=None, model_name="autoencoder", time_span=300,
             return f"./results/{time_label}/features"
         elif path_type == "evaluation":
             return f"./results/{time_label}/models/{model_name}/evaluation"
+        elif path_type == "artifacts":
+            return f"./results/{time_label}/models/{model_name}/artifacts"
         else:
             return f"./results/{time_label}/{path_type}"
+
+def get_artifacts_path(dataset_name, model_name, time_span):
+    """
+    Generate artifacts directory path for saving/loading trained models
+    
+    Args:
+        dataset_name (str): Name of the dataset
+        model_name (str): Name of the model
+        time_span (int): Time span in seconds (10, 60 or 300)
+    
+    Returns:
+        str: Artifacts directory path
+    """
+    return get_results_path(dataset_name, model_name, time_span, "artifacts")

@@ -210,6 +210,70 @@ class BaseAnomalyDetector(ABC):
             'has_threshold': self.threshold is not None,
             'threshold_value': self.threshold
         }
+    
+    def save_artifacts(self, dataset_name: str, time_span: int, training_history: Optional[Dict] = None) -> str:
+        """
+        Save model artifacts using the artifacts manager.
+        
+        Args:
+            dataset_name: Name of the dataset
+            time_span: Time span in seconds
+            training_history: Training history dictionary (optional)
+            
+        Returns:
+            str: Path to the saved artifacts directory
+        """
+        from .artifacts import save_model_artifacts
+        return save_model_artifacts(self, dataset_name, self.model_name, time_span, training_history)
+    
+    @classmethod
+    def load_artifacts(cls, dataset_name: str, model_name: str, time_span: int, **model_kwargs):
+        """
+        Load model artifacts using the artifacts manager.
+        
+        Args:
+            dataset_name: Name of the dataset
+            model_name: Name of the model
+            time_span: Time span in seconds
+            **model_kwargs: Additional arguments for model initialization
+            
+        Returns:
+            Loaded and initialized model instance
+        """
+        from .artifacts import load_model_artifacts
+        return load_model_artifacts(cls, dataset_name, model_name, time_span, **model_kwargs)
+    
+    @staticmethod
+    def artifacts_exist(dataset_name: str, model_name: str, time_span: int) -> bool:
+        """
+        Check if model artifacts exist.
+        
+        Args:
+            dataset_name: Name of the dataset
+            model_name: Name of the model
+            time_span: Time span in seconds
+            
+        Returns:
+            bool: True if artifacts exist
+        """
+        from .artifacts import artifacts_exist
+        return artifacts_exist(dataset_name, model_name, time_span)
+    
+    @staticmethod
+    def get_artifacts_info(dataset_name: str, model_name: str, time_span: int) -> Optional[Dict[str, Any]]:
+        """
+        Get information about existing artifacts.
+        
+        Args:
+            dataset_name: Name of the dataset
+            model_name: Name of the model
+            time_span: Time span in seconds
+            
+        Returns:
+            Dict with artifacts information or None if no artifacts exist
+        """
+        from .artifacts import get_artifacts_info
+        return get_artifacts_info(dataset_name, model_name, time_span)
 
 
 class DummyTrainingHistory:
