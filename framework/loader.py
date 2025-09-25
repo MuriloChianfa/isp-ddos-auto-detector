@@ -85,7 +85,7 @@ class NetworkDataLoader:
             if self.max_processes is not None:
                 num_processes = min(cpu_count(), len(file_info), self.max_processes)
             else:
-                num_processes = min(cpu_count(), len(file_info), 16)
+                num_processes = min(cpu_count(), len(file_info), 48)
 
             print(f"  Using {num_processes} parallel processes")
             

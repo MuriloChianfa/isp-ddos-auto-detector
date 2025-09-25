@@ -12,7 +12,7 @@ from framework.pipeline import DDoSDetectorPipeline
 from framework.settings import SettingsManager
 from framework.models import list_available_models
 from framework.constants import SUPPORTED_TIME_SPANS
-from config import DATASETS, DEFAULT_DATASET
+from config import DATASETS, DEFAULT_DATASET, DEFAULT_TIME_SPAN
 
 
 def main(dataset_name=None, **kwargs):
@@ -74,8 +74,8 @@ if __name__ == "__main__":
         '--time-span', '-t',
         type=int,
         choices=SUPPORTED_TIME_SPANS,
-        default=300,
-        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: 300'
+        default=DEFAULT_TIME_SPAN,
+        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: {DEFAULT_TIME_SPAN}'
     )
     parser.add_argument(
         '--use-fixed-threshold',
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         '--max-processes',
         type=int,
         default=None,
-        help='Maximum number of processes to use for parallel processing (default: 16)'
+        help='Maximum number of processes to use for parallel processing (default: 48)'
     )
     parser.add_argument(
         '--force-retrain',

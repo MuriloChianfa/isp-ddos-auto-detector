@@ -16,7 +16,7 @@ from framework.features import NetworkFeatureExtractor
 from framework.visualization.dataset_plots import DatasetFeatureVisualizer
 from framework.utils import get_time_span_description, get_time_span_detailed_description
 from framework.constants import SUPPORTED_TIME_SPANS
-from config import DATASETS, DEFAULT_DATASET
+from config import DATASETS, DEFAULT_DATASET, DEFAULT_TIME_SPAN
 
 
 def main():
@@ -27,7 +27,8 @@ Examples:
   %(prog)s                                    # Generate all plots for default dataset
   %(prog)s -d isp-synflood-multiple-days     # Generate plots for specific dataset
   %(prog)s --no-comparisons                  # Skip cross-dataset comparison plots
-  %(prog)s -t 60                             # Use 60-second time windows instead of default 300
+  %(prog)s -t 60                             # Use 60-second time windows instead of default
+  %(prog)s --max-processes 12                # Use 12 parallel processes for faster generation
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -39,8 +40,14 @@ Examples:
         '--time-span', '-t',
         type=int,
         choices=SUPPORTED_TIME_SPANS,
-        default=300,
-        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: 300'
+        default=DEFAULT_TIME_SPAN,
+        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: {DEFAULT_TIME_SPAN}'
+    )
+    parser.add_argument(
+        '--max-processes',
+        type=int,
+        default=12,
+        help='Maximum number of processes to use for parallel plot generation (default: 12)'
     )
     
     args = parser.parse_args()
@@ -97,7 +104,8 @@ Examples:
         feature_viz = DatasetFeatureVisualizer(
             dataset_name=dataset_name, 
             save_format='png',
-            time_span=time_span
+            time_span=time_span,
+            max_processes=args.max_processes
         )
         feature_viz.generate_all_feature_plots(
             features_dict, 

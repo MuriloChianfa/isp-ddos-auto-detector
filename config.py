@@ -56,3 +56,6 @@ MODEL_THRESHOLD_STRATEGIES = {
 
 # Default dataset to use when none is specified
 DEFAULT_DATASET = 'itp-downstream-http-flood'
+
+# Default time span for feature aggregation in seconds
+DEFAULT_TIME_SPAN = 300

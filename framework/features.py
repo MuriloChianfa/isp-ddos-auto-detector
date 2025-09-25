@@ -166,7 +166,7 @@ class NetworkFeatureExtractor:
                 if self.max_processes is not None:
                     num_processes = min(cpu_count(), len(data_chunks), self.max_processes)
                 else:
-                    num_processes = min(cpu_count(), len(data_chunks), 16)
+                    num_processes = min(cpu_count(), len(data_chunks), 48)
 
                 print(f"  Using {num_processes} parallel processes for feature extraction")
                 
