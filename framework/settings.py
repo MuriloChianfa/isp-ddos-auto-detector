@@ -12,6 +12,7 @@ from typing import Dict, Optional, List
 from config import DATASETS, DEFAULT_DATASET, MODEL_THRESHOLD_STRATEGIES
 from framework.models import list_available_models, get_model_descriptions
 from framework.utils import get_time_span_description, get_time_span_detailed_description
+from framework.constants import SUPPORTED_TIME_SPANS
 
 
 class SettingsManager:
@@ -67,10 +68,9 @@ class SettingsManager:
         Returns:
             True if time span is valid, False otherwise
         """
-        valid_time_spans = [10, 60, 300]
-        if time_span not in valid_time_spans:
+        if time_span not in SUPPORTED_TIME_SPANS:
             print(f"Error: Time span '{time_span}' not supported.")
-            print(f"Valid time spans: {valid_time_spans}")
+            print(f"Valid time spans: {SUPPORTED_TIME_SPANS}")
             return False
         return True
     

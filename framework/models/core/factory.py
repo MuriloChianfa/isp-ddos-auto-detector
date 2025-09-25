@@ -174,7 +174,9 @@ class ModelFactory:
             sequence_length = int(base_sequence_length * sequence_multiplier)
             
             # Adjust latent dimension based on time span granularity
-            if time_span == 10:
+            if time_span == 1:
+                latent_dim = 96  # Largest latent space for real-time patterns
+            elif time_span == 10:
                 latent_dim = 64  # Larger latent space for micro-patterns
             elif time_span == 60:
                 latent_dim = 48  # Standard latent space
@@ -197,7 +199,11 @@ class ModelFactory:
         
         elif model_name == 'tcn_autoencoder':
             # Configure TCN autoencoder with time-span specific parameters
-            if time_span == 10:
+            if time_span == 1:
+                sequence_length = 2  # Shortest for real-time patterns
+                latent_dim = 6      # Smallest for real-time patterns
+                filters = 16        # Fewest filters for real-time detection
+            elif time_span == 10:
                 sequence_length = 3  # Very short for micro-patterns
                 latent_dim = 8      # Smaller for micro-patterns
                 filters = 24        # Fewer filters for fine-grained detection

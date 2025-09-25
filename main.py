@@ -11,6 +11,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 from framework.pipeline import DDoSDetectorPipeline
 from framework.settings import SettingsManager
 from framework.models import list_available_models
+from framework.constants import SUPPORTED_TIME_SPANS
 from config import DATASETS, DEFAULT_DATASET
 
 
@@ -72,9 +73,9 @@ if __name__ == "__main__":
     parser.add_argument(
         '--time-span', '-t',
         type=int,
-        choices=[10, 60, 300],
+        choices=SUPPORTED_TIME_SPANS,
         default=300,
-        help='Time span for feature aggregation in seconds. Options: 10, 60 or 300. Default: 300'
+        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: 300'
     )
     parser.add_argument(
         '--use-fixed-threshold',

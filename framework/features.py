@@ -551,7 +551,25 @@ class NetworkFeatureExtractor:
         if df is None or len(df) == 0:
             return []
 
-        if self.time_span == 10:
+        if self.time_span == 1:
+            # 1 SECOND WINDOW - Real-time resolution time windows
+            df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            nan_count = df['firstSeen'].isna().sum()
+            if nan_count > 0:
+                print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
+                df = df.dropna(subset=['firstSeen'])
+            
+            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
+            
+            start_time = df['firstSeen'].min().floor(get_time_span_floor(self.time_span))
+            end_time = df['firstSeen'].max().ceil(get_time_span_floor(self.time_span))
+            complete_time_range = pd.date_range(start=start_time, end=end_time, freq=get_time_span_frequency(self.time_span))
+
+            df['time_window'] = df['firstSeen'].dt.floor(get_time_span_floor(self.time_span))
+            time_grouped = df.groupby('time_window')
+            
+            existing_windows = set(time_grouped.groups.keys())
+        elif self.time_span == 10:
             # 10 SECOND WINDOW - Ultra high-resolution time windows
             df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
             nan_count = df['firstSeen'].isna().sum()
@@ -748,8 +766,8 @@ class NetworkFeatureExtractor:
             
             features_list.append(feature_row)
         
-        # Fill missing time windows with zero values for 10-second and 1-minute windows
-        if self.time_span in [10, 60] and complete_time_range is not None:
+        # Fill missing time windows with zero values for 1-second, 10-second and 1-minute windows
+        if self.time_span in [1, 10, 60] and complete_time_range is not None:
             missing_windows = [t for t in complete_time_range if t not in existing_windows]
             
             if missing_windows:

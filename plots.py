@@ -15,6 +15,7 @@ from framework.loader import NetworkDataLoader
 from framework.features import NetworkFeatureExtractor
 from framework.visualization.dataset_plots import DatasetFeatureVisualizer
 from framework.utils import get_time_span_description, get_time_span_detailed_description
+from framework.constants import SUPPORTED_TIME_SPANS
 from config import DATASETS, DEFAULT_DATASET
 
 
@@ -37,9 +38,9 @@ Examples:
     parser.add_argument(
         '--time-span', '-t',
         type=int,
-        choices=[10, 60, 300],
+        choices=SUPPORTED_TIME_SPANS,
         default=300,
-        help='Time span for feature aggregation in seconds. Options: 10, 60 or 300. Default: 300'
+        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: 300'
     )
     
     args = parser.parse_args()

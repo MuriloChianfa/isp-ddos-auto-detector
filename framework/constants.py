@@ -4,6 +4,13 @@ Constants and feature group definitions for the ISP DDoS Auto Detector
 
 # Time span configurations
 TIME_SPANS = {
+    1: {
+        'description': '1-second',
+        'detailed_description': 'real-time resolution',
+        'frequency': '1s',
+        'pandas_floor': '1s',
+        'sequence_multiplier': 10.0  # Longest sequences for real-time patterns
+    },
     10: {
         'description': '10-second',
         'detailed_description': 'ultra high-resolution',
