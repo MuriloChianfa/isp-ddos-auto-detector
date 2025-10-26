@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from framework.evaluation import GroundTruthEvaluator
-from config import MODEL_THRESHOLD_STRATEGIES
+
 
 
 class AnomalyDetector:
@@ -108,9 +108,10 @@ class AnomalyDetector:
         Returns:
             Tuple of (selected_threshold, all_thresholds_dict)
         """
-        # Get the default threshold strategy for this model
-        default_strategy = MODEL_THRESHOLD_STRATEGIES.get(self.model_name, 'exponential_threshold')
-        print(f"\nUsing default threshold strategy for {self.model_name}: {default_strategy}")
+        # Get the dataset and timespan-specific threshold strategy for this model
+        from framework.utils import get_model_threshold_strategy
+        default_strategy = get_model_threshold_strategy(self.dataset_name, self.time_span, self.model_name)
+        print(f"\nUsing threshold strategy for {self.model_name} on {self.dataset_name} ({self.time_span}s): {default_strategy}")
         
         # Calculate threshold using the default strategy
         threshold, all_thresholds = self.model.calculate_threshold(train_scores, val_scores, default_strategy)
@@ -123,59 +124,10 @@ class AnomalyDetector:
         except Exception as e:
             print(f"Warning: Could not update threshold in artifacts: {e}")
         
-        # Special handling for TCN autoencoder
-        if self.model_name == 'tcn_autoencoder':
-            threshold = self._handle_tcn_threshold(
-                train_scores, val_scores, threshold, all_thresholds, 
-                default_strategy, use_fixed_threshold
-            )
-        
         # Compare different threshold methods
         self._print_threshold_comparison(train_scores, val_scores, default_strategy, threshold)
         
         return threshold, all_thresholds
-    
-    def _handle_tcn_threshold(self, train_scores: np.ndarray, val_scores: np.ndarray,
-                             threshold: float, all_thresholds: Dict, default_strategy: str,
-                             use_fixed_threshold: bool) -> float:
-        """
-        Handle special threshold calculation for TCN autoencoder
-        
-        Args:
-            train_scores: Training reconstruction scores
-            val_scores: Validation reconstruction scores  
-            threshold: Default calculated threshold
-            all_thresholds: Dictionary of all calculated thresholds
-            default_strategy: Default threshold strategy name
-            use_fixed_threshold: Whether to use fixed threshold
-            
-        Returns:
-            Final threshold value
-        """
-        if use_fixed_threshold:
-            print("Using TCN autoencoder's built-in FIXED threshold (set during training)...")
-            if hasattr(self.model, 'threshold') and self.model.threshold is not None:
-                print(f"Model's FIXED threshold: {self.model.threshold:.6f}")
-                threshold = self.model.threshold
-                print(f"Using model's FIXED threshold: {threshold:.6f}")
-            else:
-                print("No model threshold found, falling back to default strategy...")
-        else:
-            print("Using ADAPTIVE threshold calculation for TCN autoencoder...")
-            adaptive_threshold = self.model.calculate_adaptive_threshold(train_scores, val_scores, 'adaptive_percentile')
-            robust_threshold = self.model.calculate_adaptive_threshold(train_scores, val_scores, 'robust_iqr')
-            
-            print(f"Adaptive thresholds:")
-            print(f"  Adaptive percentile: {adaptive_threshold:.6f}")
-            print(f"  Robust IQR: {robust_threshold:.6f}")
-            print(f"  Default strategy ({default_strategy}): {threshold:.6f}")
-            
-            # Use the most conservative (highest) threshold
-            final_threshold = max(adaptive_threshold, robust_threshold, threshold)
-            print(f"Selected final ADAPTIVE threshold: {final_threshold:.6f}")
-            threshold = final_threshold
-        
-        return threshold
     
     def _print_threshold_comparison(self, train_scores: np.ndarray, val_scores: np.ndarray,
                                    default_strategy: str, selected_threshold: float):
@@ -227,73 +179,22 @@ class AnomalyDetector:
         # Ensure the model threshold is set before detection
         self.model.threshold = threshold
         
-        # Use real-time mode for TCN autoencoder to get point-wise detection
-        if self.model_name == 'tcn_autoencoder':
-            anomalies = self.model.detect_anomalies(scores, real_time_mode=True)
-        else:
-            anomalies = self.model.detect_anomalies(scores)
+        # Standard anomaly detection
+        anomalies = self.model.detect_anomalies(scores)
         
         reconstructions = self.model.predict(scaled_data)[0]
         metrics = self.model.get_metrics(scaled_data, reconstructions, scores)
         
-        # Handle temporal models - align features with sequences
+        # Standard models - direct mapping
         features_result = features_df.copy()
-        
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            features_result = self._align_temporal_results(features_result, scores, anomalies)
-        else:
-            # Standard models - direct mapping
-            features_result['reconstruction_error'] = scores
-            features_result['is_anomaly'] = anomalies
-        
+        features_result['reconstruction_error'] = scores
+        features_result['is_anomaly'] = anomalies
         features_result['dataset'] = split_name
         
         # Print statistics
         self._print_split_statistics(split_name, features_result, metrics, anomalies)
         
         return features_result
-    
-    def _align_temporal_results(self, features_df: pd.DataFrame, scores: np.ndarray,
-                               anomalies: np.ndarray) -> pd.DataFrame:
-        """
-        Align temporal model results with original feature timestamps
-        
-        Args:
-            features_df: Original features dataframe
-            scores: Reconstruction scores from temporal model
-            anomalies: Anomaly predictions from temporal model
-            
-        Returns:
-            DataFrame with properly aligned temporal results
-        """
-        sequence_length = self.model.sequence_length
-        
-        # Initialize arrays with NaN/False
-        padded_scores = np.full(len(features_df), np.nan)
-        padded_anomalies = np.full(len(features_df), False, dtype=bool)
-        
-        if len(scores) > 0:
-            # For TCN models, use receptive field information for better alignment
-            if hasattr(self.model, 'get_receptive_field'):
-                receptive_field = self.model.get_receptive_field()
-                # Align to the center of the receptive field within the sequence
-                alignment_offset = min(sequence_length // 2, receptive_field // 2)
-            else:
-                # Fallback to center alignment
-                alignment_offset = sequence_length // 2
-            
-            print(f"Using temporal alignment offset: {alignment_offset} timesteps")
-            
-            for i, (score, anomaly) in enumerate(zip(scores, anomalies)):
-                target_idx = i + alignment_offset
-                if target_idx < len(features_df):
-                    padded_scores[target_idx] = score
-                    padded_anomalies[target_idx] = anomaly
-        
-        features_df['reconstruction_error'] = padded_scores
-        features_df['is_anomaly'] = padded_anomalies
-        
-        return features_df
     
     def _print_split_statistics(self, split_name: str, features_df: pd.DataFrame,
                                metrics: Dict, anomalies: np.ndarray):
@@ -306,27 +207,15 @@ class AnomalyDetector:
             metrics: Model metrics dictionary
             anomalies: Anomaly predictions array
         """
-        # Calculate statistics, handling NaN values for temporal models
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            # For temporal models, only count non-NaN anomalies
-            valid_mask = ~np.isnan(features_df['reconstruction_error'])
-            num_anomalies = np.sum(features_df['is_anomaly'] & valid_mask)
-            total_samples = np.sum(valid_mask)
-            sequence_length = self.model.sequence_length
-        else:
-            num_anomalies = np.sum(anomalies)
-            total_samples = len(anomalies)
-            sequence_length = None
-        
+        # Calculate statistics
+        num_anomalies = np.sum(anomalies)
+        total_samples = len(anomalies)
         anomaly_percentage = (num_anomalies / total_samples) * 100 if total_samples > 0 else 0
         
         print(f"\nDataset: {split_name}")
         print(f"  Mean Absolute Error (MAE): {metrics['mae']:.6f}")
         print(f"  Mean Squared Error (MSE):  {metrics['mse']:.6f}")
         print(f"  Root Mean Squared Error:   {metrics['rmse']:.6f}")
-        if sequence_length:
-            print(f"  Sequence length:           {sequence_length}")
-            print(f"  Valid samples:             {total_samples} (excluding {len(features_df) - total_samples} initial timesteps)")
         print(f"  Anomalies detected:        {num_anomalies}/{total_samples} ({anomaly_percentage:.2f}%)")
     
     def evaluate_performance(self, combined_features: pd.DataFrame, threshold: float,
@@ -352,12 +241,13 @@ class AnomalyDetector:
         # Extract test dataset
         test_data = combined_features[combined_features['dataset'] == 'test'].copy()
         
-        # Use dataset-specific attack periods
-        attack_periods = dataset_config.get('attack_periods', [])
+        # Use dataset and timespan-specific attack periods
+        from framework.utils import get_attack_periods
+        attack_periods = get_attack_periods(self.dataset_name, self.time_span)
         if attack_periods:
-            # Evaluate against ground truth using dataset-specific attack periods
+            # Evaluate against ground truth using dataset and timespan-specific attack periods
             evaluation_metrics = evaluator.evaluate_test_dataset(test_data, threshold, attack_periods)
             return evaluation_metrics
         else:
-            print("Warning: No attack periods defined for this dataset. Skipping ground truth evaluation.")
+            print(f"Warning: No attack periods defined for dataset '{self.dataset_name}' with {self.time_span}s timespan. Skipping ground truth evaluation.")
             return None

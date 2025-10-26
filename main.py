@@ -78,11 +78,6 @@ if __name__ == "__main__":
         help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: {DEFAULT_TIME_SPAN}'
     )
     parser.add_argument(
-        '--use-fixed-threshold',
-        action='store_true',
-        help='Use the model\'s built-in fixed threshold instead of adaptive calculation (for TCN autoencoder)'
-    )
-    parser.add_argument(
         '--generate-reconstruction-error',
         action='store_true',
         help='Generate detailed feature reconstruction error visualizations (creates many plots)'
@@ -146,7 +141,6 @@ if __name__ == "__main__":
         'use_cache': not args.no_cache,
         'force_regenerate': args.force_regenerate,
         'max_processes': args.max_processes,
-        'use_fixed_threshold': args.use_fixed_threshold,
         'generate_reconstruction_error': args.generate_reconstruction_error,
         'force_retrain': args.force_retrain,
         'evaluate_performance': args.evaluate_performance,

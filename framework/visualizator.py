@@ -63,38 +63,15 @@ class VisualizationManager:
             feature_names: List of feature names
             feature_errors: Array of feature reconstruction errors
             importance_indices: Array of feature importance indices
-            importance_analysis: Optional temporal analysis results for temporal models
+            importance_analysis: Optional temporal analysis results (planned for future temporal models)
         """
         # Create feature importance visualizations (only for models that support it)
-        if self.model_name in ['autoencoder', 'lstm_autoencoder', 'tcn_autoencoder']:
+        if self.model_name == 'autoencoder':
             print("Creating feature importance visualizations...")
             eval_viz = EvaluationVisualizer(self.results_path)
             eval_viz.plot_feature_importance(feature_errors, feature_names, importance_indices, top_n=20)
             eval_viz.plot_feature_importance_detailed(feature_errors, feature_names, importance_indices, top_n=15)
-            
-            # Additional visualizations for temporal models
-            if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-                print("Creating temporal-specific visualizations...")
-                if importance_analysis is not None:
-                    self._generate_temporal_visualizations(importance_analysis)
-                # Future: Add more temporal-specific plots here
     
-    def _generate_temporal_visualizations(self, importance_analysis: Dict):
-        """
-        Generate temporal-specific visualizations
-        
-        Args:
-            importance_analysis: Dictionary containing temporal analysis results
-        """
-        # Print temporal importance summary
-        print("\nTemporal Analysis Summary:")
-        temporal_errors = importance_analysis['temporal_errors']
-        print(f"  Most critical timesteps: {np.argsort(temporal_errors)[-5:][::-1] + 1}")
-        print(f"  Temporal error range: {temporal_errors.min():.6f} - {temporal_errors.max():.6f}")
-        
-        # Future: Add actual temporal visualization plots here
-        # eval_viz.plot_temporal_importance(temporal_errors)
-        # eval_viz.plot_timestep_analysis(importance_analysis)
     
     def generate_anomaly_visualizations(self, combined_features: pd.DataFrame, threshold: float,
                                        test_scores: np.ndarray, all_thresholds: Dict):

@@ -691,48 +691,11 @@ def generate_feature_reconstruction_error_plots(model, processing_list, features
             if 'timestamp' in features_data.columns:
                 timestamps = features_data['timestamp'].values
             
-            # Handle temporal models alignment
-            if model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-                # For temporal models, align reconstructions with original data
-                sequence_length = model.sequence_length
-                
-                # Skip if not enough data for sequences
-                if len(scaled_data) < sequence_length:
-                    print(f"    Skipping {split_name}: insufficient data for sequences")
-                    plot_summary[split_name] = {"status": "skipped", "reason": "insufficient data"}
-                    continue
-                
-                # Align data properly for temporal models
-                # Use the same alignment logic as in the main processing
-                if hasattr(model, 'get_receptive_field'):
-                    receptive_field = model.get_receptive_field()
-                    alignment_offset = min(sequence_length // 2, receptive_field // 2)
-                else:
-                    alignment_offset = sequence_length // 2
-                
-                # Extract the subset that has valid reconstructions
-                valid_start = alignment_offset
-                valid_end = valid_start + len(reconstructions)
-                
-                if valid_end <= len(scaled_data):
-                    aligned_original = scaled_data[valid_start:valid_end]
-                    aligned_timestamps = timestamps[valid_start:valid_end] if timestamps is not None else None
-                    
-                    # Create all error plots for this dataset split
-                    error_plots = error_viz.create_all_feature_error_plots(
-                        aligned_original, reconstructions, feature_names,
-                        aligned_timestamps, split_name
-                    )
-                else:
-                    print(f"    Skipping {split_name}: alignment issues with temporal data")
-                    plot_summary[split_name] = {"status": "skipped", "reason": "alignment issues"}
-                    continue
-            else:
-                # For non-temporal models, direct comparison
-                error_plots = error_viz.create_all_feature_error_plots(
-                    scaled_data, reconstructions, feature_names,
-                    timestamps, split_name
-                )
+            # Standard models - direct processing
+            error_plots = error_viz.create_all_feature_error_plots(
+                scaled_data, reconstructions, feature_names,
+                timestamps, split_name
+            )
             
             plot_summary[split_name] = {
                 "status": "success",

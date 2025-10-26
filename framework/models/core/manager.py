@@ -161,19 +161,10 @@ class ModelManager:
         print(f"\nNumber of input features: {input_dim}")
         
         # Build model with feature dimension
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            self.model.build_model(feature_dim=input_dim)
-            print(f"Model parameters: {self.model.get_model_summary()['total_parameters']:,}")
-        else:
-            self.model.build_model(input_dim)
+        self.model.build_model(input_dim)
         
         print("\nTraining model...")
-        # Use moderate training duration with very patient early stopping for temporal models
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            print(f"Training {self.model_name} with patient training strategy for stable pattern learning")
-            history = self.model.train(scaled_train_data, scaled_validation_data, epochs=80)
-        else:
-            history = self.model.train(scaled_train_data, scaled_validation_data)
+        history = self.model.train(scaled_train_data, scaled_validation_data)
         
         # Save model artifacts after successful training
         self._save_model_artifacts(history)
@@ -197,19 +188,10 @@ class ModelManager:
         print(f"\nNumber of input features: {input_dim}")
         
         # Build model with feature dimension
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            self.model.build_model(feature_dim=input_dim)
-            print(f"Model parameters: {self.model.get_model_summary()['total_parameters']:,}")
-        else:
-            self.model.build_model(input_dim)
+        self.model.build_model(input_dim)
         
         print("\nTraining model...")
-        # Use moderate training duration with very patient early stopping for temporal models
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            print(f"Training {self.model_name} with patient training strategy for stable pattern learning")
-            history = self.model.train(scaled_train_data, scaled_validation_data, epochs=80)
-        else:
-            history = self.model.train(scaled_train_data, scaled_validation_data)
+        history = self.model.train(scaled_train_data, scaled_validation_data)
         
         # Save model artifacts after successful training
         self._save_model_artifacts(history)

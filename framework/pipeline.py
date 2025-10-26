@@ -227,18 +227,11 @@ class DDoSDetectorPipeline:
         scaled_test_data = self.model.transform_data(test_features)
         feature_names = test_features.columns.tolist()
         
-        # Use appropriate feature importance method based on model type
+        # Get feature importance (all models use the same method now)
+        feature_errors, importance_indices = self.model.analyze_feature_importance(
+            scaled_test_data, feature_names
+        )
         importance_analysis = None
-        if self.model_name in ['lstm_autoencoder', 'tcn_autoencoder']:
-            # Temporal models - get feature and temporal importance
-            importance_analysis = self.model.analyze_temporal_importance(scaled_test_data, feature_names)
-            feature_errors = importance_analysis['feature_errors']
-            importance_indices = importance_analysis['importance_indices']
-        else:
-            # Standard models - get feature importance only
-            feature_errors, importance_indices = self.model.analyze_feature_importance(
-                scaled_test_data, feature_names
-            )
         
         return feature_errors, importance_indices, feature_names, importance_analysis
     

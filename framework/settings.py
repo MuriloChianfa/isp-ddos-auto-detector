@@ -6,10 +6,8 @@ Handles validation of model parameters, dataset configuration, and feature setti
 import os
 from typing import Dict, List, Optional
 from config import DATASETS, DEFAULT_DATASET
-from framework.detector import MODEL_THRESHOLD_STRATEGIES
-
 from typing import Dict, Optional, List
-from config import DATASETS, DEFAULT_DATASET, MODEL_THRESHOLD_STRATEGIES
+from config import DATASETS, DEFAULT_DATASET
 from framework.models import list_available_models, get_model_descriptions
 from framework.utils import get_time_span_description, get_time_span_detailed_description
 from framework.constants import SUPPORTED_TIME_SPANS
@@ -75,6 +73,41 @@ class SettingsManager:
         return True
     
     @staticmethod
+    def validate_window_config(dataset_name: str, time_span: int) -> bool:
+        """
+        Validate that the dataset has configuration for the specified timespan
+        
+        Args:
+            dataset_name: Name of the dataset
+            time_span: Time span in seconds
+            
+        Returns:
+            True if window configuration exists, False otherwise
+        """
+        dataset_config = DATASETS.get(dataset_name, {})
+        windows = dataset_config.get('windows', {})
+        
+        if str(time_span) not in windows:
+            print(f"Warning: No window configuration found for dataset '{dataset_name}' with {time_span}s timespan.")
+            available_windows = list(windows.keys())
+            if available_windows:
+                print(f"Available timespan configurations: {available_windows}")
+            else:
+                print("No window configurations defined for this dataset.")
+            return False
+        
+        # Validate that the window configuration has required fields
+        window_config = windows[str(time_span)]
+        if 'threshold_strategies' not in window_config:
+            print(f"Info: No threshold strategies defined for dataset '{dataset_name}' with {time_span}s timespan. Using default strategies.")
+            
+        if 'attack_periods' not in window_config:
+            print(f"Warning: No attack periods defined for dataset '{dataset_name}' with {time_span}s timespan.")
+            return False
+        
+        return True
+    
+    @staticmethod
     def print_configuration_summary(dataset_name: str, model_name: str, time_span: int, 
                                    use_cache: bool = True, max_processes: Optional[int] = None):
         """
@@ -87,24 +120,38 @@ class SettingsManager:
             use_cache: Whether caching is enabled
             max_processes: Maximum number of processes for parallel processing
         """
+        from framework.utils import get_model_threshold_strategy, get_attack_periods, get_threshold_strategies
+        
         dataset_config = DATASETS[dataset_name]
         feature_config = dataset_config.get('feature_config', {})
-        default_threshold_strategy = MODEL_THRESHOLD_STRATEGIES.get(model_name, 'sigmoid_threshold')
+        default_threshold_strategy = get_model_threshold_strategy(dataset_name, time_span, model_name)
+        attack_periods = get_attack_periods(dataset_name, time_span)
+        threshold_strategies = get_threshold_strategies(dataset_name, time_span)
         
         print(f"Using dataset: {dataset_name}")
         print(f"Description: {dataset_config['description']}")
         print(f"Path: {dataset_config['path']}")
         print(f"Model: {model_name}")
-        print(f"Default threshold strategy: {default_threshold_strategy}")
+        print(f"Threshold strategy for {model_name}: {default_threshold_strategy}")
         print(f"Time span: {time_span} seconds ({get_time_span_description(time_span)} - {get_time_span_detailed_description(time_span)} windows)")
-        print("Using memory-efficient processing by default")
+        print(f"Attack periods defined: {len(attack_periods)} periods")
+        if threshold_strategies:
+            print(f"Available threshold strategies: {list(threshold_strategies.keys())}")
+        else:
+            print("Available threshold strategies: Using default strategies from MODEL_THRESHOLD_STRATEGIES")
         
         # Display feature configuration info
         if feature_config:
             print(f"\nFeature Configuration:")
             include_groups = feature_config.get('include_groups', [])
             if include_groups:
+                from framework.constants import FEATURE_GROUPS
                 print(f"  Feature groups: {', '.join(include_groups)}")
+                print(f"  Expanded features by group:")
+                for group in include_groups:
+                    if group in FEATURE_GROUPS:
+                        features = FEATURE_GROUPS[group]
+                        print(f"    {group}: {', '.join(features)}")
             exclude_features = feature_config.get('exclude_features', [])
             if exclude_features:
                 print(f"  Excluded features: {', '.join(exclude_features)}")
@@ -153,9 +200,14 @@ class SettingsManager:
         return DATASETS.get(dataset_name, {})
     
     @staticmethod
-    def get_model_threshold_strategy(model_name: str) -> str:
-        """Get default threshold strategy for a model"""
-        return MODEL_THRESHOLD_STRATEGIES.get(model_name, 'sigmoid_threshold')
+    def get_model_threshold_strategy(model_name: str, dataset_name: str = None, time_span: int = None) -> str:
+        """Get threshold strategy for a model, optionally using dataset and timespan-specific configuration"""
+        if dataset_name and time_span:
+            from framework.utils import get_model_threshold_strategy as get_dataset_strategy
+            return get_dataset_strategy(dataset_name, time_span, model_name)
+        else:
+            # Default strategy when no specific configuration is available
+            return 'exponential_threshold'
     
     @staticmethod
     def validate_all_parameters(dataset_name: Optional[str], model_name: str, 
@@ -183,5 +235,9 @@ class SettingsManager:
         # Validate time span
         if not SettingsManager.validate_time_span(time_span):
             return False, None
+            
+        # Validate window configuration
+        if not SettingsManager.validate_window_config(dataset_name or DEFAULT_DATASET, time_span):
+            print("Note: Using fallback configurations where window-specific settings are missing.")
             
         return True, dataset_config

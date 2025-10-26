@@ -155,85 +155,16 @@ class ModelFactory:
             model_name (str): Name of the model to create
             time_span (int): Time span in seconds for feature aggregation
             train_features (pd.DataFrame): Training features for sequence length calculation
-            use_fixed_threshold (bool): Whether to use fixed threshold for TCN autoencoder
+            use_fixed_threshold (bool): Ignored - kept for backward compatibility
             
         Returns:
             Model instance configured with appropriate parameters
         """
         # Import here to avoid circular imports
         from .. import create_model
-        from ...utils import get_time_span_description, get_sequence_multiplier
         
         if model_name == 'autoencoder':
             return create_model(model_name, latent_dim=42)
-        
-        elif model_name == 'lstm_autoencoder':
-            # Configure LSTM autoencoder with time-span specific parameters
-            base_sequence_length = min(80, max(50, len(train_features) // 8))
-            sequence_multiplier = get_sequence_multiplier(time_span)
-            sequence_length = int(base_sequence_length * sequence_multiplier)
-            
-            # Adjust latent dimension based on time span granularity
-            if time_span == 1:
-                latent_dim = 96  # Largest latent space for real-time patterns
-            elif time_span == 10:
-                latent_dim = 64  # Larger latent space for micro-patterns
-            elif time_span == 60:
-                latent_dim = 48  # Standard latent space
-            else:  # 300 seconds
-                latent_dim = 48  # Standard latent space
-            
-            model = create_model(
-                model_name, 
-                sequence_length=sequence_length,
-                latent_dim=latent_dim,
-                encoder_units=[128, 64],  # Consistent architecture
-                decoder_units=[64, 128],  # Consistent architecture
-                dropout_rate=0.2  # Standard dropout for generalization
-            )
-            time_desc = get_time_span_description(time_span)
-            print(f"LSTM Autoencoder configured for {time_desc} windows:")
-            print(f"  - Sequence length: {sequence_length} (base: {base_sequence_length}, multiplier: {sequence_multiplier})")
-            print(f"  - Latent dimension: {latent_dim}")
-            return model
-        
-        elif model_name == 'tcn_autoencoder':
-            # Configure TCN autoencoder with time-span specific parameters
-            if time_span == 1:
-                sequence_length = 2  # Shortest for real-time patterns
-                latent_dim = 6      # Smallest for real-time patterns
-                filters = 16        # Fewest filters for real-time detection
-            elif time_span == 10:
-                sequence_length = 3  # Very short for micro-patterns
-                latent_dim = 8      # Smaller for micro-patterns
-                filters = 24        # Fewer filters for fine-grained detection
-            elif time_span == 60:
-                sequence_length = 5
-                latent_dim = 12
-                filters = 32
-            else:  # 300 seconds
-                sequence_length = 5
-                latent_dim = 12
-                filters = 32
-            
-            model = create_model(
-                model_name,
-                sequence_length=sequence_length,
-                latent_dim=latent_dim,
-                num_blocks=2,
-                filters=filters,
-                kernel_size=3,
-                dropout_rate=0.3,
-                l2_reg=1e-4,
-                use_fixed_threshold=use_fixed_threshold
-            )
-            time_desc = get_time_span_description(time_span)
-            print(f"TCN Autoencoder configured for {time_desc} windows:")
-            print(f"  - Sequence length: {sequence_length}")
-            print(f"  - Latent dimension: {latent_dim}")
-            print(f"  - Filters: {filters}")
-            print(f"  - Threshold mode: {'Fixed' if use_fixed_threshold else 'Adaptive'}")
-            return model
         
         elif model_name == 'isolation_forest':
             return create_model(model_name, contamination=0.1, n_estimators=100)
@@ -253,7 +184,7 @@ class ModelFactory:
             dataset_name (str): Name of the dataset
             time_span (int): Time span in seconds
             artifacts_info (dict): Artifacts information containing model configuration
-            use_fixed_threshold (bool): Whether to use fixed threshold for TCN autoencoder
+            use_fixed_threshold (bool): Ignored - kept for backward compatibility
             
         Returns:
             Loaded model instance with saved configuration
@@ -267,29 +198,6 @@ class ModelFactory:
             return load_model_artifacts(
                 type(model), dataset_name, model_name, time_span,
                 latent_dim=model_config.get('latent_dim', 42)
-            )
-        
-        elif model_name == 'lstm_autoencoder':
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span,
-                sequence_length=model_config.get('sequence_length', 50),
-                latent_dim=model_config.get('latent_dim', 48),
-                encoder_units=model_config.get('encoder_units', [128, 64]),
-                decoder_units=model_config.get('decoder_units', [64, 128]),
-                dropout_rate=model_config.get('dropout_rate', 0.2)
-            )
-        
-        elif model_name == 'tcn_autoencoder':
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span,
-                sequence_length=model_config.get('sequence_length', 5),
-                latent_dim=model_config.get('latent_dim', 12),
-                num_blocks=model_config.get('num_blocks', 2),
-                filters=model_config.get('filters', 32),
-                kernel_size=model_config.get('kernel_size', 3),
-                dropout_rate=model_config.get('dropout_rate', 0.3),
-                l2_reg=model_config.get('l2_reg', 1e-4),
-                use_fixed_threshold=use_fixed_threshold
             )
         
         elif model_name == 'isolation_forest':
@@ -321,42 +229,6 @@ class ModelFactory:
             )
         except ImportError as e:
             logger.warning(f"Could not register autoencoder model: {e}")
-        
-        try:
-            # Import and register LSTM autoencoder
-            from ..lstm_autoencoder import LSTMAutoencoder
-            self.register_model(
-                'lstm_autoencoder',
-                LSTMAutoencoder,
-                {
-                    'sequence_length': 60,
-                    'latent_dim': 32,
-                    'encoder_units': [128, 64],
-                    'decoder_units': [64, 128],
-                    'dropout_rate': 0.1
-                }
-            )
-        except ImportError as e:
-            logger.warning(f"Could not register LSTM autoencoder model: {e}")
-        
-        try:
-            # Import and register TCN autoencoder
-            from ..tcn_autoencoder import TCNAutoencoder
-            self.register_model(
-                'tcn_autoencoder',
-                TCNAutoencoder,
-                {
-                    'sequence_length': 60,
-                    'latent_dim': 8,   # Ultra-small for maximum compression
-                    'num_blocks': 3,   
-                    'filters': 24,     # Optimized filters
-                    'kernel_size': 3,
-                    'dropout_rate': 0.25,  # Higher regularization
-                    'l2_reg': 2e-4     # Stronger L2 regularization
-                }
-            )
-        except ImportError as e:
-            logger.warning(f"Could not register TCN autoencoder model: {e}")
         
         try:
             # Import and register isolation forest
@@ -486,8 +358,6 @@ def validate_model_config(name: str, config: Dict[str, Any]) -> bool:
 # Model descriptions for user-friendly display
 MODEL_DESCRIPTIONS = {
     'autoencoder': 'Neural network autoencoder for unsupervised anomaly detection using reconstruction error',
-    'lstm_autoencoder': 'LSTM-based temporal autoencoder for sequential anomaly detection in network traffic',
-    'tcn_autoencoder': 'Optimized Temporal Convolutional Network autoencoder with maximum compression (8D latent) specifically tuned for SYN flood detection',
     'isolation_forest': 'Ensemble method using isolation trees to identify anomalies by isolation efficiency',
     'one_class_svm': 'Support Vector Machine trained on normal data to identify outliers in feature space',
 }
