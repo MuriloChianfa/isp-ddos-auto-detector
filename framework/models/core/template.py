@@ -351,8 +351,8 @@ class ModelValidationMixin:
         """
         valid_strategies = [
             'normal_mse_mean', 'mean_plus_1std', 'mean_plus_2std', 'mean_plus_3std',
-            'mse_plus_3std', 'exponential_threshold', 'sigmoid_threshold',
-            'percentile_95', 'percentile_99', 'percentile_99_5'
+            'mse_plus_3std', 'mse_plus_5std', 'mse_plus_8std', 'exponential_threshold', 'sigmoid_threshold',
+            'percentile_95', 'percentile_99', 'percentile_99_5', 'percentile_99_9'
         ]
         
         if strategy not in valid_strategies:
@@ -437,11 +437,14 @@ class ThresholdCalculatorMixin:
             'mean_plus_2std': mean_score + 2 * std_score,
             'mean_plus_3std': mean_score + 3 * std_score,
             'mse_plus_3std': mean_score + 3 * std_score,  # Linear: μ + 3σ
+            'mse_plus_5std': mean_score + 5 * std_score,  # Linear: μ + 5σ
+            'mse_plus_8std': mean_score + 8 * std_score,  # Linear: μ + 8σ
             'exponential_threshold': np.exp(mean_score + 10 * std_score),  # Exponential: e^(μ + 10σ)
             'sigmoid_threshold': 1 / (1 + np.exp(-(mean_score + 3 * std_score))),  # Sigmoid: 1/(1 + e^-(μ + 3σ))
             'percentile_95': np.percentile(scores, 95),
             'percentile_99': np.percentile(scores, 99),
-            'percentile_99_5': np.percentile(scores, 99.5)
+            'percentile_99_5': np.percentile(scores, 99.5),
+            'percentile_99_9': np.percentile(scores, 99.9)
         }
         
         return strategies

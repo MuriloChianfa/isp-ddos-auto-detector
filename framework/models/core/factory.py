@@ -12,6 +12,42 @@ from .template import BaseAnomalyDetector
 logger = logging.getLogger(__name__)
 
 
+def get_model_params(model_name: str, dataset_name: Optional[str] = None, 
+                     time_span: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Get model parameters with optional dataset/window-specific overrides.
+    
+    Priority order:
+    1. Dataset-specific window params (if dataset_name and time_span provided)
+    2. Default params from config.MODEL_DEFAULT_PARAMS
+    
+    Args:
+        model_name: Name of the model
+        dataset_name: Optional dataset name for dataset-specific params
+        time_span: Optional time span for window-specific params
+        
+    Returns:
+        Dictionary of model parameters
+    """
+    # Import here to avoid circular imports
+    from config import MODEL_DEFAULT_PARAMS, DATASETS
+    
+    # Start with default params
+    params = MODEL_DEFAULT_PARAMS.get(model_name, {}).copy()
+    
+    # Override with dataset/window-specific params if available
+    if dataset_name and time_span:
+        dataset_config = DATASETS.get(dataset_name, {})
+        window_config = dataset_config.get('windows', {}).get(str(time_span), {})
+        window_params = window_config.get('params', {}).get(model_name, {})
+        
+        if window_params:
+            logger.info(f"Using dataset-specific params for {model_name} on {dataset_name} ({time_span}s)")
+            params.update(window_params)
+    
+    return params
+
+
 class ModelFactory:
     """
     Factory class for creating and managing anomaly detection models.
@@ -148,7 +184,7 @@ class ModelFactory:
             logger.error(f"Invalid configuration for model '{name}': {str(e)}")
             raise ValueError(f"Invalid configuration: {str(e)}")
     
-    def create_model_with_config(self, model_name, time_span, train_features, use_fixed_threshold=False):
+    def create_model_with_config(self, model_name, time_span, train_features, use_fixed_threshold=False, dataset_name=None):
         """Create a model with appropriate parameters based on model type and time span.
         
         Args:
@@ -156,6 +192,7 @@ class ModelFactory:
             time_span (int): Time span in seconds for feature aggregation
             train_features (pd.DataFrame): Training features for sequence length calculation
             use_fixed_threshold (bool): Ignored - kept for backward compatibility
+            dataset_name (str): Optional dataset name for dataset-specific params
             
         Returns:
             Model instance configured with appropriate parameters
@@ -163,17 +200,9 @@ class ModelFactory:
         # Import here to avoid circular imports
         from .. import create_model
         
-        if model_name == 'autoencoder':
-            return create_model(model_name, latent_dim=42)
-        
-        elif model_name == 'isolation_forest':
-            return create_model(model_name, contamination=0.1, n_estimators=100)
-        
-        elif model_name == 'one_class_svm':
-            return create_model(model_name, nu=0.1, kernel='rbf')
-        
-        else:
-            return create_model(model_name)
+        # Get parameters (with optional dataset/window-specific overrides)
+        params = get_model_params(model_name, dataset_name, time_span)
+        return create_model(model_name, **params)
 
     def load_model_from_artifacts(self, model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False):
         """Load a model from artifacts with appropriate configuration.
@@ -192,40 +221,30 @@ class ModelFactory:
         # Import here to avoid circular imports
         from .artifacts import load_model_artifacts
         
+        # Get parameters (with optional dataset/window-specific overrides)
+        # Prefer saved config from artifacts if available, otherwise use defaults
         model_config = artifacts_info.get('model_config', {})
+        default_params = get_model_params(model_name, dataset_name, time_span)
         
-        if model_name == 'autoencoder':
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span,
-                latent_dim=model_config.get('latent_dim', 42)
-            )
+        # Merge: use saved config values if present, otherwise use defaults
+        params = {**default_params, **model_config}
         
-        elif model_name == 'isolation_forest':
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span,
-                contamination=0.1, n_estimators=100
-            )
-        
-        elif model_name == 'one_class_svm':
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span,
-                nu=0.1, kernel='rbf'
-            )
-        
-        else:
-            return load_model_artifacts(
-                type(model), dataset_name, model_name, time_span
-            )
+        return load_model_artifacts(
+            type(model), dataset_name, model_name, time_span, **params
+        )
     
     def _register_default_models(self) -> None:
         """Register default models that come with the framework."""
+        # Import config here to avoid circular imports
+        from config import MODEL_DEFAULT_PARAMS
+        
         try:
             # Import and register autoencoder
             from ..autoencoder import AutoencoderAnomalyDetector
             self.register_model(
                 'autoencoder', 
                 AutoencoderAnomalyDetector,
-                {'latent_dim': 42}
+                MODEL_DEFAULT_PARAMS.get('autoencoder', {})
             )
         except ImportError as e:
             logger.warning(f"Could not register autoencoder model: {e}")
@@ -236,7 +255,7 @@ class ModelFactory:
             self.register_model(
                 'isolation_forest',
                 IsolationForestAnomalyDetector,
-                {'contamination': 0.1, 'n_estimators': 100, 'random_state': 42}
+                MODEL_DEFAULT_PARAMS.get('isolation_forest', {})
             )
         except ImportError as e:
             logger.warning(f"Could not register isolation forest model: {e}")
@@ -247,13 +266,24 @@ class ModelFactory:
             self.register_model(
                 'one_class_svm',
                 OneClassSVMAnomalyDetector,
-                {'nu': 0.1, 'kernel': 'rbf', 'gamma': 'scale'}
+                MODEL_DEFAULT_PARAMS.get('one_class_svm', {})
             )
         except ImportError as e:
             logger.warning(f"Could not register one-class SVM model: {e}")
+        
+        try:
+            # Import and register local outlier factor
+            from ..local_outlier_factor import LocalOutlierFactorAnomalyDetector
+            self.register_model(
+                'local_outlier_factor',
+                LocalOutlierFactorAnomalyDetector,
+                MODEL_DEFAULT_PARAMS.get('local_outlier_factor', {})
+            )
+        except ImportError as e:
+            logger.warning(f"Could not register local outlier factor model: {e}")
 
 
-def create_model_with_config(model_name, time_span, train_features, use_fixed_threshold=False):
+def create_model_with_config(model_name, time_span, train_features, use_fixed_threshold=False, dataset_name=None):
     """
     Convenience function to create a model with configuration using the global factory.
     
@@ -262,11 +292,12 @@ def create_model_with_config(model_name, time_span, train_features, use_fixed_th
         time_span (int): Time span in seconds for feature aggregation
         train_features (pd.DataFrame): Training features for sequence length calculation
         use_fixed_threshold (bool): Whether to use fixed threshold for TCN autoencoder
+        dataset_name (str): Optional dataset name for dataset-specific params
         
     Returns:
         Model instance configured with appropriate parameters
     """
-    return _model_factory.create_model_with_config(model_name, time_span, train_features, use_fixed_threshold)
+    return _model_factory.create_model_with_config(model_name, time_span, train_features, use_fixed_threshold, dataset_name)
 
 
 def load_model_from_artifacts(model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False):
@@ -360,6 +391,7 @@ MODEL_DESCRIPTIONS = {
     'autoencoder': 'Neural network autoencoder for unsupervised anomaly detection using reconstruction error',
     'isolation_forest': 'Ensemble method using isolation trees to identify anomalies by isolation efficiency',
     'one_class_svm': 'Support Vector Machine trained on normal data to identify outliers in feature space',
+    'local_outlier_factor': 'Density-based method that identifies anomalies by measuring local density deviation from neighbors',
 }
 
 

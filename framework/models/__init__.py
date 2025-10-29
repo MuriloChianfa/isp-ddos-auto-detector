@@ -8,6 +8,7 @@ Available Models:
 - AutoencoderAnomalyDetector: Neural network autoencoder for reconstruction-based anomaly detection
 - IsolationForestAnomalyDetector: Ensemble method using isolation trees
 - OneClassSVMAnomalyDetector: Support Vector Machine for one-class classification
+- LocalOutlierFactorAnomalyDetector: Density-based method for local outlier detection
 
 Usage:
     from framework.models import create_model, list_available_models
@@ -42,6 +43,11 @@ try:
 except ImportError:
     OneClassSVMAnomalyDetector = None
 
+try:
+    from .local_outlier_factor import LocalOutlierFactorAnomalyDetector
+except ImportError:
+    LocalOutlierFactorAnomalyDetector = None
+
 __all__ = [
     # Base classes
     'BaseAnomalyDetector',
@@ -61,4 +67,5 @@ __all__ = [
     'AutoencoderAnomalyDetector',
     'IsolationForestAnomalyDetector',
     'OneClassSVMAnomalyDetector',
+    'LocalOutlierFactorAnomalyDetector',
 ]

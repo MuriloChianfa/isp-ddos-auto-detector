@@ -83,9 +83,13 @@ Examples:
         loader = NetworkDataLoader(dataset_config=dataset_config)
         
         print("\nExtracting features...")
+        # Get feature configuration from dataset config (includes all_features setting)
+        feature_config = dataset_config.get('feature_config', None)
+        
         feature_extractor = NetworkFeatureExtractor(
             time_span=time_span, 
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            feature_config=feature_config
         )
         
         # Use the new CSV-based feature extraction method to get all features

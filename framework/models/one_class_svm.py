@@ -228,16 +228,16 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
                 importance_indices = np.arange(num_features)
         else:
             # For non-linear kernels, feature importance is not directly available
-            logger.warning(f"One-Class SVM with {self.kernel} kernel doesn't provide direct feature importance")
+            # logger.warning(f"One-Class SVM with {self.kernel} kernel doesn't provide direct feature importance")
             
             feature_errors = np.ones(num_features)
             importance_indices = np.arange(num_features)
             
-            print(f"\nOne-Class SVM Feature Analysis ({self.kernel} kernel):")
-            print("=" * 60)
-            print("Note: Non-linear SVM kernels don't provide direct feature importance.")
-            print("All features are weighted equally in the decision function.")
-            print(f"Total features: {num_features}")
+            # print(f"\nOne-Class SVM Feature Analysis ({self.kernel} kernel):")
+            # print("=" * 60)
+            # print("Note: Non-linear SVM kernels don't provide direct feature importance.")
+            # print("All features are weighted equally in the decision function.")
+            # print(f"Total features: {num_features}")
         
         return feature_errors, importance_indices
     

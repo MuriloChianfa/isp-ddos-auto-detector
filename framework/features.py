@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-from scipy.stats import entropy
+from scipy.stats import entropy, skew, kurtosis
 from .cache import DataCache
 from .utils import get_time_span_frequency, get_time_span_floor, get_time_span_detailed_description
 from multiprocessing import Pool, cpu_count
@@ -251,6 +251,509 @@ class NetworkFeatureExtractor:
             return 0
         _, counts = np.unique(valid_geo, return_counts=True)
         return entropy(counts, base=2)
+    
+    @staticmethod
+    def calculate_simpson_index(values):
+        """
+        Calculate Simpson's Diversity Index
+        Measures the probability that two randomly selected items belong to different categories
+        Returns value between 0 (no diversity) and 1 (high diversity)
+        """
+        if len(values) == 0:
+            return 0
+        
+        # Filter out NaN values
+        valid_values = [x for x in values if pd.notna(x)]
+        if len(valid_values) == 0:
+            return 0
+        
+        _, counts = np.unique(valid_values, return_counts=True)
+        proportions = counts / len(valid_values)
+        
+        # Simpson's Index: 1 - sum(p_i^2)
+        simpson = 1 - np.sum(proportions ** 2)
+        return simpson
+    
+    @staticmethod
+    def calculate_gini_index(values):
+        """
+        Calculate Gini Coefficient (inequality measure)
+        Returns value between 0 (perfect equality) and 1 (perfect inequality)
+        """
+        if len(values) == 0:
+            return 0
+        
+        # Filter NaN and convert to array
+        valid_values = np.array([x for x in values if pd.notna(x) and x >= 0])
+        if len(valid_values) == 0:
+            return 0
+        
+        # Gini coefficient calculation
+        sorted_values = np.sort(valid_values)
+        n = len(sorted_values)
+        index = np.arange(1, n + 1)
+        
+        gini = (2 * np.sum(index * sorted_values)) / (n * np.sum(sorted_values)) - (n + 1) / n
+        return max(0, min(gini, 1))  # Clamp between 0 and 1
+    
+    @staticmethod
+    def calculate_statistical_features(series, prefix=""):
+        """
+        Calculate comprehensive statistical features for a series
+        Returns: mean, variance, std, min, max, skewness, kurtosis
+        """
+        features = {}
+        
+        if len(series) == 0:
+            return {
+                f'{prefix}mean': 0,
+                f'{prefix}variance': 0,
+                f'{prefix}std': 0,
+                f'{prefix}min': 0,
+                f'{prefix}max': 0,
+                f'{prefix}skewness': 0,
+                f'{prefix}kurtosis': 0,
+                f'{prefix}range': 0,
+                f'{prefix}cv': 0
+            }
+        
+        # Filter NaN values
+        valid_series = series.dropna()
+        if len(valid_series) == 0:
+            return {
+                f'{prefix}mean': 0,
+                f'{prefix}variance': 0,
+                f'{prefix}std': 0,
+                f'{prefix}min': 0,
+                f'{prefix}max': 0,
+                f'{prefix}skewness': 0,
+                f'{prefix}kurtosis': 0,
+                f'{prefix}range': 0,
+                f'{prefix}cv': 0
+            }
+        
+        features[f'{prefix}mean'] = valid_series.mean()
+        features[f'{prefix}variance'] = valid_series.var()
+        features[f'{prefix}std'] = valid_series.std()
+        features[f'{prefix}min'] = valid_series.min()
+        features[f'{prefix}max'] = valid_series.max()
+        features[f'{prefix}range'] = features[f'{prefix}max'] - features[f'{prefix}min']
+        
+        # Coefficient of variation
+        if features[f'{prefix}mean'] > 0:
+            features[f'{prefix}cv'] = features[f'{prefix}std'] / features[f'{prefix}mean']
+        else:
+            features[f'{prefix}cv'] = 0
+        
+        # Skewness and kurtosis (require at least 3 values)
+        if len(valid_series) >= 3:
+            features[f'{prefix}skewness'] = skew(valid_series)
+            features[f'{prefix}kurtosis'] = kurtosis(valid_series)
+        else:
+            features[f'{prefix}skewness'] = 0
+            features[f'{prefix}kurtosis'] = 0
+        
+        return features
+    
+    @staticmethod
+    def calculate_uniqueness_features(values, prefix=""):
+        """
+        Calculate uniqueness-related features
+        Returns: unique count, uniqueness ratio, collision probability
+        """
+        features = {}
+        
+        if len(values) == 0:
+            return {
+                f'{prefix}unique_count': 0,
+                f'{prefix}uniqueness_ratio': 0,
+                f'{prefix}collision_probability': 1.0
+            }
+        
+        # Filter NaN values
+        valid_values = [x for x in values if pd.notna(x)]
+        if len(valid_values) == 0:
+            return {
+                f'{prefix}unique_count': 0,
+                f'{prefix}uniqueness_ratio': 0,
+                f'{prefix}collision_probability': 1.0
+            }
+        
+        unique_count = len(np.unique(valid_values))
+        features[f'{prefix}unique_count'] = unique_count
+        features[f'{prefix}uniqueness_ratio'] = unique_count / len(valid_values)
+        
+        # Collision probability = 1 - Simpson's Index
+        _, counts = np.unique(valid_values, return_counts=True)
+        proportions = counts / len(valid_values)
+        simpson = 1 - np.sum(proportions ** 2)
+        features[f'{prefix}collision_probability'] = 1 - simpson
+        
+        return features
+    
+    @staticmethod
+    def calculate_fan_in_out_features(group):
+        """
+        Calculate fan-in and fan-out patterns
+        Fan-in: many sources -> one destination
+        Fan-out: one source -> many destinations
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'max_fan_in': 0,
+                'avg_fan_in': 0,
+                'max_fan_out': 0,
+                'avg_fan_out': 0,
+                'fan_in_std': 0,
+                'fan_out_std': 0,
+                'fan_in_out_ratio': 0
+            }
+        
+        # Fan-in: count sources per destination
+        fan_in = group.groupby('dstAddr')['srcAddr'].nunique()
+        features['max_fan_in'] = fan_in.max() if len(fan_in) > 0 else 0
+        features['avg_fan_in'] = fan_in.mean() if len(fan_in) > 0 else 0
+        features['fan_in_std'] = fan_in.std() if len(fan_in) > 0 else 0
+        
+        # Fan-out: count destinations per source
+        fan_out = group.groupby('srcAddr')['dstAddr'].nunique()
+        features['max_fan_out'] = fan_out.max() if len(fan_out) > 0 else 0
+        features['avg_fan_out'] = fan_out.mean() if len(fan_out) > 0 else 0
+        features['fan_out_std'] = fan_out.std() if len(fan_out) > 0 else 0
+        
+        # Fan-in to fan-out ratio
+        if features['avg_fan_out'] > 0:
+            features['fan_in_out_ratio'] = features['avg_fan_in'] / features['avg_fan_out']
+        else:
+            features['fan_in_out_ratio'] = 0
+        
+        return features
+    
+    @staticmethod
+    def calculate_asymmetry_features(group):
+        """
+        Calculate asymmetry features between source and destination
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'src_dst_port_entropy_diff': 0,
+                'src_dst_ip_entropy_diff': 0,
+                'port_entropy_abs_diff': 0,
+                'ip_entropy_abs_diff': 0
+            }
+        
+        # Port entropy difference
+        src_port_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['srcPort'].values)
+        dst_port_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['dstPort'].values)
+        features['src_dst_port_entropy_diff'] = src_port_entropy - dst_port_entropy
+        features['port_entropy_abs_diff'] = abs(src_port_entropy - dst_port_entropy)
+        
+        # IP entropy difference
+        src_ip_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['srcAddr'].values)
+        dst_ip_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['dstAddr'].values)
+        features['src_dst_ip_entropy_diff'] = src_ip_entropy - dst_ip_entropy
+        features['ip_entropy_abs_diff'] = abs(src_ip_entropy - dst_ip_entropy)
+        
+        return features
+    
+    @staticmethod
+    def calculate_amplification_features(group):
+        """
+        Calculate features for detecting amplification attacks (DNS, NTP, etc.)
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'avg_request_reply_ratio': 0,
+                'small_request_large_reply_ratio': 0,
+                'amplification_score': 0,
+                'udp_amplification_potential': 0
+            }
+        
+        # Focus on UDP traffic (common for amplification attacks)
+        udp_flows = group[group['proto'] == 17]
+        
+        if len(udp_flows) > 0:
+            # Identify potential request/reply patterns by packet size
+            # Small requests: <= 100 bytes, Large replies: >= 500 bytes
+            small_flows = udp_flows[udp_flows['bytes'] <= 100]
+            large_flows = udp_flows[udp_flows['bytes'] >= 500]
+            
+            features['small_request_large_reply_ratio'] = len(large_flows) / max(len(small_flows), 1)
+            
+            # Average size ratio
+            if len(udp_flows) > 0:
+                avg_size = udp_flows['bytes'].mean()
+                max_size = udp_flows['bytes'].max()
+                if avg_size > 0:
+                    features['avg_request_reply_ratio'] = max_size / avg_size
+                else:
+                    features['avg_request_reply_ratio'] = 0
+            else:
+                features['avg_request_reply_ratio'] = 0
+            
+            # Amplification score (high ratio of large to small packets)
+            if len(small_flows) > 0:
+                features['amplification_score'] = len(large_flows) / len(udp_flows)
+            else:
+                features['amplification_score'] = 0
+            
+            # UDP amplification potential (common ports: DNS 53, NTP 123, etc.)
+            amp_ports = [53, 123, 161, 389, 1900]
+            amp_flows = udp_flows[udp_flows['dstPort'].isin(amp_ports) | udp_flows['srcPort'].isin(amp_ports)]
+            features['udp_amplification_potential'] = len(amp_flows) / len(udp_flows) if len(udp_flows) > 0 else 0
+        else:
+            features['avg_request_reply_ratio'] = 0
+            features['small_request_large_reply_ratio'] = 0
+            features['amplification_score'] = 0
+            features['udp_amplification_potential'] = 0
+        
+        return features
+    
+    @staticmethod
+    def calculate_concentration_features(values, top_k=[1, 5, 10], prefix=""):
+        """
+        Calculate top-K concentration and heavy-tail metrics
+        """
+        features = {}
+        
+        if len(values) == 0:
+            for k in top_k:
+                features[f'{prefix}top_{k}_ratio'] = 0
+            features[f'{prefix}heavy_tail_index'] = 0
+            features[f'{prefix}concentration_score'] = 0
+            return features
+        
+        # Count occurrences
+        value_counts = pd.Series(values).value_counts()
+        total = len(values)
+        
+        # Top-K concentration
+        for k in top_k:
+            if len(value_counts) >= k:
+                top_k_sum = value_counts.head(k).sum()
+                features[f'{prefix}top_{k}_ratio'] = top_k_sum / total
+            else:
+                features[f'{prefix}top_{k}_ratio'] = value_counts.sum() / total if len(value_counts) > 0 else 0
+        
+        # Heavy-tail index (Hill estimator) - simplified version
+        # Higher values indicate heavier tails
+        if len(value_counts) > 1:
+            sorted_counts = np.sort(value_counts.values)[::-1]
+            k_hill = min(len(sorted_counts) // 4, 100)  # Use top 25% or 100 samples
+            if k_hill > 1:
+                log_ratios = np.log(sorted_counts[:k_hill] / sorted_counts[k_hill])
+                features[f'{prefix}heavy_tail_index'] = np.mean(log_ratios)
+            else:
+                features[f'{prefix}heavy_tail_index'] = 0
+        else:
+            features[f'{prefix}heavy_tail_index'] = 0
+        
+        # Concentration score (Herfindahl-Hirschman Index)
+        proportions = value_counts / total
+        features[f'{prefix}concentration_score'] = np.sum(proportions ** 2)
+        
+        return features
+    
+    @staticmethod
+    def calculate_port_usage_features(group):
+        """
+        Calculate port usage peculiarities
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'ephemeral_port_ratio': 0,
+                'well_known_port_ratio': 0,
+                'dst_port_concentration': 0,
+                'src_port_concentration': 0,
+                'registered_port_ratio': 0
+            }
+        
+        # Port ranges: 0-1023 (well-known), 1024-49151 (registered), 49152-65535 (ephemeral)
+        well_known_dst = group[group['dstPort'] < 1024]
+        registered_dst = group[(group['dstPort'] >= 1024) & (group['dstPort'] < 49152)]
+        ephemeral_dst = group[group['dstPort'] >= 49152]
+        
+        features['well_known_port_ratio'] = len(well_known_dst) / len(group)
+        features['registered_port_ratio'] = len(registered_dst) / len(group)
+        features['ephemeral_port_ratio'] = len(ephemeral_dst) / len(group)
+        
+        # Destination port concentration (Herfindahl index)
+        dst_port_counts = group['dstPort'].value_counts()
+        dst_port_proportions = dst_port_counts / len(group)
+        features['dst_port_concentration'] = np.sum(dst_port_proportions ** 2)
+        
+        # Source port concentration
+        src_port_counts = group['srcPort'].value_counts()
+        src_port_proportions = src_port_counts / len(group)
+        features['src_port_concentration'] = np.sum(src_port_proportions ** 2)
+        
+        return features
+    
+    @staticmethod
+    def calculate_entropy_differences(group):
+        """
+        Calculate delta entropy between various dimensions
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'entropy_delta_src_dst_ip': 0,
+                'entropy_delta_src_dst_port': 0,
+                'entropy_balance_score': 0
+            }
+        
+        # IP entropy difference
+        src_ip_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['srcAddr'].values)
+        dst_ip_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['dstAddr'].values)
+        features['entropy_delta_src_dst_ip'] = src_ip_entropy - dst_ip_entropy
+        
+        # Port entropy difference
+        src_port_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['srcPort'].values)
+        dst_port_entropy = NetworkFeatureExtractor.calculate_port_entropy(group['dstPort'].values)
+        features['entropy_delta_src_dst_port'] = src_port_entropy - dst_port_entropy
+        
+        # Entropy balance score (closer to 0 means more balanced)
+        features['entropy_balance_score'] = abs(features['entropy_delta_src_dst_ip']) + abs(features['entropy_delta_src_dst_port'])
+        
+        return features
+    
+    @staticmethod
+    def calculate_spectral_entropy(group, time_span):
+        """
+        Calculate spectral entropy and traffic energy features
+        """
+        features = {}
+        
+        if len(group) < 2:
+            return {
+                'spectral_entropy': 0,
+                'traffic_energy': 0,
+                'traffic_burstiness': 0
+            }
+        
+        # Get packet arrival times within window
+        try:
+            timestamps = pd.to_datetime(group['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            timestamps = timestamps.dropna().sort_values()
+            
+            if len(timestamps) < 2:
+                return {
+                    'spectral_entropy': 0,
+                    'traffic_energy': 0,
+                    'traffic_burstiness': 0
+                }
+            
+            # Create time series of packet counts in sub-intervals
+            num_bins = min(time_span, 100)  # Limit bins for efficiency
+            time_series, _ = np.histogram(timestamps.astype(np.int64), bins=num_bins)
+            
+            # Traffic energy (variance of packet counts)
+            features['traffic_energy'] = np.var(time_series)
+            
+            # Burstiness (ratio of std to mean)
+            mean_packets = np.mean(time_series)
+            if mean_packets > 0:
+                features['traffic_burstiness'] = np.std(time_series) / mean_packets
+            else:
+                features['traffic_burstiness'] = 0
+            
+            # Spectral entropy (entropy of power spectrum)
+            if len(time_series) > 1:
+                # Simple frequency domain representation
+                fft = np.fft.fft(time_series)
+                power_spectrum = np.abs(fft) ** 2
+                power_spectrum = power_spectrum[power_spectrum > 0]
+                
+                if len(power_spectrum) > 0:
+                    # Normalize to probability distribution
+                    power_spectrum = power_spectrum / np.sum(power_spectrum)
+                    features['spectral_entropy'] = entropy(power_spectrum, base=2)
+                else:
+                    features['spectral_entropy'] = 0
+            else:
+                features['spectral_entropy'] = 0
+                
+        except Exception:
+            features['spectral_entropy'] = 0
+            features['traffic_energy'] = 0
+            features['traffic_burstiness'] = 0
+        
+        return features
+    
+    @staticmethod
+    def calculate_flag_combination_entropy(flags_series):
+        """
+        Calculate Shannon entropy of TCP flag combinations
+        """
+        if len(flags_series) == 0:
+            return 0
+        
+        # Filter out NaN values
+        valid_flags = [str(x) for x in flags_series if pd.notna(x)]
+        
+        if len(valid_flags) == 0:
+            return 0
+        
+        # Calculate entropy of flag combinations
+        _, counts = np.unique(valid_flags, return_counts=True)
+        return entropy(counts, base=2)
+    
+    @staticmethod
+    def calculate_diversity_features(group):
+        """
+        Calculate pure diversity metrics (counts and ratios) for AS and Geo
+        """
+        features = {}
+        
+        if len(group) == 0:
+            return {
+                'as_diversity_count': 0,
+                'as_diversity_ratio': 0,
+                'geo_diversity_count': 0,
+                'geo_diversity_ratio': 0,
+                'cross_as_flow_ratio': 0,
+                'cross_geo_flow_ratio': 0
+            }
+        
+        # AS diversity
+        unique_src_as = group['srcAS'].nunique()
+        unique_dst_as = group['dstAS'].nunique() if 'dstAS' in group.columns else 0
+        total_unique_as = len(pd.concat([group['srcAS'], group['dstAS']]).unique()) if 'dstAS' in group.columns else unique_src_as
+        
+        features['as_diversity_count'] = total_unique_as
+        features['as_diversity_ratio'] = unique_src_as / len(group) if len(group) > 0 else 0
+        
+        # Geo diversity
+        unique_src_geo = group['srcGeo'].nunique()
+        unique_dst_geo = group['dstGeo'].nunique() if 'dstGeo' in group.columns else 0
+        total_unique_geo = len(pd.concat([group['srcGeo'], group['dstGeo']]).unique()) if 'dstGeo' in group.columns else unique_src_geo
+        
+        features['geo_diversity_count'] = total_unique_geo
+        features['geo_diversity_ratio'] = unique_src_geo / len(group) if len(group) > 0 else 0
+        
+        # Cross-AS and Cross-Geo flows
+        if 'dstAS' in group.columns:
+            cross_as_flows = group[group['srcAS'] != group['dstAS']]
+            features['cross_as_flow_ratio'] = len(cross_as_flows) / len(group)
+        else:
+            features['cross_as_flow_ratio'] = 0
+        
+        if 'dstGeo' in group.columns:
+            cross_geo_flows = group[group['srcGeo'] != group['dstGeo']]
+            features['cross_geo_flow_ratio'] = len(cross_geo_flows) / len(group)
+        else:
+            features['cross_geo_flow_ratio'] = 0
+        
+        return features
     
     @staticmethod
     def extract_flag_features(flags_series):
@@ -763,6 +1266,131 @@ class NetworkFeatureExtractor:
                     feature_row['max_packets_per_flow'] = group['packets'].max()
                 if self._should_include_feature('std_packets_per_flow', 'flow_patterns'):
                     feature_row['std_packets_per_flow'] = group['packets'].std()
+            
+            # NEW ADVANCED FEATURES
+            
+            # Statistical features for bytes, packets, and duration
+            if any(self._should_include_feature(f, 'statistical') for f in ['bytes_mean', 'bytes_variance', 'bytes_skewness', 'bytes_kurtosis']):
+                bytes_stats = self.calculate_statistical_features(group['bytes'], prefix='bytes_')
+                for stat_name, stat_value in bytes_stats.items():
+                    if self._should_include_feature(stat_name, 'statistical'):
+                        feature_row[stat_name] = stat_value
+            
+            if any(self._should_include_feature(f, 'statistical') for f in ['packets_mean', 'packets_variance', 'packets_skewness', 'packets_kurtosis']):
+                packets_stats = self.calculate_statistical_features(group['packets'], prefix='packets_')
+                for stat_name, stat_value in packets_stats.items():
+                    if self._should_include_feature(stat_name, 'statistical'):
+                        feature_row[stat_name] = stat_value
+            
+            if any(self._should_include_feature(f, 'statistical') for f in ['duration_mean', 'duration_variance', 'duration_skewness', 'duration_kurtosis']):
+                duration_stats = self.calculate_statistical_features(group['duration'], prefix='duration_')
+                for stat_name, stat_value in duration_stats.items():
+                    if self._should_include_feature(stat_name, 'statistical'):
+                        feature_row[stat_name] = stat_value
+            
+            # Simpson's and Gini indices
+            if self._should_include_feature('src_ip_simpson_index', 'diversity_indices'):
+                feature_row['src_ip_simpson_index'] = self.calculate_simpson_index(group['srcAddr'].values)
+            if self._should_include_feature('dst_ip_simpson_index', 'diversity_indices'):
+                feature_row['dst_ip_simpson_index'] = self.calculate_simpson_index(group['dstAddr'].values)
+            if self._should_include_feature('src_port_simpson_index', 'diversity_indices'):
+                feature_row['src_port_simpson_index'] = self.calculate_simpson_index(group['srcPort'].values)
+            if self._should_include_feature('dst_port_simpson_index', 'diversity_indices'):
+                feature_row['dst_port_simpson_index'] = self.calculate_simpson_index(group['dstPort'].values)
+            
+            if self._should_include_feature('bytes_gini_index', 'diversity_indices'):
+                feature_row['bytes_gini_index'] = self.calculate_gini_index(group['bytes'].values)
+            if self._should_include_feature('packets_gini_index', 'diversity_indices'):
+                feature_row['packets_gini_index'] = self.calculate_gini_index(group['packets'].values)
+            
+            # Uniqueness features for IPs and ports
+            if any(self._should_include_feature(f, 'uniqueness') for f in ['src_ip_unique_count', 'src_ip_uniqueness_ratio', 'src_ip_collision_probability']):
+                src_ip_uniqueness = self.calculate_uniqueness_features(group['srcAddr'].values, prefix='src_ip_')
+                for uniq_name, uniq_value in src_ip_uniqueness.items():
+                    if self._should_include_feature(uniq_name, 'uniqueness'):
+                        feature_row[uniq_name] = uniq_value
+            
+            if any(self._should_include_feature(f, 'uniqueness') for f in ['dst_ip_unique_count', 'dst_ip_uniqueness_ratio', 'dst_ip_collision_probability']):
+                dst_ip_uniqueness = self.calculate_uniqueness_features(group['dstAddr'].values, prefix='dst_ip_')
+                for uniq_name, uniq_value in dst_ip_uniqueness.items():
+                    if self._should_include_feature(uniq_name, 'uniqueness'):
+                        feature_row[uniq_name] = uniq_value
+            
+            # Fan-in/Fan-out features
+            if any(self._should_include_feature(f, 'fan_in_out') for f in ['max_fan_in', 'avg_fan_in', 'max_fan_out', 'avg_fan_out', 'fan_in_out_ratio']):
+                fan_features = self.calculate_fan_in_out_features(group)
+                for fan_name, fan_value in fan_features.items():
+                    if self._should_include_feature(fan_name, 'fan_in_out'):
+                        feature_row[fan_name] = fan_value
+            
+            # Asymmetry features
+            if any(self._should_include_feature(f, 'asymmetry') for f in ['src_dst_port_entropy_diff', 'src_dst_ip_entropy_diff', 'port_entropy_abs_diff', 'ip_entropy_abs_diff']):
+                asymmetry_features = self.calculate_asymmetry_features(group)
+                for asym_name, asym_value in asymmetry_features.items():
+                    if self._should_include_feature(asym_name, 'asymmetry'):
+                        feature_row[asym_name] = asym_value
+            
+            # Amplification attack features
+            if any(self._should_include_feature(f, 'amplification') for f in ['avg_request_reply_ratio', 'small_request_large_reply_ratio', 'amplification_score', 'udp_amplification_potential']):
+                amplification_features = self.calculate_amplification_features(group)
+                for amp_name, amp_value in amplification_features.items():
+                    if self._should_include_feature(amp_name, 'amplification'):
+                        feature_row[amp_name] = amp_value
+            
+            # Top-K concentration features for destinations
+            if any(self._should_include_feature(f, 'concentration') for f in ['dst_top_1_ratio', 'dst_top_5_ratio', 'dst_top_10_ratio', 'dst_heavy_tail_index', 'dst_concentration_score']):
+                dst_concentration = self.calculate_concentration_features(group['dstAddr'].values, prefix='dst_')
+                for conc_name, conc_value in dst_concentration.items():
+                    if self._should_include_feature(conc_name, 'concentration'):
+                        feature_row[conc_name] = conc_value
+            
+            # Top-K concentration for ports
+            if any(self._should_include_feature(f, 'concentration') for f in ['dst_port_top_1_ratio', 'dst_port_top_5_ratio', 'dst_port_top_10_ratio']):
+                dst_port_concentration = self.calculate_concentration_features(group['dstPort'].values, prefix='dst_port_')
+                for conc_name, conc_value in dst_port_concentration.items():
+                    if self._should_include_feature(conc_name, 'concentration'):
+                        feature_row[conc_name] = conc_value
+            
+            # Port usage features
+            if any(self._should_include_feature(f, 'port_usage') for f in ['ephemeral_port_ratio', 'well_known_port_ratio', 'dst_port_concentration', 'src_port_concentration']):
+                port_usage_features = self.calculate_port_usage_features(group)
+                for port_name, port_value in port_usage_features.items():
+                    if self._should_include_feature(port_name, 'port_usage'):
+                        feature_row[port_name] = port_value
+            
+            # Entropy differences
+            if any(self._should_include_feature(f, 'entropy_diff') for f in ['entropy_delta_src_dst_ip', 'entropy_delta_src_dst_port', 'entropy_balance_score']):
+                entropy_diff_features = self.calculate_entropy_differences(group)
+                for ent_diff_name, ent_diff_value in entropy_diff_features.items():
+                    if self._should_include_feature(ent_diff_name, 'entropy_diff'):
+                        feature_row[ent_diff_name] = ent_diff_value
+            
+            # Spectral entropy and traffic energy
+            if any(self._should_include_feature(f, 'spectral') for f in ['spectral_entropy', 'traffic_energy', 'traffic_burstiness']):
+                spectral_features = self.calculate_spectral_entropy(group, self.time_span)
+                for spec_name, spec_value in spectral_features.items():
+                    if self._should_include_feature(spec_name, 'spectral'):
+                        feature_row[spec_name] = spec_value
+            
+            # Flag combination entropy
+            if self._should_include_feature('flag_combination_entropy', 'entropy'):
+                feature_row['flag_combination_entropy'] = self.calculate_flag_combination_entropy(group['flags'])
+            
+            # Pure diversity features
+            if any(self._should_include_feature(f, 'pure_diversity') for f in ['as_diversity_count', 'as_diversity_ratio', 'geo_diversity_count', 'geo_diversity_ratio']):
+                diversity_features = self.calculate_diversity_features(group)
+                for div_name, div_value in diversity_features.items():
+                    if self._should_include_feature(div_name, 'pure_diversity'):
+                        feature_row[div_name] = div_value
+            
+            # Inter-arrival time variance (extend existing inter-arrival features)
+            if self._should_include_feature('inter_arrival_variance', 'inter_arrival'):
+                if 'std_inter_arrival_time' in feature_row:
+                    feature_row['inter_arrival_variance'] = feature_row['std_inter_arrival_time'] ** 2
+                else:
+                    inter_arrival_features = self.calculate_inter_arrival_features(group)
+                    if 'std_inter_arrival_time' in inter_arrival_features:
+                        feature_row['inter_arrival_variance'] = inter_arrival_features['std_inter_arrival_time'] ** 2
             
             features_list.append(feature_row)
         

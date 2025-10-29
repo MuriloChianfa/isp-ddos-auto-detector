@@ -1,94 +1,107 @@
 """
-Isolation Forest implementation for anomaly detection.
+Local Outlier Factor implementation for anomaly detection.
 
-This module implements an Isolation Forest-based anomaly detection model that
-identifies anomalies by their isolation efficiency in randomly generated trees.
+This module implements a Local Outlier Factor (LOF) based anomaly detection model that
+identifies anomalies by measuring the local density deviation of a sample with respect 
+to its neighbors.
 """
 
 import numpy as np
-from sklearn.ensemble import IsolationForest
+import logging
+from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, Tuple, Any, Optional, List
-import logging
 
 from .core.template import BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin, DummyTrainingHistory
 
 logger = logging.getLogger(__name__)
 
 
-class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin):
+class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, ThresholdCalculatorMixin):
     """
-    Isolation Forest-based anomaly detection model.
+    Local Outlier Factor (LOF) based anomaly detection model.
     
-    This model uses the Isolation Forest algorithm to identify anomalies by
-    measuring how easily samples can be isolated in randomly generated trees.
-    Anomalous samples require fewer splits to be isolated compared to normal samples.
+    This model uses the Local Outlier Factor algorithm to identify anomalies by
+    measuring the local density deviation of a sample with respect to its neighbors.
+    Anomalous samples have significantly lower density than their neighbors.
     
     Attributes:
+        n_neighbors: Number of neighbors to use for LOF calculation
         contamination: Expected proportion of outliers in the dataset
-        n_estimators: Number of base estimators in the ensemble
+        novelty: Whether to enable novelty detection mode (required for predict)
         random_state: Random state for reproducibility
-        model: The scikit-learn IsolationForest model
+        model: The scikit-learn LocalOutlierFactor model
         scaler: Standard scaler for feature normalization
     """
     
-    def __init__(self, contamination: float = 0.1, n_estimators: int = 100, 
-                 random_state: int = 42, max_samples: str = "auto"):
+    def __init__(self, n_neighbors: int = 20, contamination: float = 0.1, 
+                 novelty: bool = True, random_state: int = 42,
+                 algorithm: str = 'auto', leaf_size: int = 30,
+                 metric: str = 'minkowski', p: int = 2):
         """
-        Initialize the Isolation Forest anomaly detector.
+        Initialize the Local Outlier Factor anomaly detector.
         
         Args:
+            n_neighbors: Number of neighbors to use for LOF calculation
             contamination: Expected proportion of outliers in the dataset
-            n_estimators: Number of base estimators in the ensemble
+            novelty: Whether to enable novelty detection mode (must be True for prediction)
             random_state: Random state for reproducibility
-            max_samples: Number of samples to draw to train each base estimator
+            algorithm: Algorithm used to compute nearest neighbors ('auto', 'ball_tree', 'kd_tree', 'brute')
+            leaf_size: Leaf size passed to BallTree or KDTree (affects build and query time)
+            metric: Distance metric to use ('minkowski', 'euclidean', 'manhattan', 'chebyshev', etc.)
+            p: Power parameter for the Minkowski metric (1=Manhattan, 2=Euclidean)
         """
-        super().__init__(model_name="isolation_forest")
+        super().__init__(model_name="local_outlier_factor")
+        self.n_neighbors = n_neighbors
         self.contamination = contamination
-        self.n_estimators = n_estimators
+        self.novelty = novelty
         self.random_state = random_state
-        self.max_samples = max_samples
+        self.algorithm = algorithm
+        self.leaf_size = leaf_size
+        self.metric = metric
+        self.p = p
         self.model = None
         self.scaler = StandardScaler()
         
     def build_model(self, input_dim: int) -> None:
-        """Build the Isolation Forest model"""
-        print(f"Building Isolation Forest for {input_dim} features...")
+        """Build the Local Outlier Factor model"""
+        print(f"Building Local Outlier Factor for {input_dim} features...")
         
         if input_dim <= 0:
-            raise ValueError(f"Invalid input dimension: {input_dim}")
+            raise ValueError(f"Input dimension must be positive, got {input_dim}")
         
-        self.model = IsolationForest(
+        self.model = LocalOutlierFactor(
+            n_neighbors=self.n_neighbors,
             contamination=self.contamination,
-            n_estimators=self.n_estimators,
-            random_state=self.random_state,
-            max_samples=self.max_samples,
-            n_jobs=-1,  # Use all available cores
-            verbose=0
+            novelty=self.novelty,
+            algorithm=self.algorithm,
+            leaf_size=self.leaf_size,
+            metric=self.metric,
+            p=self.p,
+            n_jobs=-1  # Use all available cores
         )
         
-        logger.info(f"Isolation Forest parameters:")
-        logger.info(f"  Features: {input_dim}")
-        logger.info(f"  Estimators: {self.n_estimators}")
-        logger.info(f"  Contamination: {self.contamination}")
-        logger.info(f"  Max samples: {self.max_samples}")
-        
-        print(f"Isolation Forest parameters:")
+        print(f"Local Outlier Factor parameters:")
         print(f"  Features: {input_dim}")
-        print(f"  Estimators: {self.n_estimators}")
+        print(f"  Neighbors: {self.n_neighbors}")
         print(f"  Contamination: {self.contamination}")
-        print(f"  Max samples: {self.max_samples}")
+        print(f"  Novelty mode: {self.novelty}")
+        print(f"  Algorithm: {self.algorithm}")
+        print(f"  Leaf size: {self.leaf_size}")
+        print(f"  Metric: {self.metric}")
+        print(f"  p (Minkowski): {self.p}")
+        print(f"  Novelty mode: {self.novelty}")
         
     def fit_scaler(self, training_features) -> None:
         """Fit the scaler on training data"""
         if training_features is None or len(training_features) == 0:
-            raise ValueError("Training features cannot be empty")
+            raise ValueError("Training features cannot be None or empty")
         
         # Convert to numpy array if it's a DataFrame to avoid feature name warnings
         if hasattr(training_features, 'values'):
             training_data = training_features.values
         else:
-            training_data = training_features
+            training_data = np.array(training_features)
             
         self.scaler.fit(training_data)
         logger.info(f"Fitted scaler on {len(training_features)} training samples")
@@ -96,38 +109,38 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
     def transform_data(self, features) -> np.ndarray:
         """Transform features using the fitted scaler"""
         if self.scaler is None:
-            raise ValueError("Scaler not fitted. Call fit_scaler first.")
+            raise ValueError("Scaler has not been fitted yet")
         
         # Convert to numpy array if it's a DataFrame to avoid feature name warnings
         if hasattr(features, 'values'):
             feature_data = features.values
         else:
-            feature_data = features
+            feature_data = np.array(features)
             
         return self.scaler.transform(feature_data)
         
     def train(self, train_data: np.ndarray, validation_data: Optional[np.ndarray] = None, 
               **kwargs) -> Dict[str, Any]:
-        """Train the Isolation Forest"""
+        """Train the Local Outlier Factor model"""
         
         # Validate training data
         self.validate_training_data(train_data, validation_data)
         self._log_training_start(train_data, validation_data)
         
-        print("Training Isolation Forest...")
+        print("Training Local Outlier Factor...")
         print(f"Training samples: {len(train_data)}")
         
         if self.model is None:
-            raise ValueError("Model not built. Call build_model first.")
+            raise ValueError("Model has not been built yet. Call build_model() first.")
         
-        # Train the model
+        # Train the model (fit on normal data)
         self.model.fit(train_data)
         
         self._log_training_complete()
         
         # Create dummy history for compatibility with other models
         history_dict = {
-            'loss': [0.1],  # Dummy loss value
+            'loss': [0.1],  # Dummy loss for visualization
             'val_loss': [0.1] if validation_data is not None else None
         }
         self.history = DummyTrainingHistory(history_dict)
@@ -138,22 +151,23 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
     def predict(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Get anomaly scores (negative values = more anomalous)"""
         if not self.is_trained:
-            raise ValueError("Model not trained. Call train() first.")
+            raise ValueError("Model has not been trained yet")
             
         self.validate_input_dimensions(data)
         
-        # Get decision function scores (higher = more normal)
+        # Get decision function scores (higher = more normal, negative = anomalies)
+        # In novelty mode, decision_function returns negative scores for anomalies
         decision_scores = self.model.decision_function(data)
         
         # Convert to anomaly scores (higher = more anomalous)
-        # Isolation Forest returns negative scores for anomalies, so we negate them
+        # LOF returns negative scores for anomalies, so we negate them
         anomaly_scores = -decision_scores
         
         # Return original data as "reconstructions" for compatibility
         return data, anomaly_scores
         
     def calculate_threshold(self, train_scores: np.ndarray, val_scores: np.ndarray, 
-                          strategy: str = 'exponential_threshold') -> Tuple[float, Dict[str, float]]:
+                          strategy: str = 'percentile_99_5') -> Tuple[float, Dict[str, float]]:
         """Calculate anomaly detection threshold"""
         self.validate_threshold_strategy(strategy)
         
@@ -175,9 +189,9 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
         
     def get_metrics(self, data: np.ndarray, reconstructions: np.ndarray, 
                    scores: np.ndarray) -> Dict[str, float]:
-        """Calculate metrics (adapted for Isolation Forest)"""
+        """Calculate metrics (adapted for Local Outlier Factor)"""
         
-        # For Isolation Forest, we don't have reconstructions in the traditional sense
+        # For LOF, we don't have reconstructions in the traditional sense
         # So we calculate metrics based on the anomaly scores
         return {
             'mae': np.mean(np.abs(scores)),
@@ -190,42 +204,30 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
     def analyze_feature_importance(self, data: np.ndarray, 
                                  feature_names: List[str]) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Feature importance for Isolation Forest.
+        Feature importance for Local Outlier Factor.
         
-        Note: Isolation Forest doesn't provide direct feature importance like tree-based
+        Note: LOF doesn't provide direct feature importance like tree-based
         models, so this returns uniform importance as a placeholder.
         """
         if not self.is_trained:
-            raise ValueError("Model not trained. Call train() first.")
+            raise ValueError("Model has not been trained yet")
         
         # Return uniform importance as placeholder
         num_features = len(feature_names)
-        feature_errors = np.ones(num_features)
-        importance_indices = np.arange(num_features)
+        importance = np.ones(num_features) / num_features
+        std = np.zeros(num_features)
         
-        return feature_errors, importance_indices
+        return importance, std
     
     def get_model_specific_info(self) -> Dict[str, Any]:
-        """
-        Get Isolation Forest specific information.
-        
-        Returns:
-            Dictionary containing model-specific information
-        """
-        base_info = self.get_model_info()
-        
-        isolation_forest_info = {
+        """Return LOF-specific model information"""
+        return {
+            'model_type': 'local_outlier_factor',
+            'n_neighbors': self.n_neighbors,
             'contamination': self.contamination,
-            'n_estimators': self.n_estimators,
-            'random_state': self.random_state,
-            'max_samples': self.max_samples,
+            'novelty': self.novelty,
+            'algorithm': self.algorithm,
+            'leaf_size': self.leaf_size,
+            'metric': self.metric,
+            'p': self.p
         }
-        
-        if self.is_trained and self.model is not None:
-            isolation_forest_info.update({
-                'n_features_in_': getattr(self.model, 'n_features_in_', None),
-                'max_samples_': getattr(self.model, 'max_samples_', None),
-            })
-        
-        base_info.update(isolation_forest_info)
-        return base_info

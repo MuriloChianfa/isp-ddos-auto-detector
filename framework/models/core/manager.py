@@ -48,9 +48,9 @@ class ModelManager:
         """
         print(f"\nInitializing {self.model_name} model...")
         
-        # Create model with appropriate parameters
+        # Create model with appropriate parameters (including dataset-specific overrides)
         self.model = create_model_with_config(
-            self.model_name, self.time_span, train_features, use_fixed_threshold
+            self.model_name, self.time_span, train_features, use_fixed_threshold, self.dataset_name
         )
         
         # Try to load existing model artifacts
