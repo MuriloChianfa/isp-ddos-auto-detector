@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import hashlib
 from scipy.stats import entropy, skew, kurtosis
 from .cache import DataCache
 from .utils import get_time_span_frequency, get_time_span_floor, get_time_span_detailed_description
@@ -15,7 +16,7 @@ class NetworkFeatureExtractor:
         
         Args:
             time_span (int): Time window in seconds for aggregation and rate calculations 
-                           - 60 for 1-minute windows (uses firstSeen timestamps)
+                           - 60 for 1-minute windows (uses received timestamps)
                            - 300 for 5-minute windows (uses file_timestamp) [default]
             use_cache (bool): Whether to use caching for feature extraction
             dataset_name (str): Name of the dataset being processed (for result organization)
@@ -28,17 +29,38 @@ class NetworkFeatureExtractor:
         self.max_processes = max_processes
         self.feature_config = feature_config or {}
         self.cache = DataCache() if use_cache else None
+        
+        # Get EMA alpha from config (can be overridden by window config)
+        # Handle both dict and wrapped format
+        if isinstance(self.feature_config, dict):
+            self.ema_alpha = self.feature_config.get('ema_alpha', None)
+        else:
+            self.ema_alpha = None
     
-    def _get_features_csv_path(self, split_name):
-        """Get the path for features CSV file"""
+    def _get_features_csv_path(self, split_name, feature_config=None):
+        """Get the path for features CSV file
+        
+        Args:
+            split_name (str): Name of the split (train, validation, test, etc.)
+            feature_config (dict): Optional feature config to use instead of self.feature_config
+        """
         base_dir = f"./datasets/{self.dataset_name}/features"
         os.makedirs(base_dir, exist_ok=True)
         
+        # Use provided config or fall back to instance config
+        config_to_use = feature_config if feature_config is not None else self.feature_config
+        
         # Include feature config hash in filename to ensure cache invalidation when config changes
         config_suffix = ""
-        if self.feature_config:
+        if config_to_use:
             import hashlib
-            config_str = str(sorted(self.feature_config.items()))
+            # Convert config to hashable string (handle both list and dict formats)
+            if isinstance(config_to_use, list):
+                config_str = str(sorted(config_to_use))
+            elif isinstance(config_to_use, dict):
+                config_str = str(sorted(config_to_use.items()))
+            else:
+                config_str = str(config_to_use)
             config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
             config_suffix = f"_cfg{config_hash}"
         
@@ -48,22 +70,39 @@ class NetworkFeatureExtractor:
         """Check if a feature should be included based on configuration"""
         if not self.feature_config:
             return True
+        
+        # Handle new list format
+        if isinstance(self.feature_config, list):
+            # If it's a list, just check if feature is in the list
+            return feature_name in self.feature_config
+        
+        # Handle wrapped format with 'features' key
+        if isinstance(self.feature_config, dict) and 'features' in self.feature_config:
+            return feature_name in self.feature_config['features']
             
-        # Check if feature is explicitly excluded
-        excluded_features = self.feature_config.get('exclude_features', [])
-        if feature_name in excluded_features:
-            return False
-            
-        # Check if feature group is included
-        include_groups = self.feature_config.get('include_groups', [])
-        if include_groups and group_name:
-            return group_name in include_groups
+        # Handle old dict format with include_groups/exclude_features
+        if isinstance(self.feature_config, dict):
+            # Check if feature is explicitly excluded
+            excluded_features = self.feature_config.get('exclude_features', [])
+            if feature_name in excluded_features:
+                return False
+                
+            # Check if feature group is included
+            include_groups = self.feature_config.get('include_groups', [])
+            if include_groups and group_name:
+                return group_name in include_groups
             
         # Default to include if no specific configuration
         return True
     
     def _filter_features(self, features_df):
-        """Filter features based on dataset configuration"""
+        """Filter features based on dataset configuration
+        
+        Supports multiple formats:
+        1. New format (list): ['feature1', 'feature2', ...]
+        2. New format with EMA (dict): {'features': [...], 'ema_alpha': 0.1}
+        3. Old format (dict): {'include_groups': [...], 'exclude_features': [...]}
+        """
         if not self.feature_config:
             return features_df
             
@@ -72,22 +111,38 @@ class NetworkFeatureExtractor:
         # Determine which features to keep
         features_to_keep = ['timestamp']  # Always keep timestamp
         
-        include_groups = self.feature_config.get('include_groups', [])
-        exclude_features = self.feature_config.get('exclude_features', [])
+        # Extract feature list if wrapped in dict with 'features' key
+        feature_list = None
+        if isinstance(self.feature_config, dict) and 'features' in self.feature_config:
+            feature_list = self.feature_config['features']
+        elif isinstance(self.feature_config, list):
+            feature_list = self.feature_config
         
-        if include_groups:
-            # Include features from specified groups
-            for group_name in include_groups:
-                if group_name in FEATURE_GROUPS:
-                    group_features = FEATURE_GROUPS[group_name]
-                    for feature in group_features:
-                        if feature in features_df.columns and feature not in exclude_features:
-                            features_to_keep.append(feature)
-        else:
-            # Include all features except excluded ones
-            for col in features_df.columns:
-                if col != 'timestamp' and col not in exclude_features:
-                    features_to_keep.append(col)
+        # Check if new format (list of features)
+        if feature_list is not None:
+            # New format: direct list of feature names
+            for feature in feature_list:
+                if feature in features_df.columns:
+                    features_to_keep.append(feature)
+        
+        # Check if old format (dict with include_groups)
+        elif isinstance(self.feature_config, dict):
+            include_groups = self.feature_config.get('include_groups', [])
+            exclude_features = self.feature_config.get('exclude_features', [])
+            
+            if include_groups:
+                # Old format: include features from specified groups
+                for group_name in include_groups:
+                    if group_name in FEATURE_GROUPS:
+                        group_features = FEATURE_GROUPS[group_name]
+                        for feature in group_features:
+                            if feature in features_df.columns and feature not in exclude_features:
+                                features_to_keep.append(feature)
+            else:
+                # Include all features except excluded ones
+                for col in features_df.columns:
+                    if col != 'timestamp' and col not in exclude_features:
+                        features_to_keep.append(col)
         
         # Remove duplicates while preserving order
         features_to_keep = list(dict.fromkeys(features_to_keep))
@@ -96,13 +151,35 @@ class NetworkFeatureExtractor:
         available_features = [f for f in features_to_keep if f in features_df.columns]
         filtered_df = features_df[available_features].copy()
         
-        print(f"  Feature selection: {len(available_features)-1} features selected from {len(features_df.columns)-1} available")
-        if include_groups:
-            print(f"  Included groups: {', '.join(include_groups)}")
-        if exclude_features:
-            print(f"  Excluded features: {', '.join(exclude_features)}")
+        # print(f"  Feature selection: {len(available_features)-1} features selected from {len(features_df.columns)-1} available")
+        # if include_groups:
+        #     print(f"  Included groups: {', '.join(include_groups)}")
+        # if exclude_features:
+        #     print(f"  Excluded features: {', '.join(exclude_features)}")
             
         return filtered_df
+    
+    def _apply_ema_if_configured(self, features_df):
+        """
+        Apply EMA smoothing to configured features if requested
+        
+        Args:
+            features_df (pd.DataFrame): DataFrame with extracted features
+            
+        Returns:
+            pd.DataFrame: DataFrame with EMA features added (if configured)
+        """
+        from config import DEFAULT_EMA_CONFIG
+        
+        # Get alpha from config (window-specific override or default)
+        alpha = self.ema_alpha if self.ema_alpha is not None else DEFAULT_EMA_CONFIG['alpha']
+        ema_features_list = DEFAULT_EMA_CONFIG['features']
+        available_ema_features = [f for f in ema_features_list if f in features_df.columns]
+        
+        if available_ema_features:
+            features_df = self.apply_ema_smoothing(features_df, available_ema_features, alpha=alpha)
+        
+        return features_df
     
     def _features_csv_exists(self, split_name):
         """Check if features CSV already exists"""
@@ -120,6 +197,47 @@ class NetworkFeatureExtractor:
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
             return df
         return None
+    
+    def _load_from_all_features(self, split_name):
+        """
+        Try to load features by subsetting from an 'all_features' dataset if it exists.
+        This avoids reprocessing raw data when only the feature selection has changed.
+        
+        Args:
+            split_name (str): Name of the split (train, validation, test, etc.)
+            
+        Returns:
+            pd.DataFrame or None: Subset of features if all_features CSV exists, None otherwise
+        """
+        from .constants import FEATURES_BY_ATTACK_TYPE
+        
+        # Get the path to the all_features CSV
+        all_features_config = FEATURES_BY_ATTACK_TYPE.get('all_features')
+        if not all_features_config:
+            return None
+        
+        all_features_path = self._get_features_csv_path(split_name, feature_config=all_features_config)
+        
+        # Check if all_features CSV exists
+        if not os.path.exists(all_features_path):
+            return None
+        
+        print(f"  Found all_features dataset at {all_features_path}")
+        print(f"  Loading and subsetting features instead of reprocessing raw data...")
+        
+        # Load the complete feature set
+        all_features_df = pd.read_csv(all_features_path)
+        
+        # Ensure timestamp is properly parsed
+        if 'timestamp' in all_features_df.columns:
+            all_features_df['timestamp'] = pd.to_datetime(all_features_df['timestamp'])
+        
+        # Apply feature filtering to get only the columns we need
+        filtered_df = self._filter_features(all_features_df)
+        
+        print(f"  Loaded {len(filtered_df)} records with {len(filtered_df.columns)-1} features (from {len(all_features_df.columns)-1} total features)")
+        
+        return filtered_df
     
     def extract_features_to_csv(self, loader, force_regenerate=False, parallel=True):
         """
@@ -144,6 +262,17 @@ class NetworkFeatureExtractor:
                 if features_df is not None:
                     print(f"Using existing features for {split_name} from CSV")
                     features_dict[split_name] = features_df
+                    continue
+            
+            # Try to load from all_features dataset if available (optimization)
+            if not force_regenerate:
+                features_df = self._load_from_all_features(split_name)
+                if features_df is not None:
+                    # Save the subset to its own CSV for future use
+                    print(f"  Saving subset to {csv_path}")
+                    features_df.to_csv(csv_path, index=False)
+                    features_dict[split_name] = features_df
+                    print(f"  {split_name.capitalize()} features: {len(features_df)} records")
                     continue
             
             print(f"Extracting features for {split_name} split...")
@@ -182,8 +311,8 @@ class NetworkFeatureExtractor:
                 # Sequential processing
                 all_features = []
                 for i, chunk in enumerate(data_chunks):
-                    if i % 10 == 0 and i > 0:
-                        print(f"  Processing chunk {i}/{len(data_chunks)} for {split_name}...")
+                    # if i % 10 == 0 and i > 0:
+                        # print(f"  Processing chunk {i}/{len(data_chunks)} for {split_name}...")
                     
                     chunk_features = self._extract_features_from_chunk(self.time_span, chunk, feature_config=self.feature_config)
                     if chunk_features is not None:
@@ -345,15 +474,46 @@ class NetworkFeatureExtractor:
         else:
             features[f'{prefix}cv'] = 0
         
-        # Skewness and kurtosis (require at least 3 values)
+        # Requires at least 3 values and sufficient variance
         if len(valid_series) >= 3:
-            features[f'{prefix}skewness'] = skew(valid_series)
-            features[f'{prefix}kurtosis'] = kurtosis(valid_series)
+            # Check if data has sufficient variance to avoid precision loss
+            if features[f'{prefix}std'] > 1e-10: # nearly identical values
+                features[f'{prefix}skewness'] = skew(valid_series)
+                features[f'{prefix}kurtosis'] = kurtosis(valid_series)
+            else:
+                # Data is too uniform, let's set default values so
+                features[f'{prefix}skewness'] = 0
+                features[f'{prefix}kurtosis'] = 0
         else:
             features[f'{prefix}skewness'] = 0
             features[f'{prefix}kurtosis'] = 0
         
         return features
+    
+    @staticmethod
+    def apply_ema_smoothing(features_df, ema_features_list, alpha):
+        """
+        Apply Exponential Moving Average smoothing to selected features
+        Creates new features with _ema suffix
+        
+        Args:
+            features_df (pd.DataFrame): DataFrame with features and timestamp
+            ema_features_list (list): List of feature names to apply EMA smoothing
+            alpha (float): Smoothing factor (0 < alpha < 1). Lower = more smoothing
+        
+        Returns:
+            pd.DataFrame: DataFrame with added EMA features (original_name + '_ema')
+        """
+        df_smoothed = features_df.copy()
+        
+        for feature in ema_features_list:
+            if feature in df_smoothed.columns:
+                # Calculate EMA using pandas ewm (exponential weighted moving average)
+                # adjust=False means we use the recursive formula: ema_t = alpha * x_t + (1-alpha) * ema_{t-1}
+                ema_values = df_smoothed[feature].ewm(alpha=alpha, adjust=False).mean()
+                df_smoothed[f'{feature}_ema'] = ema_values
+        
+        return df_smoothed
     
     @staticmethod
     def calculate_uniqueness_features(values, prefix=""):
@@ -642,7 +802,7 @@ class NetworkFeatureExtractor:
         
         # Get packet arrival times within window
         try:
-            timestamps = pd.to_datetime(group['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            timestamps = pd.to_datetime(group['received'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
             timestamps = timestamps.dropna().sort_values()
             
             if len(timestamps) < 2:
@@ -654,7 +814,14 @@ class NetworkFeatureExtractor:
             
             # Create time series of packet counts in sub-intervals
             num_bins = min(time_span, 100)  # Limit bins for efficiency
-            time_series, _ = np.histogram(timestamps.astype(np.int64), bins=num_bins)
+            
+            # Check if timestamps have sufficient range to avoid division by zero
+            timestamp_range = timestamps.iloc[-1] - timestamps.iloc[0]
+            if timestamp_range.total_seconds() > 0:
+                time_series, _ = np.histogram(timestamps.astype(np.int64), bins=num_bins)
+            else:
+                # All timestamps are identical - create single bin with all packets
+                time_series = np.array([len(timestamps)])
             
             # Traffic energy (variance of packet counts)
             features['traffic_energy'] = np.var(time_series)
@@ -879,9 +1046,9 @@ class NetworkFeatureExtractor:
                 'periodic_pattern_score': 0
             }
         
-        # Sort by firstSeen timestamp
-        sorted_group = group.sort_values('firstSeen')
-        timestamps = pd.to_datetime(sorted_group['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+        # Sort by received timestamp
+        sorted_group = group.sort_values('received')
+        timestamps = pd.to_datetime(sorted_group['received'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
         
         # Calculate inter-arrival times (in seconds)
         inter_arrivals = timestamps.diff().dt.total_seconds().dropna()
@@ -1056,56 +1223,50 @@ class NetworkFeatureExtractor:
 
         if self.time_span == 1:
             # 1 SECOND WINDOW - Real-time resolution time windows
-            df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
-            nan_count = df['firstSeen'].isna().sum()
+            df['received'] = pd.to_datetime(df['received'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            nan_count = df['received'].isna().sum()
             if nan_count > 0:
                 print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
-                df = df.dropna(subset=['firstSeen'])
+                df = df.dropna(subset=['received'])
             
-            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
-            
-            start_time = df['firstSeen'].min().floor(get_time_span_floor(self.time_span))
-            end_time = df['firstSeen'].max().ceil(get_time_span_floor(self.time_span))
+            start_time = df['received'].min().floor(get_time_span_floor(self.time_span))
+            end_time = df['received'].max().floor(get_time_span_floor(self.time_span))
             complete_time_range = pd.date_range(start=start_time, end=end_time, freq=get_time_span_frequency(self.time_span))
 
-            df['time_window'] = df['firstSeen'].dt.floor(get_time_span_floor(self.time_span))
+            df['time_window'] = df['received'].dt.floor(get_time_span_floor(self.time_span))
             time_grouped = df.groupby('time_window')
             
             existing_windows = set(time_grouped.groups.keys())
         elif self.time_span == 10:
             # 10 SECOND WINDOW - Ultra high-resolution time windows
-            df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
-            nan_count = df['firstSeen'].isna().sum()
+            df['received'] = pd.to_datetime(df['received'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            nan_count = df['received'].isna().sum()
             if nan_count > 0:
                 print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
-                df = df.dropna(subset=['firstSeen'])
+                df = df.dropna(subset=['received'])
             
-            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
-            
-            start_time = df['firstSeen'].min().floor(get_time_span_floor(self.time_span))
-            end_time = df['firstSeen'].max().ceil(get_time_span_floor(self.time_span))
+            start_time = df['received'].min().floor(get_time_span_floor(self.time_span))
+            end_time = df['received'].max().floor(get_time_span_floor(self.time_span))
             complete_time_range = pd.date_range(start=start_time, end=end_time, freq=get_time_span_frequency(self.time_span))
 
-            df['time_window'] = df['firstSeen'].dt.floor(get_time_span_floor(self.time_span))
+            df['time_window'] = df['received'].dt.floor(get_time_span_floor(self.time_span))
             time_grouped = df.groupby('time_window')
             
             existing_windows = set(time_grouped.groups.keys())
         elif self.time_span == 60:
             # 1 MINUTE WINDOW - Group by flow timestamps
-            df['firstSeen'] = pd.to_datetime(df['firstSeen'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
-            nan_count = df['firstSeen'].isna().sum()
+            df['received'] = pd.to_datetime(df['received'], format="%Y-%m-%d %H:%M:%S.%f", errors="coerce")
+            nan_count = df['received'].isna().sum()
             if nan_count > 0:
                 print(f"    Warning: {nan_count} out of {len(df)} timestamps failed to parse")
                 # Remove rows with invalid timestamps to prevent issues
-                df = df.dropna(subset=['firstSeen'])
+                df = df.dropna(subset=['received'])
             
-            df['firstSeen'] = df['firstSeen'] + pd.Timedelta(hours=3)
-
-            start_time = df['firstSeen'].min().floor('min')
-            end_time = df['firstSeen'].max().ceil('min')
+            start_time = df['received'].min().floor('min')
+            end_time = df['received'].max().floor('min')
             complete_time_range = pd.date_range(start=start_time, end=end_time, freq='1min')
 
-            df['minute_window'] = df['firstSeen'].dt.floor('min')
+            df['minute_window'] = df['received'].dt.floor('min')
             time_grouped = df.groupby('minute_window')
             
             # Create a set to track which minutes have data
@@ -1400,7 +1561,7 @@ class NetworkFeatureExtractor:
             
             if missing_windows:
                 time_desc = get_time_span_detailed_description(self.time_span)
-                print(f"    Filling {len(missing_windows)} missing {time_desc} windows with zeros")
+                # print(f"    Filling {len(missing_windows)} missing {time_desc} windows with zeros")
                 
                 # Create zero feature template from the first feature row if available
                 zero_feature_template = {}
@@ -1423,6 +1584,9 @@ class NetworkFeatureExtractor:
         
         # Apply feature filtering based on configuration
         features_df = self._filter_features(features_df)
+        
+        # Apply EMA smoothing to create new EMA features
+        features_df = self._apply_ema_if_configured(features_df)
         
         # Feature scaling and outlier handling
         numeric_cols = features_df.select_dtypes(include=[np.number]).columns

@@ -97,7 +97,7 @@ class NetworkDataLoader:
                 file_chunks = [file_info[i:i + chunk_size] for i in range(0, len(file_info), chunk_size)]
                 
                 for chunk_idx, chunk in enumerate(file_chunks):
-                    print(f"  Processing chunk {chunk_idx + 1}/{len(file_chunks)} with {len(chunk)} files")
+                    # print(f"  Processing chunk {chunk_idx + 1}/{len(file_chunks)} with {len(chunk)} files")
                     
                     # Process chunk in parallel
                     results = pool.map(self._process_file, chunk)

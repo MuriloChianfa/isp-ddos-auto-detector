@@ -1,17 +1,15 @@
-"""
-ISP DDoS Auto Detector - Main Entry Point
-A modular pipeline for detecting DDoS attacks using machine learning.
-"""
-
+import matplotlib
 import argparse
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 from framework.pipeline import DDoSDetectorPipeline
 from framework.settings import SettingsManager
 from framework.models import list_available_models
 from framework.constants import SUPPORTED_TIME_SPANS
+from framework.batch import run_batch_evaluation
 from config import DATASETS, DEFAULT_DATASET, DEFAULT_TIME_SPAN
 
 
@@ -21,18 +19,15 @@ def main(dataset_name=None, **kwargs):
     # Use default dataset if none specified
     if dataset_name is None:
         dataset_name = DEFAULT_DATASET
-    
-    # Initialize and run pipeline
+
     pipeline = DDoSDetectorPipeline(
         dataset_name=dataset_name,
         **kwargs
     )
     
     try:
-        # Run complete analysis
         results = pipeline.run_complete_analysis()
         
-        # Print final summary
         print(f"\nAnalysis completed successfully!")
         summary = pipeline.get_results_summary()
         if summary.get('results_directory'):
@@ -46,17 +41,43 @@ def main(dataset_name=None, **kwargs):
 
 
 def list_datasets():
-    """Print available datasets and their descriptions"""
     SettingsManager.list_available_datasets()
 
 
 def list_models():
-    """Print available models and their descriptions"""
     SettingsManager.list_available_models()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="ISP DDoS Auto Detector")
+    parser = argparse.ArgumentParser(
+        description="ISP DDoS Auto Detector",
+        epilog="""
+Examples:
+  # Single evaluation
+  python main.py -d itp-multivector-udp-100gbps-peak -m isolation_forest -t 300
+  
+  # Batch evaluation - all combinations (64 total)
+  python main.py --batch
+  
+  # Batch evaluation - specific dataset with all models and time spans
+  python main.py --batch --batch-datasets itp-multivector-udp-100gbps-peak
+  
+  # Batch evaluation - specific models and time spans
+  python main.py --batch \\
+    --batch-models isolation_forest --batch-models one_class_svm \\
+    --batch-time-spans 60 --batch-time-spans 300
+  
+  # Batch evaluation - full custom combination
+  python main.py --batch \\
+    --batch-datasets itp-multivector-udp-100gbps-peak \\
+    --batch-models isolation_forest --batch-models one_class_svm \\
+    --batch-time-spans 60 --batch-time-spans 300
+  
+  # Dry run to preview
+  python main.py --batch-dry-run
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         '--dataset', '-d',
         type=str,
@@ -124,6 +145,48 @@ if __name__ == "__main__":
         default=1000,
         help='Number of samples to use for performance testing (default: 1000)'
     )
+    parser.add_argument(
+        '--optimize',
+        action='store_true',
+        help='Run hyperparameter optimization before training'
+    )
+    parser.add_argument(
+        '--optimize-n-iter',
+        type=int,
+        default=10,
+        help='Number of iterations for random search optimization (default: 10)'
+    )
+    parser.add_argument(
+        '--batch',
+        action='store_true',
+        help='Run batch evaluation across all combinations of datasets, models, and time spans (or filtered subsets)'
+    )
+    parser.add_argument(
+        '--batch-dry-run',
+        action='store_true',
+        help='Show what batch evaluations would run without executing them'
+    )
+    parser.add_argument(
+        '--batch-datasets',
+        type=str,
+        action='append',
+        dest='datasets',
+        help='Datasets for batch mode (can be specified multiple times). If not specified, all datasets are used.'
+    )
+    parser.add_argument(
+        '--batch-models',
+        type=str,
+        action='append',
+        dest='models',
+        help='Models for batch mode (can be specified multiple times). If not specified, all models are used.'
+    )
+    parser.add_argument(
+        '--batch-time-spans',
+        type=int,
+        action='append',
+        dest='time_spans',
+        help='Time spans for batch mode (can be specified multiple times). If not specified, all time spans are used.'
+    )
     
     args = parser.parse_args()
     
@@ -135,6 +198,51 @@ if __name__ == "__main__":
         list_models()
         exit(0)
     
+    # Batch evaluation mode
+    if args.batch or args.batch_dry_run:
+        if hasattr(args, 'datasets') and args.datasets:
+            datasets = args.datasets
+        elif args.dataset:
+            datasets = [args.dataset]
+        else:
+            datasets = None  # Will use all datasets
+            
+        if hasattr(args, 'models') and args.models:
+            models = args.models
+        elif args.model != 'autoencoder':
+            models = [args.model]
+        else:
+            models = None  # Will use all models
+            
+        if hasattr(args, 'time_spans') and args.time_spans:
+            time_spans = args.time_spans
+        elif args.time_span != DEFAULT_TIME_SPAN:
+            time_spans = [args.time_span]
+        else:
+            time_spans = None  # Will use all time_spans
+        
+        kwargs = {
+            'use_cache': not args.no_cache,
+            'force_regenerate': args.force_regenerate,
+            'max_processes': args.max_processes,
+            'generate_reconstruction_error': args.generate_reconstruction_error,
+            'force_retrain': args.force_retrain,
+            'evaluate_performance': args.evaluate_performance,
+            'performance_samples': args.performance_samples,
+            'optimize': args.optimize,
+            'optimize_n_iter': args.optimize_n_iter
+        }
+        
+        run_batch_evaluation(
+            main_func=main,
+            datasets=datasets,
+            models=models,
+            time_spans=time_spans,
+            dry_run=args.batch_dry_run,
+            **kwargs
+        )
+        exit(0)
+    
     kwargs = {
         'model_name': args.model,
         'time_span': args.time_span,
@@ -144,10 +252,12 @@ if __name__ == "__main__":
         'generate_reconstruction_error': args.generate_reconstruction_error,
         'force_retrain': args.force_retrain,
         'evaluate_performance': args.evaluate_performance,
-        'performance_samples': args.performance_samples
+        'performance_samples': args.performance_samples,
+        'optimize': args.optimize,
+        'optimize_n_iter': args.optimize_n_iter
     }
 
     if not kwargs['use_cache']:
-        print("Caching disabled - will reload all data from scratch")
+        print("Caching disabled, we will reload all the data from scratch")
 
     main(dataset_name=args.dataset, **kwargs)

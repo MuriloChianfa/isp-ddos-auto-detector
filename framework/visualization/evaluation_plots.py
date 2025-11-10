@@ -61,6 +61,51 @@ class EvaluationVisualizer:
         print(f"Evaluation plot saved to: {filename}")
         return filename
     
+    def plot_model_labels_evaluation(self, test_data, y_true, model_labels):
+        """
+        Create evaluation visualization comparing model's is_anomaly labels vs ground truth.
+        This chart shows how the model's original predictions (before threshold adjustment) 
+        compare to the actual ground truth.
+        
+        Args:
+            test_data: DataFrame containing test data with timestamps
+            y_true: Ground truth binary labels
+            model_labels: Model's original is_anomaly predictions
+            
+        Returns:
+            str: Path to saved plot
+        """
+        fig, ax = plt.subplots(1, 1, figsize=(16, 6))
+        
+        timestamps = test_data['timestamp']
+        
+        # Binary comparison plot
+        ax.fill_between(timestamps, 0, y_true.astype(int), alpha=0.3, color='green', label='Ground Truth')
+        ax.fill_between(timestamps, 1, 1 + model_labels.astype(int), alpha=0.3, color='blue', label='Model Labels (is_anomaly)')
+        
+        ax.set_ylabel('Binary Labels')
+        ax.set_xlabel('Time')
+        ax.set_title('Ground Truth vs Model Labels Comparison', fontweight='bold')
+        ax.set_ylim(-0.1, 2.1)
+        ax.set_yticks([0.5, 1.5])
+        ax.set_yticklabels(['Ground Truth', 'Model Labels'])
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # Format x-axis
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        ax.tick_params(axis='x', rotation=45)
+        
+        plt.tight_layout()
+        
+        filename = os.path.join(self.evaluation_dir, "model_labels_evaluation.png")
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"Model labels evaluation plot saved to: {filename}")
+        return filename
+    
     def plot_confusion_matrix_heatmap(self, metrics):
         """
         Create a visual heatmap of the confusion matrix.
@@ -333,6 +378,18 @@ Min Error: {np.min(feature_errors):.4f}"""
         fpr, tpr, thresholds = roc_curve(y_true, y_scores)
         roc_auc = auc(fpr, tpr)
         
+        # Save ROC curve data to JSON for cross-evaluation
+        import json
+        roc_data = {
+            'fpr': fpr.tolist(),
+            'tpr': tpr.tolist(),
+            'thresholds': thresholds.tolist(),
+            'auc': float(roc_auc)
+        }
+        roc_data_file = os.path.join(self.evaluation_dir, "roc_curve_data.json")
+        with open(roc_data_file, 'w') as f:
+            json.dump(roc_data, f, indent=2)
+        
         # Find optimal threshold using Youden's J statistic
         optimal_idx = np.argmax(tpr - fpr)
         optimal_threshold = thresholds[optimal_idx]
@@ -403,6 +460,18 @@ Min Error: {np.min(feature_errors):.4f}"""
         # Calculate Precision-Recall curve
         precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
         pr_auc = average_precision_score(y_true, y_scores)
+        
+        # Save Precision-Recall curve data to JSON for cross-evaluation
+        import json
+        pr_data = {
+            'precision': precision.tolist(),
+            'recall': recall.tolist(),
+            'thresholds': thresholds.tolist(),
+            'average_precision': float(pr_auc)
+        }
+        pr_data_file = os.path.join(self.evaluation_dir, "precision_recall_curve_data.json")
+        with open(pr_data_file, 'w') as f:
+            json.dump(pr_data, f, indent=2)
         
         # Calculate baseline (random classifier performance)
         positive_rate = np.sum(y_true) / len(y_true)

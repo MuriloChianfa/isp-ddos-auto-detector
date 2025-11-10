@@ -33,7 +33,9 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
     """
     
     def __init__(self, nu: float = 0.1, kernel: str = 'rbf', gamma: str = 'scale', 
-                 degree: int = 3, coef0: float = 0.0):
+                 degree: int = 3, coef0: float = 0.0, cache_size: int = 54512, 
+                 tol: float = 1e-2, max_iter: int = -1, shrinking: bool = True,
+                 max_samples: int = None):
         """
         Initialize the One-Class SVM anomaly detector.
         
@@ -43,6 +45,11 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             gamma: Kernel coefficient ('scale', 'auto' or float)
             degree: Degree of the polynomial kernel (ignored by other kernels)
             coef0: Independent term in kernel function (for 'poly' and 'sigmoid')
+            cache_size: Size of kernel cache in MB (default 8192MB/8GB for speed)
+            tol: Tolerance for stopping criterion (default 1e-2 for speed)
+            max_iter: Max iterations for solver (-1 = no limit)
+            shrinking: Whether to use shrinking heuristic (can speed up training)
+            max_samples: Max training samples to use (None = use all, int = subsample for speed)
         """
         super().__init__(model_name="one_class_svm")
         self.nu = nu
@@ -50,6 +57,11 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         self.gamma = gamma
         self.degree = degree
         self.coef0 = coef0
+        self.cache_size = cache_size
+        self.tol = tol
+        self.max_iter = max_iter
+        self.shrinking = shrinking
+        self.max_samples = max_samples
         self.model = None
         self.scaler = StandardScaler()
         
@@ -66,17 +78,12 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             gamma=self.gamma,
             degree=self.degree,
             coef0=self.coef0,
-            cache_size=200,  # Size of kernel cache (MB)
+            cache_size=self.cache_size,
+            tol=self.tol,
+            max_iter=self.max_iter,
+            shrinking=self.shrinking,
             verbose=False
         )
-        
-        logger.info(f"One-Class SVM parameters:")
-        logger.info(f"  Features: {input_dim}")
-        logger.info(f"  Nu: {self.nu}")
-        logger.info(f"  Kernel: {self.kernel}")
-        logger.info(f"  Gamma: {self.gamma}")
-        logger.info(f"  Degree: {self.degree}")
-        logger.info(f"  Coef0: {self.coef0}")
         
         print(f"One-Class SVM parameters:")
         print(f"  Features: {input_dim}")
@@ -87,6 +94,9 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             print(f"  Degree: {self.degree}")
         if self.kernel in ['poly', 'sigmoid']:
             print(f"  Coef0: {self.coef0}")
+        print(f"  Cache Size: {self.cache_size} MB")
+        print(f"  Tolerance: {self.tol}")
+        print(f"  Shrinking: {self.shrinking}")
         
     def fit_scaler(self, training_features) -> None:
         """Fit the scaler on training data"""
@@ -129,8 +139,17 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         if self.model is None:
             raise ValueError("Model not built. Call build_model first.")
         
+        # Subsample training data if max_samples is set
+        if self.max_samples is not None and len(train_data) > self.max_samples:
+            print(f"Subsampling training data from {len(train_data)} to {self.max_samples} samples for speed...")
+            indices = np.random.choice(len(train_data), self.max_samples, replace=False)
+            train_data_sampled = train_data[indices]
+            print(f"Using {len(train_data_sampled)} samples for training")
+        else:
+            train_data_sampled = train_data
+        
         # Train the model
-        self.model.fit(train_data)
+        self.model.fit(train_data_sampled)
         
         self._log_training_complete()
         
@@ -157,7 +176,8 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
         # Convert to anomaly scores (higher = more anomalous)
         # SVM returns negative values for anomalies, so we negate them
-        anomaly_scores = -decision_scores
+        # anomaly_scores = -decision_scores
+        anomaly_scores = decision_scores
         
         # Return original data as "reconstructions" for compatibility
         return data, anomaly_scores

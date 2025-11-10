@@ -76,11 +76,11 @@ class ModelManager:
             True if model was loaded successfully, False otherwise
         """
         if force_retrain:
-            print("\nForce retrain enabled - training new model regardless of existing artifacts")
+            print("Force retrain enabled, training new model regardless of existing artifacts")
             return False
         
         if not artifacts_exist(self.dataset_name, self.model_name, self.time_span):
-            print("\nNo existing model artifacts found - training new model")
+            print("No existing model artifacts found, training new model")
             return False
         
         print(f"\n{'='*60}")
@@ -89,7 +89,7 @@ class ModelManager:
         
         artifacts_info = get_artifacts_info(self.dataset_name, self.model_name, self.time_span)
         if not artifacts_info:
-            print("Could not retrieve artifacts info - training new model")
+            print("Could not retrieve artifacts info, training new model")
             return False
         
         self._print_artifacts_info(artifacts_info)
@@ -142,7 +142,7 @@ class ModelManager:
         Returns:
             Training history object
         """
-        print("\nPreparing data for training...")
+        print("Preparing data for training...")
         
         # Fit scaler and transform data
         self.model.fit_scaler(train_features)

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 Standalone script for generating dataset feature visualizations.
-This script can be used independently to create feature plots without running the full pipeline.
+This script can be used to create feature plots without running the full pipeline.
 """
 
 import argparse
 import sys
 import os
 
-# Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from framework.loader import NetworkDataLoader

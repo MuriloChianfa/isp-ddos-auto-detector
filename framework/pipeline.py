@@ -53,6 +53,10 @@ class DDoSDetectorPipeline:
         self.evaluate_performance = kwargs.get('evaluate_performance', False)
         self.performance_samples = kwargs.get('performance_samples', 1000)
         
+        # Optimization parameters
+        self.optimize = kwargs.get('optimize', False)
+        self.optimize_n_iter = kwargs.get('optimize_n_iter', 10)
+        
         # Initialize components
         self.settings_manager = SettingsManager()
         self.dataset_config = None
@@ -71,6 +75,66 @@ class DDoSDetectorPipeline:
         self.combined_features = None
         self.threshold = None
         self.all_thresholds = None
+    
+    def _get_feature_config_with_hierarchy(self):
+        """
+        Get feature configuration with proper hierarchy:
+        1. Dataset-level feature_config (lowest priority)
+        2. Time span-level feature_config (medium priority)
+           - If list: applies to all models
+           - If dict: can specify per-model features
+        3. Model-specific within time span dict (highest priority)
+        
+        Returns:
+            Feature configuration (list or dict)
+        """
+        # Start with dataset-level config
+        feature_config = self.dataset_config.get('feature_config', [])
+        
+        # Get window-specific config
+        windows = self.dataset_config.get('windows', {})
+        window_config = windows.get(str(self.time_span), {})
+        
+        # Override with time span-level config if available
+        if 'feature_config' in window_config:
+            window_feature_config = window_config['feature_config']
+            
+            # Check if it's a dict with model-specific configs
+            if isinstance(window_feature_config, dict):
+                # Check if it has model names as keys (model-specific)
+                # vs old format with 'include_groups', 'exclude_features', etc.
+                is_model_specific = any(
+                    key in ['autoencoder', 'isolation_forest', 'one_class_svm', 'local_outlier_factor']
+                    for key in window_feature_config.keys()
+                )
+                
+                if is_model_specific:
+                    # It's a model-specific dict, use the model's config if available
+                    if self.model_name in window_feature_config:
+                        feature_config = window_feature_config[self.model_name]
+                    # else: keep dataset-level config
+                else:
+                    # It's old format dict (include_groups, etc.), use as-is
+                    feature_config = window_feature_config
+            else:
+                # It's a list, applies to all models
+                feature_config = window_feature_config
+        
+        # Handle EMA alpha separately (for backward compatibility)
+        if isinstance(feature_config, dict):
+            # If it's a dict, merge EMA alpha from window config if not already present
+            if 'ema_alpha' in window_config and 'ema_alpha' not in feature_config:
+                feature_config = feature_config.copy()
+                feature_config['ema_alpha'] = window_config['ema_alpha']
+        else:
+            # If it's a list, wrap it with EMA alpha if needed
+            if 'ema_alpha' in window_config:
+                feature_config = {
+                    'features': feature_config,
+                    'ema_alpha': window_config['ema_alpha']
+                }
+        
+        return feature_config
     
     def initialize_components(self) -> bool:
         """
@@ -103,7 +167,8 @@ class DDoSDetectorPipeline:
         
         # Initialize feature extractor
         print("Initializing feature extractor...")
-        feature_config = self.dataset_config.get('feature_config', {})
+        feature_config = self._get_feature_config_with_hierarchy()
+        
         self.feature_extractor = NetworkFeatureExtractor(
             time_span=self.time_span,
             use_cache=self.use_cache,
@@ -153,6 +218,48 @@ class DDoSDetectorPipeline:
         """
         # Get training features for model initialization
         train_features = self.processed_features['train']['features']
+        val_features = self.processed_features['validation']['features']
+        
+        # Run hyperparameter optimization if requested
+        if self.optimize and self.model_name in ['isolation_forest', 'one_class_svm', 'local_outlier_factor']:
+            print("\n" + "="*70)
+            print("RUNNING HYPERPARAMETER OPTIMIZATION")
+            print("="*70)
+            
+            # Create a temporary model manager to get scaled data
+            temp_model_manager = ModelManager(
+                self.model_name, self.dataset_name, self.time_span
+            )
+            temp_model, _ = temp_model_manager.get_or_create_model(
+                train_features, self.use_fixed_threshold, force_retrain=True
+            )
+            
+            # Scale the data
+            scaled_train = temp_model.transform_data(train_features)
+            scaled_val = temp_model.transform_data(val_features)
+            
+            # Create detector for optimization
+            from framework.detector import AnomalyDetector
+            temp_detector = AnomalyDetector(
+                temp_model, self.dataset_name, self.model_name, self.time_span
+            )
+
+            # Run optimization
+            # Build output directory following the same pattern as other results
+            time_span_label = f"{self.time_span}seconds"
+            output_dir = f"./results/{self.dataset_name}/{time_span_label}/models/{self.model_name}/optimization/"
+            
+            best_params = temp_detector.optimize_hyperparameters(
+                scaled_train, scaled_val, 
+                self.model_name,
+                n_iter=self.optimize_n_iter,
+                scoring='anomaly_score',
+                output_dir=output_dir
+            )
+            
+            # Update model manager with optimized parameters
+            print(f"\nApplying optimized parameters: {best_params}")
+            temp_model_manager = None
         
         # Initialize model manager
         self.model_manager = ModelManager(

@@ -68,17 +68,27 @@ class ModelArtifactsManager:
         
         # Save model-specific components
         if hasattr(model, 'model') and model.model is not None:
-            # For Keras/TensorFlow models (LSTM, TCN) - use .keras format for better compatibility
-            model_path = os.path.join(self.artifacts_dir, 'model.keras')
-            model.model.save(model_path, save_format='keras')
-            logger.info(f"Saved Keras model to: {model_path}")
+            # Check if it's a Keras/TensorFlow model or sklearn model
+            model_type = type(model.model).__name__
+            
+            # Keras/TensorFlow models have 'save' method
+            if hasattr(model.model, 'save') and callable(getattr(model.model, 'save')):
+                # For Keras/TensorFlow models (LSTM, TCN) - use .keras format for better compatibility
+                model_path = os.path.join(self.artifacts_dir, 'model.keras')
+                model.model.save(model_path, save_format='keras')
+                logger.info(f"Saved Keras model to: {model_path}")
+            else:
+                # For scikit-learn models (OneClassSVM, IsolationForest, LocalOutlierFactor, etc.)
+                model_path = os.path.join(self.artifacts_dir, 'model.pkl')
+                joblib.dump(model.model, model_path)
+                logger.info(f"Saved sklearn model ({model_type}) to: {model_path}")
         elif hasattr(model, 'autoencoder') and model.autoencoder is not None:
             # For Autoencoder models - use .keras format for better compatibility
             model_path = os.path.join(self.artifacts_dir, 'model.keras')
             model.autoencoder.save(model_path, save_format='keras')
             logger.info(f"Saved Autoencoder model to: {model_path}")
         elif hasattr(model, 'estimator') and model.estimator is not None:
-            # For scikit-learn models
+            # For scikit-learn models stored in 'estimator' attribute
             model_path = os.path.join(self.artifacts_dir, 'model.pkl')
             joblib.dump(model.estimator, model_path)
             logger.info(f"Saved sklearn model to: {model_path}")
@@ -143,6 +153,18 @@ class ModelArtifactsManager:
             json.dump(metadata, f, indent=2)
         logger.info(f"Saved metadata to: {metadata_path}")
         
+        # Determine which model file was saved
+        model_file = 'unknown'
+        if hasattr(model, 'model') and model.model is not None:
+            if hasattr(model.model, 'save') and callable(getattr(model.model, 'save')):
+                model_file = 'model.keras'
+            else:
+                model_file = 'model.pkl'
+        elif hasattr(model, 'autoencoder') and model.autoencoder is not None:
+            model_file = 'model.keras'
+        elif hasattr(model, 'estimator') and model.estimator is not None:
+            model_file = 'model.pkl'
+        
         # Create a summary file
         summary = {
             'artifacts_saved': True,
@@ -152,7 +174,7 @@ class ModelArtifactsManager:
             'time_span': self.time_span,
             'threshold': threshold_data['threshold'],
             'files': {
-                'model': 'model.h5' if hasattr(model, 'model') else 'model.pkl',
+                'model': model_file,
                 'scaler': 'scaler.pkl',
                 'threshold': 'threshold.json',
                 'metadata': 'metadata.json'
@@ -309,11 +331,23 @@ class ModelArtifactsManager:
                 model._input_dim = loaded_model.input_shape[1]
         elif os.path.exists(sklearn_model_path):
             # Load sklearn model
-            model.estimator = joblib.load(sklearn_model_path)
+            loaded_sklearn_model = joblib.load(sklearn_model_path)
+            
+            # Assign to appropriate attribute based on model type
+            if hasattr(model, 'model'):
+                model.model = loaded_sklearn_model
+                logger.info(f"Loaded sklearn model ({type(loaded_sklearn_model).__name__}) to model.model from: {sklearn_model_path}")
+            elif hasattr(model, 'estimator'):
+                model.estimator = loaded_sklearn_model
+                logger.info(f"Loaded sklearn model to model.estimator from: {sklearn_model_path}")
+            else:
+                # Fallback: create the model attribute
+                model.model = loaded_sklearn_model
+                logger.info(f"Loaded sklearn model ({type(loaded_sklearn_model).__name__}) from: {sklearn_model_path}")
+            
             model.is_trained = True
-            logger.info(f"Loaded sklearn model from: {sklearn_model_path}")
         else:
-            raise FileNotFoundError("No model file found (neither model.h5 nor model.pkl)")
+            raise FileNotFoundError("No model file found (neither model.keras, model.h5 nor model.pkl)")
         
         # Restore additional model-specific attributes
         if hasattr(model, 'sequence_length') and 'sequence_length' in model_config:

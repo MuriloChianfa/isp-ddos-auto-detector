@@ -11,13 +11,13 @@ OUTPUT_DIR="${OUTPUT_DIR:-$DEFAULT_OUTPUT_DIR}"
 PARALLEL_JOBS="${PARALLEL_JOBS:-8}"
 DIR_PATTERN="${DIR_PATTERN:-*}"
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR/raw"
 
 # Function to convert a single file
 convert_file() {
     local f="$1"
     local base=$(basename "$f" .nfcapd)
-    local out="$OUTPUT_DIR/$base.csv"
+    local out="$OUTPUT_DIR/raw/$base.csv"
 
     if [[ -f "$out" ]]; then
         echo "skipping, file already exists: $out"
@@ -25,7 +25,7 @@ convert_file() {
     fi
 
     echo "converting: $f to $out"
-    nfdump -r "$f" -o "csv:%ts,%td,%pr,%sa,%sp,%da,%dp,%pkt,%byt,%fl,%sas,%das,%sc,%dc,%flg" "${FILTER}" > "$out"
+    nfdump -r "$f" -o "csv:%trg,%td,%pr,%sa,%sp,%da,%dp,%pkt,%byt,%fl,%sas,%das,%sc,%dc,%flg" "${FILTER}" > "$out"
 }
 
 export -f convert_file

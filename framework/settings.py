@@ -135,31 +135,37 @@ class SettingsManager:
         print(f"Threshold strategy for {model_name}: {default_threshold_strategy}")
         print(f"Time span: {time_span} seconds ({get_time_span_description(time_span)} - {get_time_span_detailed_description(time_span)} windows)")
         print(f"Attack periods defined: {len(attack_periods)} periods")
-        if threshold_strategies:
-            print(f"Available threshold strategies: {list(threshold_strategies.keys())}")
-        else:
-            print("Available threshold strategies: Using default strategies from MODEL_THRESHOLD_STRATEGIES")
         
         # Display feature configuration info
         if feature_config:
             print(f"\nFeature Configuration:")
-            include_groups = feature_config.get('include_groups', [])
-            if include_groups:
-                from framework.constants import FEATURE_GROUPS
-                print(f"  Feature groups: {', '.join(include_groups)}")
-                print(f"  Expanded features by group:")
-                for group in include_groups:
-                    if group in FEATURE_GROUPS:
-                        features = FEATURE_GROUPS[group]
-                        print(f"    {group}: {', '.join(features)}")
-            exclude_features = feature_config.get('exclude_features', [])
-            if exclude_features:
-                print(f"  Excluded features: {', '.join(exclude_features)}")
-            custom_features = feature_config.get('custom_features', {})
-            if custom_features:
-                enabled_custom = [k for k, v in custom_features.items() if v]
-                if enabled_custom:
-                    print(f"  Custom features: {', '.join(enabled_custom)}")
+            
+            # Handle new list format
+            if isinstance(feature_config, list):
+                print(f"  Features: {len(feature_config)} features specified")
+                print(f"  Feature list: {', '.join(feature_config[:10])}")
+                if len(feature_config) > 10:
+                    print(f"    ... and {len(feature_config) - 10} more")
+            
+            # Handle old dict format with groups
+            elif isinstance(feature_config, dict):
+                include_groups = feature_config.get('include_groups', [])
+                if include_groups:
+                    from framework.constants import FEATURE_GROUPS
+                    print(f"  Feature groups: {', '.join(include_groups)}")
+                    print(f"  Expanded features by group:")
+                    for group in include_groups:
+                        if group in FEATURE_GROUPS:
+                            features = FEATURE_GROUPS[group]
+                            print(f"    {group}: {', '.join(features)}")
+                exclude_features = feature_config.get('exclude_features', [])
+                if exclude_features:
+                    print(f"  Excluded features: {', '.join(exclude_features)}")
+                custom_features = feature_config.get('custom_features', {})
+                if custom_features:
+                    enabled_custom = [k for k, v in custom_features.items() if v]
+                    if enabled_custom:
+                        print(f"  Custom features: {', '.join(enabled_custom)}")
     
     @staticmethod
     def list_available_datasets():

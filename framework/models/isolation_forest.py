@@ -33,7 +33,8 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
     """
     
     def __init__(self, contamination: float = 0.1, n_estimators: int = 100, 
-                 random_state: int = 42, max_samples: str = "auto"):
+                 random_state: int = 42, max_samples: str = "auto", 
+                 max_features: float = 1.0, bootstrap: bool = False):
         """
         Initialize the Isolation Forest anomaly detector.
         
@@ -42,12 +43,16 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
             n_estimators: Number of base estimators in the ensemble
             random_state: Random state for reproducibility
             max_samples: Number of samples to draw to train each base estimator
+            max_features: Number of features to draw to train each base estimator
+            bootstrap: Whether to use bootstrap sampling
         """
         super().__init__(model_name="isolation_forest")
         self.contamination = contamination
         self.n_estimators = n_estimators
         self.random_state = random_state
         self.max_samples = max_samples
+        self.max_features = max_features
+        self.bootstrap = bootstrap
         self.model = None
         self.scaler = StandardScaler()
         
@@ -63,21 +68,19 @@ class IsolationForestAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, 
             n_estimators=self.n_estimators,
             random_state=self.random_state,
             max_samples=self.max_samples,
+            max_features=self.max_features,
+            bootstrap=self.bootstrap,
             n_jobs=-1,  # Use all available cores
             verbose=0
         )
-        
-        logger.info(f"Isolation Forest parameters:")
-        logger.info(f"  Features: {input_dim}")
-        logger.info(f"  Estimators: {self.n_estimators}")
-        logger.info(f"  Contamination: {self.contamination}")
-        logger.info(f"  Max samples: {self.max_samples}")
         
         print(f"Isolation Forest parameters:")
         print(f"  Features: {input_dim}")
         print(f"  Estimators: {self.n_estimators}")
         print(f"  Contamination: {self.contamination}")
         print(f"  Max samples: {self.max_samples}")
+        print(f"  Max features: {self.max_features}")
+        print(f"  Bootstrap: {self.bootstrap}")
         
     def fit_scaler(self, training_features) -> None:
         """Fit the scaler on training data"""

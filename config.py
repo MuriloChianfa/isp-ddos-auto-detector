@@ -11,6 +11,15 @@ DEFAULT_DATASET = 'itp-downstream-http-flood'
 DEFAULT_TIME_SPAN = 300
 
 # Default model threshold calculation strategies
+# Available strategies for all models:
+#   - 'mean_plus_3std': threshold = μ + 3σ
+#   - 'mse_plus_8std': threshold = MSE + 8σ
+#   - 'mse_plus_80std': threshold = MSE + 80σ
+#   - 'percentile_99': threshold = P₉₉(errors)
+#   - 'percentile_99_5': threshold = P₉₉.₅(errors)
+#   - 'percentile_99_9': threshold = P₉₉.₉(errors)
+#   - 'exponential_threshold': threshold = μ + k·e^(-λt)·σ
+#   - 'sigmoid_threshold': threshold = μ + σ/(1 + e^(-k(x-x₀)))
 MODEL_THRESHOLD_STRATEGIES = {
     'autoencoder': 'exponential_threshold',
     'isolation_forest': 'percentile_99_5',
@@ -21,67 +30,128 @@ MODEL_THRESHOLD_STRATEGIES = {
 # Default model hyperparameters
 MODEL_DEFAULT_PARAMS = {
     'autoencoder': {
-        'latent_dim': 42
+        'latent_dim': 42  # Dimensionality of the latent space (bottleneck layer). Lower = more compression. Typical range: 2-64. Too low may lose important patterns, too high may not compress enough
     },
     'isolation_forest': {
-        'contamination': 0.05,
-        'n_estimators': 200,
-        'random_state': 42
+        'contamination': 0.05, # Expected proportion of outliers: 0.01-0.05 (clean data), 0.1-0.2 (noisy data)
+        'n_estimators': 200,   # Number of trees in the forest (default: 100). More trees = more stable but slower
+        'random_state': 42     # Seed for reproducibility of results
     },
     'one_class_svm': {
-        'nu': 0.1,
-        'kernel': 'rbf',
-        'gamma': 'scale'
+        'nu': 0.1,            # Upper bound on fraction of training errors and lower bound on support vectors (0.0-1.0), common values: 0.01-0.05 (strict), 0.1-0.2 (moderate). Lower = tighter boundary
+        'kernel': 'rbf',      # Kernel type: 'linear' (fast, simple), 'rbf' (flexible, default), 'poly' (polynomial), 'sigmoid'
+        'gamma': 'scale'      # Kernel coefficient: 'scale' (1/(n_features*X.var())), 'auto' (1/n_features), or float, higher values = more complex decision boundary, risk of overfitting
     },
     'local_outlier_factor': {
-        'n_neighbors': 20,
-        'contamination': 0.05,
-        'novelty': True,
-        'random_state': 42,
-        'algorithm': 'auto',  # Options: 'auto', 'ball_tree', 'kd_tree', 'brute'
-        'leaf_size': 30,      # Affects speed of BallTree/KDTree algorithms
-        'metric': 'minkowski', # Distance metric: 'minkowski', 'euclidean', 'manhattan', 'chebyshev', etc.
-        'p': 2                 # Minkowski metric power parameter (1=Manhattan, 2=Euclidean)
+        'n_neighbors': 20,     # Number of neighbors to use (default: 20). Higher values = smoother decision boundaries
+        'contamination': 0.05, # Expected proportion of outliers: 0.01-0.05 (clean data), 0.1-0.2 (noisy data)
+        'novelty': True,       # If True, can be used for novelty detection; if False, for outlier detection only
+        'random_state': 42,    # Seed for reproducibility of results
+        'algorithm': 'auto',   # Algorithm to compute nearest neighbors: 'auto', 'ball_tree', 'kd_tree', 'brute'
+        'leaf_size': 30,       # Leaf size for BallTree/KDTree algorithms. Affects construction/query speed (default: 30)
+        'metric': 'minkowski', # Distance metric: 'minkowski', 'euclidean', 'manhattan', 'chebyshev', 'cosine', etc.
+        'p': 2                 # Power parameter for Minkowski metric (1=Manhattan, 2=Euclidean, inf=Chebyshev)
     }
+}
+
+# Hyperparameter optimization configuration
+OPTIMIZATION_CONFIG = {
+    'n_iter': 10,
+    'scoring': 'anomaly_score',
+    'random_state': 42
+}
+
+# Default EMA (Exponential Moving Average) configuration
+# EMA smoothing is applied to reduce noise in time-series features
+# 
+# How it works:
+#   1. Features listed in 'features' will have EMA versions created (suffix: _ema)
+#   2. EMA features are always generated and added to the feature set
+#   3. Use 'include_groups': ['ema_smoothed'] in feature_config to select them
+#   4. Override 'alpha' per time window using 'ema_alpha' in window config
+#
+# Alpha parameter (0 < alpha < 1):
+#   - Lower values (0.05-0.1): More smoothing, slower response to changes
+#   - Higher values (0.2-0.5): Less smoothing, faster response to changes
+DEFAULT_EMA_CONFIG = {
+    'alpha': 0.1,  # Smoothing factor (0 < alpha < 1). Lower = more smoothing
+    'features': [  # Features that will have EMA versions created
+        'packet_rate', 
+        'bit_rate', 
+        'flow_rate', 
+        'duration_mean', 
+        'bytes_std', 
+        'packets_std', 
+        'flows_per_second'
+    ]
 }
 
 DATASETS = {
     'itp-downstream-http-flood': {
-        'path': './datasets/itp-downstream-http-flood/',
+        'path': './datasets/itp-downstream-http-flood/raw/',
         'description': 'ITP downstream HTTP flood attack dataset',
         'patterns': {
             'train': 'nfcapd.20250714*.csv',
             'validation': 'nfcapd.20250715*.csv',
             'test': 'nfcapd.2025071[67]*.csv'
         },
-        'feature_config': FEATURES_BY_ATTACK_TYPE['http_flood'],
+        'feature_config': [
+            'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+            'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+            'packets_per_flow', 'bytes_per_flow',
+            'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+            'tcp_ratio', 'udp_ratio', 'icmp_ratio',
+            'unique_src_ips',
+            'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
+            'rst_flag_ratio', 'psh_flag_ratio',
+            'large_packet_flow_ratio', 'size_uniformity', 'avg_dst_port_diversity'
+        ],
         'windows': {
             '1': {
                 'attack_periods': [
-                    ('2025-07-16 20:27:00', '2025-07-16 20:36:50'),
-                    ('2025-07-16 22:22:50', '2025-07-16 22:22:50'),
+                    ('2025-07-16 20:27:14', '2025-07-16 20:37:12'),
+                    ('2025-07-16 22:23:07', '2025-07-16 22:23:07'),
+                    ('2025-07-16 22:24:57', '2025-07-16 22:25:03'),
+                    ('2025-07-16 22:33:05', '2025-07-16 22:33:07'),
+                    ('2025-07-17 00:09:16', '2025-07-17 00:09:19'),
+                    ('2025-07-17 00:30:15', '2025-07-17 00:30:17'),
                 ],
                 'threshold_strategies': {
-                    'autoencoder': 'exponential_threshold',
+                    'autoencoder': 'mse_plus_40std',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'mean_plus_3std'
-                }
+                    'one_class_svm': 'percentile_99_5'
+                },
+                'feature_config': {
+                    'one_class_svm': ['total_flows', 'total_packets', 'tcp_ratio', 'bit_rate', 'syn_flag_ratio', 'bytes_per_flow'],
+                },
+                # 'ema_alpha': 0.15,
             },
             '10': {
                 'attack_periods': [
-                    ('2025-07-16 20:27:00', '2025-07-16 20:36:50'),
-                    ('2025-07-16 22:22:50', '2025-07-16 22:22:50'),
+                    ('2025-07-16 20:27:10', '2025-07-16 20:37:00'),
+                    ('2025-07-16 22:24:50', '2025-07-16 22:25:10'),
+                    ('2025-07-16 22:33:00', '2025-07-16 22:33:00'),
+                    ('2025-07-17 00:09:10', '2025-07-17 00:09:10'),
+                    ('2025-07-17 00:30:10', '2025-07-17 00:30:10'),
+                    ('2025-07-17 00:38:00', '2025-07-17 00:51:40'),
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'mean_plus_3std'
+                    'one_class_svm': 'percentile_99'
+                },
+                'feature_config': {
+                    'one_class_svm': ['total_flows', 'total_packets', 'tcp_ratio', 'bit_rate', 'syn_flag_ratio', 'bytes_per_flow'],
                 },
             },
             '60': {
                 'attack_periods': [
-                    ('2025-07-16 20:27:00', '2025-07-16 20:36:50'),
-                    ('2025-07-16 22:22:50', '2025-07-16 22:22:50'),
+                    ('2025-07-16 20:27:00', '2025-07-16 20:37:00'),
+                    ('2025-07-16 22:25:00', '2025-07-16 22:25:00'),
+                    ('2025-07-16 22:33:00', '2025-07-16 22:33:00'),
+                    ('2025-07-17 00:09:00', '2025-07-17 00:09:00'),
+                    ('2025-07-17 00:30:00', '2025-07-17 00:30:00'),
+                    ('2025-07-17 00:38:00', '2025-07-17 00:50:00'),
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
@@ -92,26 +162,42 @@ DATASETS = {
             },
             '300': {
                 'attack_periods': [
-                    ('2025-07-16 20:27:00', '2025-07-16 20:36:50'),
-                    ('2025-07-16 22:22:50', '2025-07-16 22:22:50'),
+                    ('2025-07-16 20:25:00', '2025-07-16 20:35:00'),
+                    ('2025-07-16 22:30:00', '2025-07-16 22:30:00'),
+                    ('2025-07-17 00:30:00', '2025-07-17 00:30:00'),
+                    ('2025-07-17 00:40:00', '2025-07-17 00:45:00'),
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'percentile_99_9'
+                    'one_class_svm': 'percentile_99'
                 }
             }
         }
     },
     'itp-synack-customer-outage': {
-        'path': './datasets/itp-synack-customer-outage/',
+        'path': './datasets/itp-synack-customer-outage/raw/',
         'description': 'ITP SYN+ACK flood attack causing customer outage',
         'patterns': {
             'train': ['nfcapd.20251004*.csv', 'nfcapd.20251005*.csv', 'nfcapd.20251006*.csv', 'nfcapd.20251007*.csv', 'nfcapd.20251008*.csv'],
             'validation': ['nfcapd.20251009*.csv', 'nfcapd.20251010*.csv'],
             'test': ['nfcapd.20251011*.csv', 'nfcapd.20251012*.csv', 'nfcapd.20251013*.csv']
         },
-        'feature_config': FEATURES_BY_ATTACK_TYPE['syn_ack_flood'],
+        'feature_config': [
+            'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+            'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+            'packets_per_flow', 'bytes_per_flow',
+            'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+            'tcp_ratio', 'udp_ratio', 'icmp_ratio',
+            'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
+            'rst_flag_ratio', 'psh_flag_ratio',
+            'syn_flood_ratio', 'syn_ack_ratio', 'small_packet_ratio',
+            'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+            'max_ports_per_src',
+            'connection_establishment_ratio', 'connection_teardown_ratio',
+            'incomplete_connection_ratio', 'zero_duration_connections',
+            'very_short_connections'
+        ],
         'windows': {
             '1': {
                 'attack_periods': [
@@ -120,14 +206,41 @@ DATASETS = {
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_9',
-                    'one_class_svm': 'mean_plus_3std'
+                    'one_class_svm': 'mean_plus_3std',
+                    'local_outlier_factor': 'mse_plus_80std'
                 },
                 'params': {
                     'isolation_forest': {
                         'contamination': 0.14,
                         'n_estimators': 320,
                         'random_state': 76
+                    },
+                    'one_class_svm': {
+                        'nu': 0.2,
+                        'kernel': 'linear',
+                        'gamma': 0.025
+                    },
+                    'local_outlier_factor': {
+                        'n_neighbors': 20,
+                        'contamination': 0.15,
+                        'novelty': True,
+                        'random_state': 72,
+                        'algorithm': 'auto',
+                        'leaf_size': 30,
+                        'metric': 'euclidean',
+                        'p': 2
                     }
+                },
+                'feature_config': {
+                    'one_class_svm': [
+                        'total_flows', 'total_packets', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size',
+                        'packets_per_flow', 'bytes_per_flow', 'src_ip_entropy',
+                        'tcp_ratio', 'udp_ratio', 'syn_flag_ratio', 'ack_flag_ratio',
+                        'syn_ack_ratio', 'small_packet_ratio', 'avg_tcp_duration', 'avg_ports_per_src',
+                        'connection_establishment_ratio', 'connection_teardown_ratio',
+                        'incomplete_connection_ratio', 'zero_duration_connections',
+                    ],
                 }
             },
             '10': {
@@ -184,12 +297,12 @@ DATASETS = {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_9',
                     'one_class_svm': 'percentile_99_9'
-                }
+                },
             }
         }
     },
     'itp-multivector-udp-100gbps-peak': {
-        'path': './datasets/itp-multivector-udp-100gbps-peak/',
+        'path': './datasets/itp-multivector-udp-100gbps-peak/raw/',
         'description': 'ITP multi-vector UDP flood attack with 100Gbps peak',
         'patterns': {
             'train': ['nfcapd.20251008*.csv', 'nfcapd.20251009*.csv', 'nfcapd.20251010*.csv'],
@@ -197,7 +310,14 @@ DATASETS = {
             'test': 'nfcapd.2025101[2-6]*.csv',
             'horizon': ['nfcapd.2025101[7-9]*.csv', 'nfcapd.2025102[0-6]*.csv']
         },
-        'feature_config': FEATURES_BY_ATTACK_TYPE['udp_flood'],
+        'feature_config': [
+            'as_diversity_count', 'bytes_kurtosis',
+            'dst_ip_unique_count', 'dst_port_top_1_ratio',
+            'duration_kurtosis', 'fan_in_std', 'flow_rate',
+            'flows_per_second', 'geo_diversity_count', 'packets_kurtosis',
+            'src_ip_unique_count', 'total_flows', 'unique_src_as',
+            'unique_src_geo', 'unique_src_ips', 'well_known_port_ratio'
+        ],
         'windows': {
             '1': {
                 'attack_periods': [
@@ -208,21 +328,55 @@ DATASETS = {
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
-                    'isolation_forest': 'percentile_99_9',
-                    'one_class_svm': 'mean_plus_3std',
+                    'isolation_forest': 'mse_plus_5_5std',
+                    'one_class_svm': 'mse_plus_80std',
+                    'local_outlier_factor': 'mse_plus_40std',
                 },
                 'params': {
                     'isolation_forest': {
                         'contamination': 0.04,
-                        'n_estimators': 320,
-                        'random_state': 64
+                        'n_estimators': 82,
+                        'random_state': 64,
+                        'max_samples': 115,
+                        'max_features': 0.8,
+                        'bootstrap': True
                     },
                     'one_class_svm': {
                         'nu': 0.06,
-                        'kernel': 'sigmoid',
+                        'kernel': 'linear',
                         'gamma': 'scale'
                     }
-                }
+                },
+                'feature_config': {
+                    'autoencoder': [
+                        'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+                        'packets_per_flow', 'bytes_per_flow', 'well_known_port_ratio'
+                        'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+                        'tcp_ratio', 'udp_ratio', 'icmp_ratio', 'dst_port_top_1_ratio',
+                        'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+                        'max_ports_per_src', 'bytes_kurtosis', 'dst_ip_unique_count',
+                        'duration_skewness', 'fan_in_std', 'geo_diversity_count',
+                        'packets_kurtosis', 'src_ip_unique_count', 'unique_src_geo'
+                    ],
+                    'isolation_forest': [
+                        'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+                        'packets_per_flow', 'bytes_per_flow', 'well_known_port_ratio'
+                        'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+                        'tcp_ratio', 'udp_ratio', 'icmp_ratio', 'dst_port_top_1_ratio',
+                        'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+                        'max_ports_per_src', 'bytes_kurtosis', 'dst_ip_unique_count',
+                        'duration_skewness', 'fan_in_std', 'geo_diversity_count',
+                        'packets_kurtosis', 'src_ip_unique_count', 'unique_src_geo'
+                    ],
+                    'one_class_svm': [
+                        'bytes_kurtosis', 'dst_ip_unique_count', 'dst_port_top_1_ratio',
+                        'duration_skewness', 'fan_in_std', 'geo_diversity_count',
+                        'packets_kurtosis', 'src_ip_unique_count', 'total_flows',
+                        'flow_rate', 'unique_src_geo', 'well_known_port_ratio'
+                    ],
+                },
             },
             '10': {
                 'attack_periods': [
@@ -239,8 +393,8 @@ DATASETS = {
                 },
                 'params': {
                     'isolation_forest': {
-                        'contamination': 0.05, # 'auto'
-                        'n_estimators': 320, # usar menos
+                        'contamination': 0.05,
+                        'n_estimators': 320,
                         'random_state': 64
                     },
                     'one_class_svm': {
@@ -295,7 +449,7 @@ DATASETS = {
         }
     },
     'isp-synflood-multiple-days': {
-        'path': './datasets/isp-synflood-multiple-days/',
+        'path': './datasets/isp-synflood-multiple-days/raw/',
         'description': 'ISP SYN-Flood attack during multiple days',
         'patterns': {
             'train': 'nfcapd.2025081[6789]*.csv',
@@ -303,7 +457,21 @@ DATASETS = {
             'test': 'nfcapd.2025082[1-8]*.csv',
             'horizon': ['nfcapd.20250829*.csv', 'nfcapd.20250830*.csv', 'nfcapd.20250831*.csv', 'nfcapd.2025090[1-9]*.csv']
         },
-        'feature_config': FEATURES_BY_ATTACK_TYPE['syn_flood'],
+        'feature_config': [
+            'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+            'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+            'packets_per_flow', 'bytes_per_flow',
+            'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+            'tcp_ratio', 'udp_ratio', 'icmp_ratio',
+            'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
+            'rst_flag_ratio', 'psh_flag_ratio',
+            'syn_flood_ratio', 'syn_ack_ratio', 'small_packet_ratio',
+            'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+            'max_ports_per_src',
+            'connection_establishment_ratio', 'connection_teardown_ratio',
+            'incomplete_connection_ratio', 'zero_duration_connections',
+            'very_short_connections'
+        ],
         'windows': {
             '1': {
                 'attack_periods': [
@@ -382,7 +550,7 @@ DATASETS = {
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'mean_plus_3std'
+                    'one_class_svm': 'percentile_99_9'
                 }
             }
         }

@@ -34,16 +34,17 @@ class GroundTruthEvaluator:
             attack_periods: List of tuples with (start_time, end_time) for attacks.
                            If None, no ground truth will be generated.
         """
-        # Use the actual detection results from the model (which includes our improved algorithm)
-        # instead of just applying a simple threshold
+        errors = test_data['reconstruction_error'].values
+        detection_labels = errors > detection_threshold
+        print("Using threshold detection")
+        print(f"  Threshold: {detection_threshold}")
+        print(f"  Samples above threshold: {np.sum(detection_labels)} anomalies")
+        
+        # DEBUG: Compare with model's is_anomaly if available
         if 'is_anomaly' in test_data.columns:
-            detection_labels = test_data['is_anomaly'].values
-            print("Using model's actual detection results (including peak detection algorithm)")
-        else:
-            # Fallback to simple threshold if is_anomaly column doesn't exist
-            errors = test_data['reconstruction_error'].values
-            detection_labels = errors > detection_threshold
-            print("Fallback: Using simple threshold detection")
+            model_labels = test_data['is_anomaly'].values
+            print(f"  Model's is_anomaly detected: {np.sum(model_labels)} anomalies")
+            print(f"  Difference (threshold - model): {np.sum(detection_labels) - np.sum(model_labels)} samples")
         
         # If no attack periods provided, return empty ground truth
         if not attack_periods:
@@ -85,7 +86,7 @@ class GroundTruthEvaluator:
         for start_time, end_time in attack_periods_dt:
             mask = (test_data['timestamp'] >= start_time) & (test_data['timestamp'] <= end_time)
             ground_truth_labels = ground_truth_labels | mask.values
-        
+
         gt_threshold = "Hard-coded time periods"  # Not a numeric threshold
         
         print(f"Ground Truth Generation:")
@@ -176,8 +177,21 @@ class GroundTruthEvaluator:
         
     def create_evaluation_plots(self, test_data, y_true, y_pred, detection_threshold, gt_threshold, metrics):
         """Create evaluation visualizations using the EvaluationVisualizer."""
-        # Create ground truth comparison plot
+        # Create ground truth comparison plot (threshold-based detection)
         self.visualizer.plot_ground_truth_evaluation(test_data, y_true, y_pred, detection_threshold, gt_threshold)
+        
+        # If model labels (is_anomaly) are available, create a separate comparison plot
+        if 'is_anomaly' in test_data.columns:
+            model_labels = test_data['is_anomaly'].values
+            print("\nCreating additional evaluation plot for model's is_anomaly labels...")
+            self.visualizer.plot_model_labels_evaluation(test_data, y_true, model_labels)
+            
+            # Also calculate and print metrics for model labels
+            model_metrics = self.calculate_metrics(y_true, model_labels)
+            print("\n" + "="*60)
+            print("MODEL LABELS (is_anomaly) EVALUATION")
+            print("="*60)
+            self.print_evaluation_results(model_metrics)
         
         # Create confusion matrix heatmap
         self.visualizer.plot_confusion_matrix_heatmap(metrics)

@@ -1,8 +1,7 @@
 """
-Constants and feature group definitions for the ISP DDoS Auto Detector
+Constants and features for DDoS Detection
 """
 
-# Time span configurations
 TIME_SPANS = {
     1: {
         'description': '1-second',
@@ -30,10 +29,8 @@ TIME_SPANS = {
     }
 }
 
-# Supported time spans
 SUPPORTED_TIME_SPANS = list(TIME_SPANS.keys())
 
-# Feature group definitions
 FEATURE_GROUPS = {
     'basic': [
         'total_flows', 'total_packets', 'total_bytes', 'avg_duration'
@@ -92,7 +89,6 @@ FEATURE_GROUPS = {
     'connection_diversity': [
         'avg_src_ports_per_ip', 'avg_dst_ports_per_ip'
     ],
-    # NEW FEATURE GROUPS
     'statistical': [
         'bytes_mean', 'bytes_variance', 'bytes_std', 'bytes_min', 'bytes_max',
         'bytes_range', 'bytes_cv', 'bytes_skewness', 'bytes_kurtosis',
@@ -144,17 +140,24 @@ FEATURE_GROUPS = {
         'as_diversity_count', 'as_diversity_ratio',
         'geo_diversity_count', 'geo_diversity_ratio',
         'cross_as_flow_ratio', 'cross_geo_flow_ratio'
+    ],
+    'ema_smoothed': [
+        'packet_rate_ema',
+        'bit_rate_ema',
+        'flow_rate_ema',
+        'duration_mean_ema',
+        'bytes_std_ema',
+        'packets_std_ema',
+        'flows_per_second_ema'
     ]
 }
 
-# Protocol numbers
 PROTOCOL_NUMBERS = {
     'ICMP': 1,
     'TCP': 6,
     'UDP': 17
 }
 
-# Common TCP flags
 TCP_FLAGS = {
     'FIN': 0x01,
     'SYN': 0x02,
@@ -164,7 +167,6 @@ TCP_FLAGS = {
     'URG': 0x20
 }
 
-# Default feature configurations by attack type
 FEATURES_BY_ATTACK_TYPE = {
     'syn_flood': {
         'include_groups': ['basic', 'traffic_rates', 'entropy', 'protocol', 'tcp_flags', 'syn_flood_specific', 'connection_patterns'],

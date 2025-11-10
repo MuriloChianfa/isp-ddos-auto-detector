@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -57,7 +58,7 @@ class DatasetFeatureVisualizer:
             print(f"Warning: No valid data for feature {feature_name} in {dataset_type} dataset")
             return None
             
-        # 1. Histogram with density curve
+        # Histogram with density curve
         axes[0, 0].hist(clean_data, bins=50, alpha=0.7, density=True, color='skyblue', edgecolor='black')
         axes[0, 0].set_title('Distribution Histogram')
         axes[0, 0].set_xlabel('Value')
@@ -69,23 +70,49 @@ class DatasetFeatureVisualizer:
         axes[0, 0].text(0.02, 0.98, stats_text, transform=axes[0, 0].transAxes, 
                        verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
         
-        # 2. Box plot
+        # Box plot
         axes[0, 1].boxplot(clean_data, vert=True, patch_artist=True, 
                           boxprops=dict(facecolor='lightcoral', alpha=0.7))
         axes[0, 1].set_title('Box Plot')
         axes[0, 1].set_ylabel('Value')
         axes[0, 1].grid(True, alpha=0.3)
         
-        # 3. Time series (if timestamps available)
+        # Time series plots
         if timestamps is not None and len(timestamps) == len(feature_data):
             # Align timestamps with clean data indices
             clean_timestamps = pd.Series(timestamps).iloc[clean_data.index]
-            axes[1, 0].plot(clean_timestamps, clean_data.values, linewidth=1, alpha=0.8, color='green')
+            
+            # Parse timestamps to datetime objects
+            clean_timestamps_parsed = pd.to_datetime(clean_timestamps)
+            
+            # Plot the time series
+            axes[1, 0].plot(clean_timestamps_parsed, clean_data.values, linewidth=1, alpha=0.8, color='green')
             axes[1, 0].set_title('Time Series')
             axes[1, 0].set_xlabel('Time')
             axes[1, 0].set_ylabel('Value')
+            
+            # Format x-axis dates based on time range
+            time_span = clean_timestamps_parsed.max() - clean_timestamps_parsed.min()
+            
+            # Adjust formatting based on data density and time span
+            if time_span.total_seconds() < 3600:  # Less than 1 hour
+                # Show minute:second format
+                axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+                axes[1, 0].xaxis.set_major_locator(mdates.AutoDateLocator())
+            elif time_span.total_seconds() < 86400:  # Less than 1 day
+                # Show hour:minute format
+                axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                axes[1, 0].xaxis.set_major_locator(mdates.HourLocator(interval=max(1, int(time_span.total_seconds() / 7200))))
+            else:  # Multiple days
+                # Show day and hour
+                axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+                axes[1, 0].xaxis.set_major_locator(mdates.HourLocator(interval=6))
+            
             axes[1, 0].tick_params(axis='x', rotation=45)
             axes[1, 0].grid(True, alpha=0.3)
+            
+            # Improve layout to prevent label cutoff
+            plt.setp(axes[1, 0].xaxis.get_majorticklabels(), ha='right')
         else:
             axes[1, 0].plot(range(len(clean_data)), clean_data.values, linewidth=1, alpha=0.8, color='green')
             axes[1, 0].set_title('Sequential Plot')
@@ -93,7 +120,7 @@ class DatasetFeatureVisualizer:
             axes[1, 0].set_ylabel('Value')
             axes[1, 0].grid(True, alpha=0.3)
         
-        # 4. Q-Q plot for normality assessment
+        # Q-Q plot for normality assessment
         from scipy import stats
         stats.probplot(clean_data, dist="norm", plot=axes[1, 1])
         axes[1, 1].set_title('Q-Q Plot (Normal Distribution)')

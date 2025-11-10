@@ -7,7 +7,15 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from framework.evaluation import GroundTruthEvaluator
+from framework.optimization import (
+    IsolationForestRandomSearch, 
+    OneClassSVMRandomSearch, 
+    LocalOutlierFactorRandomSearch,
+    save_optimization_results
+)
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 class AnomalyDetector:
@@ -27,6 +35,74 @@ class AnomalyDetector:
         self.dataset_name = dataset_name
         self.model_name = model_name
         self.time_span = time_span
+    
+    def optimize_hyperparameters(self, X_train: np.ndarray, X_val: np.ndarray, 
+                                 model_name: str, n_iter: int = 50, 
+                                 scoring: str = 'anomaly_score',
+                                 output_dir: str = './results/optimization/') -> Dict:
+        """
+        Optimize hyperparameters using random search
+        
+        Args:
+            X_train: Training data
+            X_val: Validation data
+            model_name: Model to optimize ('isolation_forest', 'one_class_svm', 'local_outlier_factor')
+            n_iter: Number of iterations for random search
+            scoring: Scoring method (fixed to 'anomaly_score')
+            output_dir: Directory to save optimization results
+            
+        Returns:
+            best_params: Best parameters found
+        """
+        logger.info(f"\n{'='*70}")
+        logger.info(f"Starting hyperparameter optimization for {model_name}")
+        logger.info(f"{'='*70}")
+        logger.info(f"Training samples: {len(X_train)}")
+        logger.info(f"Validation samples: {len(X_val)}")
+        logger.info(f"Iterations: {n_iter}")
+        logger.info(f"Scoring method: {scoring}")
+        
+        # Select optimizer based on model
+        if model_name == 'isolation_forest':
+            optimizer = IsolationForestRandomSearch(
+                n_iter=n_iter, 
+                random_state=42, 
+                scoring=scoring
+            )
+        elif model_name == 'one_class_svm':
+            optimizer = OneClassSVMRandomSearch(
+                n_iter=n_iter, 
+                random_state=42, 
+                scoring=scoring,
+                cache_size=54512,
+                tol=1e-2,
+                max_iter=-1,
+                shrinking=True
+            )
+        elif model_name == 'local_outlier_factor':
+            optimizer = LocalOutlierFactorRandomSearch(
+                n_iter=n_iter, 
+                random_state=42, 
+                scoring=scoring
+            )
+        else:
+            raise ValueError(f"Optimization not supported for model: {model_name}")
+        
+        # Run optimization
+        best_params, cv_results = optimizer.fit(X_train, X_val)
+        
+        # Save results with best parameters at the top
+        output_path = f"{output_dir}/optimization_results.json"
+        save_optimization_results(cv_results, output_path, best_params, optimizer.best_score_)
+        
+        logger.info(f"\n{'='*70}")
+        logger.info(f"Optimization completed!")
+        logger.info(f"Best parameters: {best_params}")
+        logger.info(f"Best score: {optimizer.best_score_:.6f}")
+        logger.info(f"Results saved to: {output_path}")
+        logger.info(f"{'='*70}\n")
+        
+        return best_params
     
     def detect_anomalies_all_splits(self, processed_features: Dict, features_dict: Dict,
                                    use_fixed_threshold: bool = False) -> Tuple[pd.DataFrame, float, Dict]:
@@ -142,8 +218,7 @@ class AnomalyDetector:
         """
         print("\nThreshold method comparison:")
         threshold_methods = [
-            'percentile_95', 'percentile_99', 'percentile_99_5', 
-            'mean_plus_1std', 'mean_plus_2std', 'mean_plus_3std', 
+            'percentile_99', 'mean_plus_3std', 
             'exponential_threshold', 'sigmoid_threshold'
         ]
         

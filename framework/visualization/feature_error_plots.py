@@ -6,6 +6,9 @@ import numpy as np
 import os
 from pathlib import Path
 from scipy import stats
+from multiprocessing import Pool, cpu_count, Manager
+import sys
+import time
 from ..utils import get_results_path
 
 
@@ -15,11 +18,13 @@ class FeatureErrorVisualizer:
     Creates detailed error analysis plots for each feature and saves them organized by type.
     """
     
-    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder", time_span=300):
+    def __init__(self, dataset_name=None, results_dir=None, model_name="autoencoder", time_span=300, max_processes=None):
         if results_dir is None:
             self.results_dir = get_results_path(dataset_name, model_name, time_span, "models")
         else:
             self.results_dir = results_dir
+        
+        self.max_processes = max_processes if max_processes is not None else 12
         
         # Create error-specific directory structure
         self.error_dir = os.path.join(self.results_dir, "evaluation", "error")
@@ -582,10 +587,58 @@ class FeatureErrorVisualizer:
         
         return saved_plots
     
-    def create_all_feature_error_plots(self, original_data, reconstructed_data, feature_names, 
-                                     timestamps=None, dataset_type='test'):
+    def _plot_feature_error_task(self, task_info):
         """
-        Create all error plots for the given dataset.
+        Worker function for parallel error plot generation.
+        
+        Args:
+            task_info: Tuple containing (feature_idx, feature_name, original_col, reconstructed_col, 
+                       dataset_type, timestamps, progress_info)
+        
+        Returns:
+            Tuple: (success: bool, filepath: str, feature_name: str, dataset_type: str)
+        """
+        try:
+            feature_idx = task_info[0]
+            feature_name = task_info[1]
+            original_col = task_info[2]
+            reconstructed_col = task_info[3]
+            dataset_type = task_info[4]
+            timestamps = task_info[5]
+            progress_info = task_info[6]
+            
+            # Get process ID for better tracking
+            pid = os.getpid()
+            
+            # Print progress message with process info
+            if progress_info and 'counter' in progress_info:
+                # Thread-safe increment (Manager.Value handles synchronization automatically)
+                progress_info['counter'].value += 1
+                current_count = progress_info['counter'].value
+                total_count = progress_info['total']
+                progress_pct = (current_count / total_count) * 100
+                print(f"[PID {pid:5}] [{current_count:3d}/{total_count}] ({progress_pct:5.1f}%) Processing error plot: {feature_name} ({dataset_type})")
+                sys.stdout.flush()  # Force immediate output
+            
+            # Create individual feature error plot
+            filepath = self.plot_individual_feature_error(
+                original_col, reconstructed_col, 
+                feature_name, feature_idx, dataset_type, timestamps
+            )
+            
+            if filepath:
+                sys.stdout.flush()
+            
+            return (True, filepath, feature_name, dataset_type)
+            
+        except Exception as e:
+            print(f"Error creating plot for {task_info[1]}: {e}")
+            return (False, None, task_info[1], task_info[4])
+    
+    def create_all_feature_error_plots(self, original_data, reconstructed_data, feature_names, 
+                                     timestamps=None, dataset_type='test', use_parallel=True):
+        """
+        Create all error plots for the given dataset with optional parallel processing.
         
         Args:
             original_data: Original feature matrix (samples x features)
@@ -593,39 +646,111 @@ class FeatureErrorVisualizer:
             feature_names: List of feature names
             timestamps: Optional timestamps
             dataset_type: Type of dataset (train/validation/test)
+            use_parallel: Whether to use parallel processing for individual feature plots
             
         Returns:
             dict: Dictionary with plot types and their saved file paths
         """
         saved_plots = {}
         
-        # Calculate feature-wise errors
+        # Calculate feature-wise errors for later use
         feature_errors_dict = {}
+        
+        # Prepare tasks for parallel processing of individual feature plots
+        tasks = []
         for i, feature_name in enumerate(feature_names):
             if i < original_data.shape[1] and i < reconstructed_data.shape[1]:
                 errors = np.abs(original_data[:, i] - reconstructed_data[:, i])
                 feature_errors_dict[feature_name] = errors
                 
-                # Create individual feature plot
-                try:
-                    plot_path = self.plot_individual_feature_error(
-                        original_data[:, i], reconstructed_data[:, i], 
-                        feature_name, i, dataset_type, timestamps
-                    )
-                    saved_plots[f"individual_{feature_name}"] = plot_path
-                except Exception as e:
-                    print(f"Warning: Could not create individual plot for {feature_name}: {e}")
+                # Add task for individual plot generation
+                tasks.append((
+                    i,
+                    feature_name,
+                    original_data[:, i],
+                    reconstructed_data[:, i],
+                    dataset_type,
+                    timestamps,
+                    None  # progress_info (will be added later)
+                ))
         
-        # Create summary plot
+        # Process individual feature plots
+        if tasks:
+            if use_parallel and self.max_processes > 1:
+                # Setup shared progress tracking for multiprocessing
+                manager = Manager()
+                progress_counter = manager.Value('i', 0)  # Shared integer counter
+                progress_info = {
+                    'counter': progress_counter,
+                    'total': len(tasks)
+                }
+                
+                # Update tasks to include progress_info
+                tasks = [task[:-1] + (progress_info,) for task in tasks]
+                
+                # Determine actual number of processes to use
+                actual_processes = min(self.max_processes, len(tasks), cpu_count())
+                
+                print(f"\nGenerating individual feature error plots using {actual_processes} processes...")
+                print(f"  Total tasks: {len(tasks)}")
+                print(f"  Estimated time: {len(tasks) // actual_processes + 1} batches")
+                print("=" * 80)
+                print("Starting parallel processing...")
+                print("=" * 80)
+                
+                start_time = time.time()
+                
+                # Process tasks in parallel
+                with Pool(processes=actual_processes) as pool:
+                    results = pool.map(self._plot_feature_error_task, tasks)
+                
+                processing_time = time.time() - start_time
+                print("=" * 80)
+                print(f"Parallel processing completed in {processing_time:.2f} seconds")
+                print("=" * 80)
+                
+                # Process results
+                successful_plots = 0
+                failed_plots = 0
+                for success, filepath, feature_name, ds_type in results:
+                    if success and filepath:
+                        saved_plots[f"individual_{feature_name}"] = filepath
+                        successful_plots += 1
+                    else:
+                        failed_plots += 1
+                        print(f"  FAILED: {feature_name}")
+                
+                print(f"\nIndividual feature error plots: {successful_plots} successful, {failed_plots} failed")
+                if successful_plots > 0:
+                    print(f"  Average time per plot: {processing_time/successful_plots:.3f} seconds")
+                    
+            else:
+                # Sequential processing
+                print(f"\nGenerating individual feature error plots sequentially...")
+                for i, feature_name in enumerate(feature_names):
+                    if i < original_data.shape[1] and i < reconstructed_data.shape[1]:
+                        try:
+                            print(f"  [{i+1:3d}/{len(feature_names)}] Processing: {feature_name}")
+                            plot_path = self.plot_individual_feature_error(
+                                original_data[:, i], reconstructed_data[:, i], 
+                                feature_name, i, dataset_type, timestamps
+                            )
+                            saved_plots[f"individual_{feature_name}"] = plot_path
+                        except Exception as e:
+                            print(f"  Warning: Could not create individual plot for {feature_name}: {e}")
+        
+        # Create summary plot (not parallelized - single plot)
+        print(f"\nGenerating summary plot...")
         try:
             summary_path = self.plot_feature_error_summary(
                 feature_errors_dict, feature_names, dataset_type
             )
             saved_plots["summary"] = summary_path
         except Exception as e:
-            print(f"Warning: Could not create summary plot: {e}")
+            print(f"  Warning: Could not create summary plot: {e}")
         
-        # Create temporal heatmap
+        # Create temporal heatmap (not parallelized - single plot)
+        print(f"\nGenerating temporal heatmap...")
         try:
             # Calculate error matrix for heatmap
             feature_errors_matrix = np.abs(original_data - reconstructed_data)
@@ -634,9 +759,10 @@ class FeatureErrorVisualizer:
             )
             saved_plots["temporal_heatmap"] = heatmap_path
         except Exception as e:
-            print(f"Warning: Could not create temporal heatmap: {e}")
+            print(f"  Warning: Could not create temporal heatmap: {e}")
         
-        # Create feature distribution plots
+        # Create feature distribution plots (not parallelized - creates 2 summary plots)
+        print(f"\nGenerating feature distribution plots...")
         try:
             distribution_paths = self.plot_feature_distributions(
                 original_data, reconstructed_data, feature_names, dataset_type
@@ -644,9 +770,12 @@ class FeatureErrorVisualizer:
             for i, path in enumerate(distribution_paths):
                 saved_plots[f"distribution_{i+1}"] = path
         except Exception as e:
-            print(f"Warning: Could not create feature distribution plots: {e}")
+            print(f"  Warning: Could not create feature distribution plots: {e}")
         
-        print(f"\nGenerated {len(saved_plots)} error plot(s) for {dataset_type} dataset:")
+        print(f"\n{'='*60}")
+        print(f"ERROR PLOT GENERATION COMPLETED!")
+        print(f"{'='*60}")
+        print(f"Generated {len(saved_plots)} error plot(s) for {dataset_type} dataset:")
         for plot_type, path in saved_plots.items():
             print(f"  - {plot_type}: {path}")
         
