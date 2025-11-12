@@ -161,6 +161,7 @@ class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixi
         
         # Convert to anomaly scores (higher = more anomalous)
         # LOF returns negative scores for anomalies, so we negate them
+        # anomaly_scores = -decision_scores
         anomaly_scores = -decision_scores
         
         # Return original data as "reconstructions" for compatibility

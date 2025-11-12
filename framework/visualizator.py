@@ -70,7 +70,7 @@ class VisualizationManager:
             print("Creating feature importance visualizations...")
             eval_viz = EvaluationVisualizer(self.results_path)
             eval_viz.plot_feature_importance(feature_errors, feature_names, importance_indices, top_n=20)
-            eval_viz.plot_feature_importance_detailed(feature_errors, feature_names, importance_indices, top_n=15)
+            # eval_viz.plot_feature_importance_detailed(feature_errors, feature_names, importance_indices, top_n=15)
     
     
     def generate_anomaly_visualizations(self, combined_features: pd.DataFrame, threshold: float,
@@ -150,24 +150,24 @@ class VisualizationManager:
             importance_analysis: Optional temporal analysis results
             generate_reconstruction_error: Whether to generate detailed reconstruction error plots
         """
-        # 1. Training visualizations (if history available)
+        # Training visualizations (if history available)
         if history is not None:
             self.generate_training_visualizations(history, self.model_name)
         
-        # 2. Feature importance analysis
+        # Feature importance analysis
         self.generate_feature_analysis(
             model, test_data, feature_names, feature_errors, 
             importance_indices, importance_analysis
         )
         
-        # 3. Optional detailed feature reconstruction error plots
+        # Optional detailed feature reconstruction error plots
         if processing_list is not None and features_dict is not None:
             self.generate_feature_reconstruction_error_plots(
                 model, processing_list, features_dict, feature_names, 
                 generate_reconstruction_error
             )
         
-        # 4. Anomaly detection visualizations
+        # Anomaly detection visualizations
         self.generate_anomaly_visualizations(
             combined_features, threshold, test_scores, all_thresholds
         )

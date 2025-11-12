@@ -161,7 +161,7 @@ class DatasetFeatureVisualizer:
             print(f"Warning: No valid data for feature {feature_name} across datasets")
             return None
         
-        # 1. Overlaid histograms
+        # Overlaid histograms
         for i, (dataset_type, data) in enumerate(comparison_data):
             axes[0, 0].hist(data, bins=30, alpha=0.6, label=dataset_type.title(), 
                            density=True, color=colors[i])
@@ -171,7 +171,7 @@ class DatasetFeatureVisualizer:
         axes[0, 0].legend()
         axes[0, 0].grid(True, alpha=0.3)
         
-        # 2. Box plots side by side
+        # Box plots side by side
         box_data = [data for _, data in comparison_data]
         box_labels = [dataset_type.title() for dataset_type, _ in comparison_data]
         axes[0, 1].boxplot(box_data, labels=box_labels, patch_artist=True,
@@ -180,7 +180,7 @@ class DatasetFeatureVisualizer:
         axes[0, 1].set_ylabel('Value')
         axes[0, 1].grid(True, alpha=0.3)
         
-        # 3. Statistics comparison table
+        # Statistics comparison table
         stats_data = []
         for dataset_type, data in comparison_data:
             stats_data.append({
@@ -202,7 +202,7 @@ class DatasetFeatureVisualizer:
         table.scale(1.2, 1.5)
         axes[1, 0].set_title('Statistical Summary')
         
-        # 4. Violin plots
+        # Violin plots
         violin_data = [data for _, data in comparison_data]
         violin_labels = [dataset_type.title() for dataset_type, _ in comparison_data]
         axes[1, 1].violinplot(violin_data, positions=range(1, len(violin_data) + 1))
@@ -238,9 +238,8 @@ class DatasetFeatureVisualizer:
         try:
             task_type = task_info[0]
             feature_name = task_info[1]
-            progress_info = task_info[-1]  # Progress info is always the last element
+            progress_info = task_info[-1]  # Always the last element
             
-            # Get process ID for better tracking
             import os
             pid = os.getpid()
             

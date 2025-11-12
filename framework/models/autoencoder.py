@@ -35,67 +35,60 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         history: Training history from model fitting
     """
     
-    def __init__(self, latent_dim: int = 8):
+    def __init__(self, latent_dim: int = 8, hidden_layers: Optional[List[int]] = None):
         """
         Initialize the autoencoder anomaly detector.
         
         Args:
             latent_dim: Dimension of the latent (bottleneck) layer
+            hidden_layers: List of hidden layer dimensions for encoder (decoder mirrors these)
+                          Default: [24, 18, 12]
         """
         super().__init__(model_name="autoencoder")
         self.latent_dim = latent_dim
+        self.hidden_layers = hidden_layers if hidden_layers is not None else [24, 18, 12]
         self.autoencoder = None
         self.scaler = MinMaxScaler()
         self.history = None
         
     def build_model(self, input_dim: int) -> None:
-        """Build the autoencoder architecture with more capacity"""
+        """Build the autoencoder architecture with configurable hidden layers"""
         print(f"Building autoencoder for {input_dim} features...")
         
         # Validate input
         if input_dim <= 0:
             raise ValueError(f"Invalid input dimension: {input_dim}")
         
-        hidden_dim1 = 24     # First hidden layer
-        hidden_dim2 = 18     # Second hidden layer
-        hidden_dim3 = 12     # Third hidden layer
-        self.latent_dim = 8
+        if not self.hidden_layers:
+            raise ValueError("Hidden layers configuration is empty")
         
-        self.autoencoder = keras.Sequential([
-            keras.layers.Input(shape=(input_dim,)),
-            
-            # Encoder
-            keras.layers.Dense(hidden_dim1, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            keras.layers.Dense(hidden_dim2, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            keras.layers.Dense(hidden_dim3, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            # Bottleneck (latent space)
-            keras.layers.Dense(self.latent_dim, activation='relu'),
-            
-            # Decoder
-            keras.layers.Dense(hidden_dim3, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            keras.layers.Dense(hidden_dim2, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            keras.layers.Dense(hidden_dim1, activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dropout(0.1),
-            
-            # Output layer
-            keras.layers.Dense(input_dim, activation='linear')
-        ])
+        print(f"Architecture: {input_dim} -> {' -> '.join(map(str, self.hidden_layers))} -> {self.latent_dim} (latent)")
+        
+        layers = [keras.layers.Input(shape=(input_dim,))]
+        
+        # Encoder: progressively reduce dimensions
+        for hidden_dim in self.hidden_layers:
+            layers.extend([
+                keras.layers.Dense(hidden_dim, activation='relu'),
+                keras.layers.BatchNormalization(),
+                keras.layers.Dropout(0.1)
+            ])
+        
+        # Bottleneck (latent space)
+        layers.append(keras.layers.Dense(self.latent_dim, activation='relu'))
+        
+        # Decoder: mirror the encoder architecture
+        for hidden_dim in reversed(self.hidden_layers):
+            layers.extend([
+                keras.layers.Dense(hidden_dim, activation='relu'),
+                keras.layers.BatchNormalization(),
+                keras.layers.Dropout(0.1)
+            ])
+        
+        # Output layer
+        layers.append(keras.layers.Dense(input_dim, activation='linear'))
+        
+        self.autoencoder = keras.Sequential(layers)
         
         # Optimizer settings
         initial_learning_rate = 0.01
@@ -114,12 +107,12 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
         logger.info(f"autoencoder architecture:")
         logger.info(f"  Input: {input_dim} features")
-        logger.info(f"  Hidden layers: {hidden_dim1} -> {hidden_dim2} -> {hidden_dim3}")
+        logger.info(f"  Hidden layers: {' -> '.join(map(str, self.hidden_layers))}")
         logger.info(f"  Latent dimension: {self.latent_dim}")
         
         print(f"autoencoder architecture:")
         print(f"  Input: {input_dim} features")
-        print(f"  Hidden layers: {hidden_dim1} -> {hidden_dim2} -> {hidden_dim3}")
+        print(f"  Hidden layers: {' -> '.join(map(str, self.hidden_layers))}")
         print(f"  Latent dimension: {self.latent_dim}")
         
     def fit_scaler(self, training_features) -> None:

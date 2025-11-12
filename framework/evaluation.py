@@ -188,9 +188,7 @@ class GroundTruthEvaluator:
             
             # Also calculate and print metrics for model labels
             model_metrics = self.calculate_metrics(y_true, model_labels)
-            print("\n" + "="*60)
-            print("MODEL LABELS (is_anomaly) EVALUATION")
-            print("="*60)
+            print("\nEvaluating model labels...")
             self.print_evaluation_results(model_metrics)
         
         # Create confusion matrix heatmap

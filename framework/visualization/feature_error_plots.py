@@ -12,6 +12,218 @@ import time
 from ..utils import get_results_path
 
 
+# Global function for multiprocessing (needs to be at module level for pickling)
+def _plot_feature_error_worker(task_info):
+    """
+    Worker function for parallel error plot generation.
+    Must be at module level to be picklable by multiprocessing.
+    
+    Args:
+        task_info: Tuple containing (feature_idx, feature_name, original_col, reconstructed_col, 
+                   dataset_type, timestamps, progress_info, error_dir)
+    
+    Returns:
+        Tuple: (success: bool, filepath: str, feature_name: str, dataset_type: str)
+    """
+    try:
+        feature_idx = task_info[0]
+        feature_name = task_info[1]
+        original_col = task_info[2]
+        reconstructed_col = task_info[3]
+        dataset_type = task_info[4]
+        timestamps = task_info[5]
+        progress_info = task_info[6]  # Not used anymore to avoid serialization issues
+        error_dir = task_info[7]
+        
+        # Get process ID for better tracking
+        pid = os.getpid()
+        
+        # Simple progress message without shared counter
+        print(f"[PID {pid}] Processing: {feature_name} ({dataset_type})")
+        sys.stdout.flush()
+        
+        # Call the actual plotting function
+        filepath = _create_individual_feature_error_plot(
+            original_col, reconstructed_col, 
+            feature_name, feature_idx, dataset_type, timestamps, error_dir
+        )
+        
+        if filepath:
+            print(f"[PID {pid}] Completed: {feature_name}")
+            sys.stdout.flush()
+        
+        return (True, filepath, feature_name, dataset_type)
+        
+    except Exception as e:
+        print(f"[PID {pid}] Error creating plot for {task_info[1]}: {e}")
+        import traceback
+        traceback.print_exc()
+        return (False, None, task_info[1], task_info[4])
+
+
+def _create_individual_feature_error_plot(original_data, reconstructed_data, feature_name, 
+                                         feature_idx, dataset_type, timestamps, error_dir):
+    """
+    Create comprehensive error analysis plot for a single feature.
+    Standalone function for use in multiprocessing.
+    
+    Args:
+        original_data: Original feature values (numpy array)
+        reconstructed_data: Reconstructed feature values (numpy array)
+        feature_name: Name of the feature
+        feature_idx: Index of the feature
+        dataset_type: Type of dataset (train/validation/test)
+        timestamps: Optional timestamps for time series plot
+        error_dir: Directory to save error plots
+        
+    Returns:
+        str: Path to saved plot
+    """
+    # Calculate different types of errors
+    absolute_errors = np.abs(original_data - reconstructed_data)
+    squared_errors = np.square(original_data - reconstructed_data)
+    relative_errors = np.abs((original_data - reconstructed_data) / (original_data + 1e-8))
+    
+    # Create subplot figure
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle(f'Reconstruction Error Analysis: {feature_name} ({dataset_type.title()})', 
+                 fontsize=16, fontweight='bold')
+    
+    # Original vs Reconstructed scatter plot
+    axes[0, 0].scatter(original_data, reconstructed_data, alpha=0.6, s=20, color='steelblue')
+    axes[0, 0].plot([original_data.min(), original_data.max()], 
+                   [original_data.min(), original_data.max()], 'r--', linewidth=2, label='Perfect Reconstruction')
+    axes[0, 0].set_xlabel('Original Values')
+    axes[0, 0].set_ylabel('Reconstructed Values')
+    axes[0, 0].set_title('Original vs Reconstructed')
+    axes[0, 0].grid(True, alpha=0.3)
+    axes[0, 0].legend()
+    
+    # Calculate and display R² score
+    ss_res = np.sum((original_data - reconstructed_data) ** 2)
+    ss_tot = np.sum((original_data - np.mean(original_data)) ** 2)
+    r2_score = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+    mae = np.mean(absolute_errors)
+    mse = np.mean(squared_errors)
+    
+    stats_text = f'R² = {r2_score:.4f}\nMAE = {mae:.4f}\nMSE = {mse:.4f}'
+    axes[0, 0].text(0.05, 0.95, stats_text, transform=axes[0, 0].transAxes,
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8), 
+                   verticalalignment='top')
+    
+    # Time series comparison (if timestamps available)
+    if timestamps is not None:
+        timestamps = pd.to_datetime(timestamps) if not isinstance(timestamps[0], pd.Timestamp) else timestamps
+        axes[0, 1].plot(timestamps, original_data, label='Original', alpha=0.8, linewidth=1.5, color='blue')
+        axes[0, 1].plot(timestamps, reconstructed_data, label='Reconstructed', alpha=0.8, linewidth=1.5, color='orange')
+        axes[0, 1].fill_between(timestamps, original_data, reconstructed_data, 
+                               alpha=0.3, color='red', label='Error Region')
+        axes[0, 1].set_xlabel('Time')
+        axes[0, 1].set_ylabel('Feature Value')
+        axes[0, 1].set_title('Time Series Comparison')
+        axes[0, 1].legend()
+        axes[0, 1].grid(True, alpha=0.3)
+        axes[0, 1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        axes[0, 1].tick_params(axis='x', rotation=45)
+    else:
+        # If no timestamps, show sample-wise comparison
+        sample_indices = np.arange(len(original_data))
+        axes[0, 1].plot(sample_indices, original_data, label='Original', alpha=0.8, linewidth=1.5, color='blue')
+        axes[0, 1].plot(sample_indices, reconstructed_data, label='Reconstructed', alpha=0.8, linewidth=1.5, color='orange')
+        axes[0, 1].set_xlabel('Sample Index')
+        axes[0, 1].set_ylabel('Feature Value')
+        axes[0, 1].set_title('Sample-wise Comparison')
+        axes[0, 1].legend()
+        axes[0, 1].grid(True, alpha=0.3)
+    
+    # Absolute error distribution
+    axes[0, 2].hist(absolute_errors, bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+    axes[0, 2].axvline(np.mean(absolute_errors), color='red', linestyle='--', 
+                      label=f'Mean: {np.mean(absolute_errors):.4f}')
+    axes[0, 2].axvline(np.median(absolute_errors), color='orange', linestyle='--', 
+                      label=f'Median: {np.median(absolute_errors):.4f}')
+    axes[0, 2].axvline(np.percentile(absolute_errors, 95), color='green', linestyle='--', 
+                      label=f'95th %ile: {np.percentile(absolute_errors, 95):.4f}')
+    axes[0, 2].set_xlabel('Absolute Error')
+    axes[0, 2].set_ylabel('Frequency')
+    axes[0, 2].set_title('Absolute Error Distribution')
+    axes[0, 2].legend()
+    axes[0, 2].grid(True, alpha=0.3)
+    
+    # Error time series (if timestamps available)
+    if timestamps is not None:
+        axes[1, 0].plot(timestamps, absolute_errors, color='red', alpha=0.8, linewidth=1.5)
+        axes[1, 0].set_xlabel('Time')
+        axes[1, 0].set_ylabel('Absolute Error')
+        axes[1, 0].set_title('Error Over Time')
+        axes[1, 0].grid(True, alpha=0.3)
+        axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        axes[1, 0].tick_params(axis='x', rotation=45)
+        
+        # Add rolling mean for better trend visualization
+        if len(absolute_errors) > 10:
+            window_size = max(1, len(absolute_errors) // 20)
+            rolling_mean = pd.Series(absolute_errors).rolling(window=window_size, center=True).mean()
+            axes[1, 0].plot(timestamps, rolling_mean, color='darkred', linewidth=2, 
+                           label=f'Rolling Mean (window={window_size})')
+            axes[1, 0].legend()
+    else:
+        sample_indices = np.arange(len(absolute_errors))
+        axes[1, 0].plot(sample_indices, absolute_errors, color='red', alpha=0.8, linewidth=1.5)
+        axes[1, 0].set_xlabel('Sample Index')
+        axes[1, 0].set_ylabel('Absolute Error')
+        axes[1, 0].set_title('Error by Sample')
+        axes[1, 0].grid(True, alpha=0.3)
+    
+    # Box plot and violin plot for different error types
+    box_data = [absolute_errors, squared_errors, relative_errors]
+    box_labels = ['Absolute', 'Squared', 'Relative']
+    
+    # Use violin plot for better distribution visualization
+    parts = axes[1, 1].violinplot(box_data, positions=[1, 2, 3], showmeans=True, showmedians=True)
+    
+    # Customize violin plot colors
+    colors = ['lightcoral', 'lightblue', 'lightgreen']
+    for i, pc in enumerate(parts['bodies']):
+        pc.set_facecolor(colors[i])
+        pc.set_alpha(0.7)
+    
+    axes[1, 1].set_xticks([1, 2, 3])
+    axes[1, 1].set_xticklabels(box_labels)
+    axes[1, 1].set_ylabel('Error Magnitude')
+    axes[1, 1].set_title('Error Type Comparison')
+    axes[1, 1].grid(True, alpha=0.3)
+    
+    # Q-Q plot for error normality assessment
+    stats.probplot(absolute_errors, dist="norm", plot=axes[1, 2])
+    axes[1, 2].set_title('Q-Q Plot (Error Normality)')
+    axes[1, 2].grid(True, alpha=0.3)
+    
+    # Add Shapiro-Wilk test result if sample size is appropriate
+    if 3 <= len(absolute_errors) <= 5000:
+        try:
+            stat, p_value = stats.shapiro(absolute_errors)
+            normality_text = f'Shapiro-Wilk Test:\nStat: {stat:.4f}\np-value: {p_value:.4f}'
+            if p_value > 0.05:
+                normality_text += '\n(Likely Normal)'
+            else:
+                normality_text += '\n(Not Normal)'
+            axes[1, 2].text(0.05, 0.95, normality_text, transform=axes[1, 2].transAxes,
+                           bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
+                           verticalalignment='top', fontsize=9)
+        except:
+            pass
+    
+    plt.tight_layout()
+
+    filename = os.path.join(error_dir, "individual_features", 
+                           f"{feature_name}_{dataset_type}_error_analysis.png")
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    return filename
+
+
 class FeatureErrorVisualizer:
     """
     Visualizer for creating individual feature reconstruction error charts.
@@ -44,6 +256,7 @@ class FeatureErrorVisualizer:
                                     feature_idx, dataset_type='test', timestamps=None):
         """
         Create comprehensive error analysis plot for a single feature.
+        Wrapper method that calls the standalone function for consistency.
         
         Args:
             original_data: Original feature values (numpy array)
@@ -56,151 +269,10 @@ class FeatureErrorVisualizer:
         Returns:
             str: Path to saved plot
         """
-        # Calculate different types of errors
-        absolute_errors = np.abs(original_data - reconstructed_data)
-        squared_errors = np.square(original_data - reconstructed_data)
-        relative_errors = np.abs((original_data - reconstructed_data) / (original_data + 1e-8))
-        
-        # Create subplot figure
-        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-        fig.suptitle(f'Reconstruction Error Analysis: {feature_name} ({dataset_type.title()})', 
-                     fontsize=16, fontweight='bold')
-        
-        # 1. Original vs Reconstructed scatter plot
-        axes[0, 0].scatter(original_data, reconstructed_data, alpha=0.6, s=20, color='steelblue')
-        axes[0, 0].plot([original_data.min(), original_data.max()], 
-                       [original_data.min(), original_data.max()], 'r--', linewidth=2, label='Perfect Reconstruction')
-        axes[0, 0].set_xlabel('Original Values')
-        axes[0, 0].set_ylabel('Reconstructed Values')
-        axes[0, 0].set_title('Original vs Reconstructed')
-        axes[0, 0].grid(True, alpha=0.3)
-        axes[0, 0].legend()
-        
-        # Calculate and display R² score
-        ss_res = np.sum((original_data - reconstructed_data) ** 2)
-        ss_tot = np.sum((original_data - np.mean(original_data)) ** 2)
-        r2_score = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
-        mae = np.mean(absolute_errors)
-        mse = np.mean(squared_errors)
-        
-        stats_text = f'R² = {r2_score:.4f}\nMAE = {mae:.4f}\nMSE = {mse:.4f}'
-        axes[0, 0].text(0.05, 0.95, stats_text, transform=axes[0, 0].transAxes,
-                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8), 
-                       verticalalignment='top')
-        
-        # 2. Time series comparison (if timestamps available)
-        if timestamps is not None:
-            timestamps = pd.to_datetime(timestamps) if not isinstance(timestamps[0], pd.Timestamp) else timestamps
-            axes[0, 1].plot(timestamps, original_data, label='Original', alpha=0.8, linewidth=1.5, color='blue')
-            axes[0, 1].plot(timestamps, reconstructed_data, label='Reconstructed', alpha=0.8, linewidth=1.5, color='orange')
-            axes[0, 1].fill_between(timestamps, original_data, reconstructed_data, 
-                                   alpha=0.3, color='red', label='Error Region')
-            axes[0, 1].set_xlabel('Time')
-            axes[0, 1].set_ylabel('Feature Value')
-            axes[0, 1].set_title('Time Series Comparison')
-            axes[0, 1].legend()
-            axes[0, 1].grid(True, alpha=0.3)
-            axes[0, 1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            axes[0, 1].tick_params(axis='x', rotation=45)
-        else:
-            # If no timestamps, show sample-wise comparison
-            sample_indices = np.arange(len(original_data))
-            axes[0, 1].plot(sample_indices, original_data, label='Original', alpha=0.8, linewidth=1.5, color='blue')
-            axes[0, 1].plot(sample_indices, reconstructed_data, label='Reconstructed', alpha=0.8, linewidth=1.5, color='orange')
-            axes[0, 1].set_xlabel('Sample Index')
-            axes[0, 1].set_ylabel('Feature Value')
-            axes[0, 1].set_title('Sample-wise Comparison')
-            axes[0, 1].legend()
-            axes[0, 1].grid(True, alpha=0.3)
-        
-        # 3. Absolute error distribution
-        axes[0, 2].hist(absolute_errors, bins=50, alpha=0.7, color='skyblue', edgecolor='black')
-        axes[0, 2].axvline(np.mean(absolute_errors), color='red', linestyle='--', 
-                          label=f'Mean: {np.mean(absolute_errors):.4f}')
-        axes[0, 2].axvline(np.median(absolute_errors), color='orange', linestyle='--', 
-                          label=f'Median: {np.median(absolute_errors):.4f}')
-        axes[0, 2].axvline(np.percentile(absolute_errors, 95), color='green', linestyle='--', 
-                          label=f'95th %ile: {np.percentile(absolute_errors, 95):.4f}')
-        axes[0, 2].set_xlabel('Absolute Error')
-        axes[0, 2].set_ylabel('Frequency')
-        axes[0, 2].set_title('Absolute Error Distribution')
-        axes[0, 2].legend()
-        axes[0, 2].grid(True, alpha=0.3)
-        
-        # 4. Error time series (if timestamps available)
-        if timestamps is not None:
-            axes[1, 0].plot(timestamps, absolute_errors, color='red', alpha=0.8, linewidth=1.5)
-            axes[1, 0].set_xlabel('Time')
-            axes[1, 0].set_ylabel('Absolute Error')
-            axes[1, 0].set_title('Error Over Time')
-            axes[1, 0].grid(True, alpha=0.3)
-            axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            axes[1, 0].tick_params(axis='x', rotation=45)
-            
-            # Add rolling mean for better trend visualization
-            if len(absolute_errors) > 10:
-                window_size = max(1, len(absolute_errors) // 20)
-                rolling_mean = pd.Series(absolute_errors).rolling(window=window_size, center=True).mean()
-                axes[1, 0].plot(timestamps, rolling_mean, color='darkred', linewidth=2, 
-                               label=f'Rolling Mean (window={window_size})')
-                axes[1, 0].legend()
-        else:
-            sample_indices = np.arange(len(absolute_errors))
-            axes[1, 0].plot(sample_indices, absolute_errors, color='red', alpha=0.8, linewidth=1.5)
-            axes[1, 0].set_xlabel('Sample Index')
-            axes[1, 0].set_ylabel('Absolute Error')
-            axes[1, 0].set_title('Error by Sample')
-            axes[1, 0].grid(True, alpha=0.3)
-        
-        # 5. Box plot and violin plot for different error types
-        box_data = [absolute_errors, squared_errors, relative_errors]
-        box_labels = ['Absolute', 'Squared', 'Relative']
-        
-        # Use violin plot for better distribution visualization
-        parts = axes[1, 1].violinplot(box_data, positions=[1, 2, 3], showmeans=True, showmedians=True)
-        
-        # Customize violin plot colors
-        colors = ['lightcoral', 'lightblue', 'lightgreen']
-        for i, pc in enumerate(parts['bodies']):
-            pc.set_facecolor(colors[i])
-            pc.set_alpha(0.7)
-        
-        axes[1, 1].set_xticks([1, 2, 3])
-        axes[1, 1].set_xticklabels(box_labels)
-        axes[1, 1].set_ylabel('Error Magnitude')
-        axes[1, 1].set_title('Error Type Comparison')
-        axes[1, 1].grid(True, alpha=0.3)
-        
-        # 6. Q-Q plot for error normality assessment
-        stats.probplot(absolute_errors, dist="norm", plot=axes[1, 2])
-        axes[1, 2].set_title('Q-Q Plot (Error Normality)')
-        axes[1, 2].grid(True, alpha=0.3)
-        
-        # Add Shapiro-Wilk test result if sample size is appropriate
-        if 3 <= len(absolute_errors) <= 5000:
-            try:
-                stat, p_value = stats.shapiro(absolute_errors)
-                normality_text = f'Shapiro-Wilk Test:\nStat: {stat:.4f}\np-value: {p_value:.4f}'
-                if p_value > 0.05:
-                    normality_text += '\n(Likely Normal)'
-                else:
-                    normality_text += '\n(Not Normal)'
-                axes[1, 2].text(0.05, 0.95, normality_text, transform=axes[1, 2].transAxes,
-                               bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
-                               verticalalignment='top', fontsize=9)
-            except:
-                pass
-        
-        plt.tight_layout()
-        
-        # Save the plot
-        filename = os.path.join(self.error_dir, "individual_features", 
-                               f"{feature_name}_{dataset_type}_error_analysis.png")
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        print(f"Feature error analysis plot saved to: {filename}")
-        return filename
+        return _create_individual_feature_error_plot(
+            original_data, reconstructed_data, feature_name, 
+            feature_idx, dataset_type, timestamps, self.error_dir
+        )
     
     def plot_feature_error_summary(self, feature_errors_dict, feature_names, dataset_type='test'):
         """
@@ -236,7 +308,7 @@ class FeatureErrorVisualizer:
             plt.close()
             return None
         
-        # 1. Mean error comparison
+        # Mean error comparison
         means = [feature_stats[f]['mean'] for f in feature_names if f in feature_stats]
         feature_labels = [f for f in feature_names if f in feature_stats]
         
@@ -253,7 +325,7 @@ class FeatureErrorVisualizer:
             axes[0, 0].text(bar.get_x() + bar.get_width()/2, bar.get_height(),
                            f'{value:.3f}', ha='center', va='bottom', fontsize=8)
         
-        # 2. Error distribution comparison (violin plot)
+        # Error distribution comparison (violin plot)
         error_data = [feature_errors_dict[f] for f in feature_names if f in feature_errors_dict]
         if error_data:
             parts = axes[0, 1].violinplot(error_data, positions=range(len(error_data)), 
@@ -272,7 +344,7 @@ class FeatureErrorVisualizer:
             axes[0, 1].set_xticklabels(feature_labels, rotation=45, ha='right')
             axes[0, 1].grid(True, alpha=0.3)
         
-        # 3. Error variance comparison
+        # Error variance comparison
         stds = [feature_stats[f]['std'] for f in feature_names if f in feature_stats]
         bars2 = axes[1, 0].bar(range(len(stds)), stds, color='orange', alpha=0.7)
         axes[1, 0].set_xlabel('Features')
@@ -287,7 +359,7 @@ class FeatureErrorVisualizer:
             axes[1, 0].text(bar.get_x() + bar.get_width()/2, bar.get_height(),
                            f'{value:.3f}', ha='center', va='bottom', fontsize=8)
         
-        # 4. 95th percentile comparison (outlier sensitivity)
+        # 95th percentile comparison (outlier sensitivity)
         q95s = [feature_stats[f]['q95'] for f in feature_names if f in feature_stats]
         bars3 = axes[1, 1].bar(range(len(q95s)), q95s, color='red', alpha=0.7)
         axes[1, 1].set_xlabel('Features')
@@ -304,7 +376,6 @@ class FeatureErrorVisualizer:
         
         plt.tight_layout()
         
-        # Save the plot
         filename = os.path.join(self.error_dir, "comparative", 
                                f"feature_error_summary_{dataset_type}.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -330,7 +401,7 @@ class FeatureErrorVisualizer:
         fig.suptitle(f'Temporal Feature Reconstruction Error Heatmap ({dataset_type.title()})', 
                      fontsize=16, fontweight='bold')
         
-        # 1. Full temporal heatmap
+        # Full temporal heatmap
         im1 = ax1.imshow(feature_errors_matrix.T, aspect='auto', cmap='YlOrRd', interpolation='nearest')
         ax1.set_ylabel('Features')
         ax1.set_title('Reconstruction Error Over Time (All Features)')
@@ -355,7 +426,7 @@ class FeatureErrorVisualizer:
         cbar1 = plt.colorbar(im1, ax=ax1)
         cbar1.set_label('Reconstruction Error')
         
-        # 2. Aggregated temporal view (binned errors)
+        # Aggregated temporal view (binned errors)
         # Bin the temporal data for better visualization if we have many time points
         if feature_errors_matrix.shape[0] > 100:
             # Bin into ~50 time bins
@@ -408,7 +479,6 @@ class FeatureErrorVisualizer:
         
         plt.tight_layout()
         
-        # Save the plot
         filename = os.path.join(self.error_dir, "temporal_errors", 
                                f"temporal_error_heatmap_{dataset_type}.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -509,7 +579,7 @@ class FeatureErrorVisualizer:
         mean_errors_per_sample = np.mean(all_errors, axis=1)
         mean_errors_per_feature = np.mean(all_errors, axis=0)
         
-        # 1. Distribution of mean errors per sample
+        # Distribution of mean errors per sample
         ax1 = axes[0, 0]
         ax1.hist(mean_errors_per_sample, bins=30, alpha=0.7, color='lightblue', 
                 edgecolor='black', linewidth=0.5)
@@ -521,7 +591,7 @@ class FeatureErrorVisualizer:
                    label=f'Mean: {np.mean(mean_errors_per_sample):.4f}')
         ax1.legend()
         
-        # 2. Distribution of mean errors per feature
+        # Distribution of mean errors per feature
         ax2 = axes[0, 1]
         bars = ax2.bar(range(len(mean_errors_per_feature)), mean_errors_per_feature, 
                       alpha=0.7, color='lightgreen', edgecolor='black', linewidth=0.5)
@@ -536,7 +606,7 @@ class FeatureErrorVisualizer:
             bars[idx].set_color('red')
             bars[idx].set_alpha(0.8)
         
-        # 3. Cumulative error distribution
+        # Cumulative error distribution
         ax3 = axes[1, 0]
         sorted_errors = np.sort(mean_errors_per_sample)
         cumulative = np.arange(1, len(sorted_errors) + 1) / len(sorted_errors)
@@ -549,7 +619,7 @@ class FeatureErrorVisualizer:
                    label='95th percentile')
         ax3.legend()
         
-        # 4. Error correlation heatmap (top 10 features)
+        # Error correlation heatmap (top 10 features)
         ax4 = axes[1, 1]
         if len(feature_names) > 1:
             top_10_indices = np.argsort(mean_errors_per_feature)[-10:]
@@ -566,8 +636,7 @@ class FeatureErrorVisualizer:
             ax4.set_yticks(range(len(tick_labels)))
             ax4.set_xticklabels(tick_labels, rotation=45, ha='right')
             ax4.set_yticklabels(tick_labels)
-            
-            # Add colorbar
+
             plt.colorbar(im, ax=ax4, label='Correlation')
         else:
             ax4.text(0.5, 0.5, 'Not enough features\nfor correlation analysis', 
@@ -575,8 +644,7 @@ class FeatureErrorVisualizer:
             ax4.set_title('Error Correlation Analysis')
         
         plt.tight_layout()
-        
-        # Save the error analysis plot
+
         filename2 = os.path.join(self.error_dir, "feature_distributions", 
                                 f"error_analysis_{dataset_type}.png")
         plt.savefig(filename2, dpi=300, bbox_inches='tight')
@@ -587,56 +655,10 @@ class FeatureErrorVisualizer:
         
         return saved_plots
     
-    def _plot_feature_error_task(self, task_info):
-        """
-        Worker function for parallel error plot generation.
-        
-        Args:
-            task_info: Tuple containing (feature_idx, feature_name, original_col, reconstructed_col, 
-                       dataset_type, timestamps, progress_info)
-        
-        Returns:
-            Tuple: (success: bool, filepath: str, feature_name: str, dataset_type: str)
-        """
-        try:
-            feature_idx = task_info[0]
-            feature_name = task_info[1]
-            original_col = task_info[2]
-            reconstructed_col = task_info[3]
-            dataset_type = task_info[4]
-            timestamps = task_info[5]
-            progress_info = task_info[6]
-            
-            # Get process ID for better tracking
-            pid = os.getpid()
-            
-            # Print progress message with process info
-            if progress_info and 'counter' in progress_info:
-                # Thread-safe increment (Manager.Value handles synchronization automatically)
-                progress_info['counter'].value += 1
-                current_count = progress_info['counter'].value
-                total_count = progress_info['total']
-                progress_pct = (current_count / total_count) * 100
-                print(f"[PID {pid:5}] [{current_count:3d}/{total_count}] ({progress_pct:5.1f}%) Processing error plot: {feature_name} ({dataset_type})")
-                sys.stdout.flush()  # Force immediate output
-            
-            # Create individual feature error plot
-            filepath = self.plot_individual_feature_error(
-                original_col, reconstructed_col, 
-                feature_name, feature_idx, dataset_type, timestamps
-            )
-            
-            if filepath:
-                sys.stdout.flush()
-            
-            return (True, filepath, feature_name, dataset_type)
-            
-        except Exception as e:
-            print(f"Error creating plot for {task_info[1]}: {e}")
-            return (False, None, task_info[1], task_info[4])
+
     
     def create_all_feature_error_plots(self, original_data, reconstructed_data, feature_names, 
-                                     timestamps=None, dataset_type='test', use_parallel=True):
+                                     timestamps=None, dataset_type='test', use_parallel=False):
         """
         Create all error plots for the given dataset with optional parallel processing.
         
@@ -646,7 +668,7 @@ class FeatureErrorVisualizer:
             feature_names: List of feature names
             timestamps: Optional timestamps
             dataset_type: Type of dataset (train/validation/test)
-            use_parallel: Whether to use parallel processing for individual feature plots
+            use_parallel: Whether to use parallel processing for individual feature plots (DISABLED - causes hangs)
             
         Returns:
             dict: Dictionary with plot types and their saved file paths
@@ -671,22 +693,17 @@ class FeatureErrorVisualizer:
                     reconstructed_data[:, i],
                     dataset_type,
                     timestamps,
-                    None  # progress_info (will be added later)
+                    None,  # progress_info, figure out how to do it later
+                    self.error_dir  # error_dir for saving plots
                 ))
         
         # Process individual feature plots
+        # NOTE: Parallel processing disabled due to multiprocessing serialization issue
         if tasks:
-            if use_parallel and self.max_processes > 1:
-                # Setup shared progress tracking for multiprocessing
-                manager = Manager()
-                progress_counter = manager.Value('i', 0)  # Shared integer counter
-                progress_info = {
-                    'counter': progress_counter,
-                    'total': len(tasks)
-                }
-                
-                # Update tasks to include progress_info
-                tasks = [task[:-1] + (progress_info,) for task in tasks]
+            if False and use_parallel and self.max_processes > 1:
+                # Remove progress_info to avoid multiprocessing serialization issues
+                # Task structure: (idx, name, orig_col, recon_col, dataset_type, timestamps, progress_info=None, error_dir)
+                tasks_with_none = [(task[0], task[1], task[2], task[3], task[4], task[5], None, task[7]) for task in tasks]
                 
                 # Determine actual number of processes to use
                 actual_processes = min(self.max_processes, len(tasks), cpu_count())
@@ -700,9 +717,9 @@ class FeatureErrorVisualizer:
                 
                 start_time = time.time()
                 
-                # Process tasks in parallel
+                # Process tasks in parallel using the standalone function
                 with Pool(processes=actual_processes) as pool:
-                    results = pool.map(self._plot_feature_error_task, tasks)
+                    results = pool.map(_plot_feature_error_worker, tasks_with_none)
                 
                 processing_time = time.time() - start_time
                 print("=" * 80)
@@ -849,10 +866,10 @@ def generate_feature_reconstruction_error_plots(model, processing_list, features
     for split_name, summary in plot_summary.items():
         status = summary["status"]
         if status == "success":
-            print(f"  {split_name}: ✓ {summary['plots_generated']} plots")
+            print(f"  {split_name}: {summary['plots_generated']} plots")
         elif status == "skipped":
-            print(f"  {split_name}: ⚠ skipped ({summary['reason']})")
+            print(f"  {split_name}: skipped ({summary['reason']})")
         else:
-            print(f"  {split_name}: ✗ error ({summary.get('error', 'unknown')})")
+            print(f"  {split_name}:error ({summary.get('error', 'unknown')})")
     
     return plot_summary

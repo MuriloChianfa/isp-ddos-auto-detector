@@ -204,7 +204,7 @@ class ModelFactory:
         params = get_model_params(model_name, dataset_name, time_span)
         return create_model(model_name, **params)
 
-    def load_model_from_artifacts(self, model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False):
+    def load_model_from_artifacts(self, model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False, input_dim=None):
         """Load a model from artifacts with appropriate configuration.
         
         Args:
@@ -214,6 +214,7 @@ class ModelFactory:
             time_span (int): Time span in seconds
             artifacts_info (dict): Artifacts information containing model configuration
             use_fixed_threshold (bool): Ignored - kept for backward compatibility
+            input_dim (int, optional): Expected input dimension for validation
             
         Returns:
             Loaded model instance with saved configuration
@@ -223,11 +224,18 @@ class ModelFactory:
         
         # Get parameters (with optional dataset/window-specific overrides)
         # Prefer saved config from artifacts if available, otherwise use defaults
-        model_config = artifacts_info.get('model_config', {})
+        model_config = artifacts_info.get('model_config', {}).copy()
         default_params = get_model_params(model_name, dataset_name, time_span)
+        
+        # Remove input_dim from model_config if present, we'll add it separately for validation
+        model_config.pop('input_dim', None)
         
         # Merge: use saved config values if present, otherwise use defaults
         params = {**default_params, **model_config}
+        
+        # Add input_dim for validation if provided
+        if input_dim is not None:
+            params['input_dim'] = input_dim
         
         return load_model_artifacts(
             type(model), dataset_name, model_name, time_span, **params
@@ -300,7 +308,7 @@ def create_model_with_config(model_name, time_span, train_features, use_fixed_th
     return _model_factory.create_model_with_config(model_name, time_span, train_features, use_fixed_threshold, dataset_name)
 
 
-def load_model_from_artifacts(model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False):
+def load_model_from_artifacts(model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold=False, input_dim=None):
     """
     Convenience function to load a model from artifacts using the global factory.
     
@@ -311,11 +319,12 @@ def load_model_from_artifacts(model, model_name, dataset_name, time_span, artifa
         time_span (int): Time span in seconds
         artifacts_info (dict): Artifacts information containing model configuration
         use_fixed_threshold (bool): Whether to use fixed threshold for TCN autoencoder
+        input_dim (int, optional): Expected input dimension for validation
         
     Returns:
         Loaded model instance with saved configuration
     """
-    return _model_factory.load_model_from_artifacts(model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold)
+    return _model_factory.load_model_from_artifacts(model, model_name, dataset_name, time_span, artifacts_info, use_fixed_threshold, input_dim)
 
 
 # Global factory instance

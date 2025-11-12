@@ -30,7 +30,8 @@ MODEL_THRESHOLD_STRATEGIES = {
 # Default model hyperparameters
 MODEL_DEFAULT_PARAMS = {
     'autoencoder': {
-        'latent_dim': 42  # Dimensionality of the latent space (bottleneck layer). Lower = more compression. Typical range: 2-64. Too low may lose important patterns, too high may not compress enough
+        'hidden_layers': [24, 18, 12],  # Hidden layer dimensions for encoder (decoder mirrors these). Example: [24, 18, 12] creates encoder: input -> 24 -> 18 -> 12 -> latent
+        'latent_dim': 8  # Dimensionality of the latent space (bottleneck layer). Lower = more compression. Typical range: 2-64. Too low may lose important patterns, too high may not compress enough
     },
     'isolation_forest': {
         'contamination': 0.05, # Expected proportion of outliers: 0.01-0.05 (clean data), 0.1-0.2 (noisy data)
@@ -95,21 +96,21 @@ DATASETS = {
             'validation': 'nfcapd.20250715*.csv',
             'test': 'nfcapd.2025071[67]*.csv'
         },
+        # 'feature_config': FEATURES_BY_ATTACK_TYPE['all_features'],
         'feature_config': [
             'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
-            'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
-            'packets_per_flow', 'bytes_per_flow',
-            'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
-            'tcp_ratio', 'udp_ratio', 'icmp_ratio',
-            'unique_src_ips',
-            'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
-            'rst_flag_ratio', 'psh_flag_ratio',
-            'large_packet_flow_ratio', 'size_uniformity', 'avg_dst_port_diversity'
+            'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size',
+            'packets_per_flow', 'bytes_per_flow', 'src_port_entropy',
+            'dst_port_entropy', 'src_ip_entropy', 'unique_src_ips',
+            'tcp_ratio', 'udp_ratio', 'icmp_ratio', 'size_uniformity',
+            'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio',
+            'rst_flag_ratio', 'psh_flag_ratio', 'large_packet_flow_ratio',
+            'avg_dst_port_diversity'
         ],
         'windows': {
             '1': {
                 'attack_periods': [
-                    ('2025-07-16 20:27:14', '2025-07-16 20:37:12'),
+                    ('2025-07-16 20:27:14', '2025-07-16 20:32:14'),
                     ('2025-07-16 22:23:07', '2025-07-16 22:23:07'),
                     ('2025-07-16 22:24:57', '2025-07-16 22:25:03'),
                     ('2025-07-16 22:33:05', '2025-07-16 22:33:07'),
@@ -118,12 +119,60 @@ DATASETS = {
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'mse_plus_40std',
-                    'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'percentile_99_5'
+                    'isolation_forest': 'mse_plus_4_5std',
+                    'one_class_svm': 'mse_plus_15std'
                 },
                 'feature_config': {
-                    'one_class_svm': ['total_flows', 'total_packets', 'tcp_ratio', 'bit_rate', 'syn_flag_ratio', 'bytes_per_flow'],
+                    'one_class_svm': [
+                        'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+                        'packets_per_flow', 'bytes_per_flow', 'fan_in_std',
+                        'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+                        'tcp_ratio', 'udp_ratio', 'icmp_ratio', 'size_uniformity',
+                        'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
+                        'rst_flag_ratio', 'psh_flag_ratio', 'avg_dst_port_diversity',
+                        'syn_flood_ratio', 'syn_ack_ratio', 'small_packet_ratio',
+                        'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+                        'connection_establishment_ratio', 'connection_teardown_ratio',
+                        'incomplete_connection_ratio', 'zero_duration_connections',
+                        'very_short_connections', 'max_ports_per_src', 'large_packet_flow_ratio',
+                        'well_known_port_ratio', 'dst_port_top_1_ratio', 'bytes_kurtosis',
+                        'duration_skewness', 'geo_diversity_count', 'dst_ip_unique_count',
+                        'packets_kurtosis', 'src_ip_unique_count', 'unique_src_geo',
+                    ],
+                    'isolation_forest': [
+                        'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
+                        'packets_per_flow', 'bytes_per_flow', 'fan_in_std',
+                        'src_port_entropy', 'dst_port_entropy', 'src_ip_entropy',
+                        'tcp_ratio', 'udp_ratio', 'icmp_ratio', 'size_uniformity',
+                        'syn_flag_ratio', 'ack_flag_ratio', 'fin_flag_ratio', 
+                        'rst_flag_ratio', 'psh_flag_ratio', 'avg_dst_port_diversity',
+                        'syn_flood_ratio', 'syn_ack_ratio', 'small_packet_ratio',
+                        'avg_tcp_duration', 'zero_duration_ratio', 'avg_ports_per_src',
+                        'connection_establishment_ratio', 'connection_teardown_ratio',
+                        'incomplete_connection_ratio', 'zero_duration_connections',
+                        'very_short_connections', 'max_ports_per_src', 'large_packet_flow_ratio',
+                        'well_known_port_ratio', 'dst_port_top_1_ratio', 'bytes_kurtosis',
+                        'duration_skewness', 'geo_diversity_count', 'dst_ip_unique_count',
+                        'packets_kurtosis', 'src_ip_unique_count', 'unique_src_geo',
+                    ]
                 },
+                'params': {
+                    'isolation_forest': {
+                        'contamination': 0.03,
+                        'n_estimators': 168,
+                        'max_samples': 64,
+                        'max_features': 1.0,
+                        'bootstrap': True,
+                        'random_state': 82,
+                    },
+                    'one_class_svm': {
+                        'nu': 0.1,
+                        'kernel': 'sigmoid',
+                        'gamma': 'auto'
+                    },
+                }
                 # 'ema_alpha': 0.15,
             },
             '10': {
@@ -183,6 +232,7 @@ DATASETS = {
             'validation': ['nfcapd.20251009*.csv', 'nfcapd.20251010*.csv'],
             'test': ['nfcapd.20251011*.csv', 'nfcapd.20251012*.csv', 'nfcapd.20251013*.csv']
         },
+        # 'feature_config': FEATURES_BY_ATTACK_TYPE['all_features'],
         'feature_config': [
             'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
             'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
@@ -204,10 +254,10 @@ DATASETS = {
                     ('2025-10-13 15:26:30', '2025-10-13 17:16:20'),
                 ],
                 'threshold_strategies': {
-                    'autoencoder': 'exponential_threshold',
+                    'autoencoder': 'sigmoid_threshold',
                     'isolation_forest': 'percentile_99_9',
-                    'one_class_svm': 'mean_plus_3std',
-                    'local_outlier_factor': 'mse_plus_80std'
+                    'one_class_svm': 'mse_plus_4_5std',
+                    'local_outlier_factor': 'mse_plus_15std'
                 },
                 'params': {
                     'isolation_forest': {
@@ -216,30 +266,29 @@ DATASETS = {
                         'random_state': 76
                     },
                     'one_class_svm': {
-                        'nu': 0.2,
-                        'kernel': 'linear',
-                        'gamma': 0.025
+                        'nu': 0.1,
+                        'tol': 1e-4,
+                        'kernel': 'sgd_rbf',
+                        'gamma': 'scale'
                     },
                     'local_outlier_factor': {
-                        'n_neighbors': 20,
-                        'contamination': 0.15,
+                        'n_neighbors': 100,
+                        'contamination': 0.269,
                         'novelty': True,
-                        'random_state': 72,
-                        'algorithm': 'auto',
+                        'random_state': 42,
+                        'algorithm': 'kd_tree',
                         'leaf_size': 30,
-                        'metric': 'euclidean',
-                        'p': 2
+                        'metric': 'minkowski',
+                        'p': 1
                     }
                 },
                 'feature_config': {
                     'one_class_svm': [
-                        'total_flows', 'total_packets', 'avg_duration',
-                        'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size',
-                        'packets_per_flow', 'bytes_per_flow', 'src_ip_entropy',
-                        'tcp_ratio', 'udp_ratio', 'syn_flag_ratio', 'ack_flag_ratio',
-                        'syn_ack_ratio', 'small_packet_ratio', 'avg_tcp_duration', 'avg_ports_per_src',
-                        'connection_establishment_ratio', 'connection_teardown_ratio',
-                        'incomplete_connection_ratio', 'zero_duration_connections',
+                        'total_flows', 'avg_duration',
+                        'packet_rate', 'bit_rate', 'flow_rate',
+                        'packets_per_flow', 'dst_port_entropy', 'src_ip_entropy',
+                        'tcp_ratio', 'syn_flag_ratio', 'ack_flag_ratio', 'psh_flag_ratio',
+                        'max_ports_per_src', 'small_packet_ratio', 'zero_duration_connections',
                     ],
                 }
             },
@@ -310,6 +359,7 @@ DATASETS = {
             'test': 'nfcapd.2025101[2-6]*.csv',
             'horizon': ['nfcapd.2025101[7-9]*.csv', 'nfcapd.2025102[0-6]*.csv']
         },
+        # 'feature_config': FEATURES_BY_ATTACK_TYPE['all_features'],
         'feature_config': [
             'as_diversity_count', 'bytes_kurtosis',
             'dst_ip_unique_count', 'dst_port_top_1_ratio',
@@ -329,7 +379,7 @@ DATASETS = {
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'mse_plus_5_5std',
-                    'one_class_svm': 'mse_plus_80std',
+                    'one_class_svm': 'mse_plus_4_5std',
                     'local_outlier_factor': 'mse_plus_40std',
                 },
                 'params': {
@@ -342,9 +392,9 @@ DATASETS = {
                         'bootstrap': True
                     },
                     'one_class_svm': {
-                        'nu': 0.06,
-                        'kernel': 'linear',
-                        'gamma': 'scale'
+                        'nu': 0.1,
+                        'kernel': 'sigmoid',
+                        'gamma': 'auto'
                     }
                 },
                 'feature_config': {
@@ -457,6 +507,7 @@ DATASETS = {
             'test': 'nfcapd.2025082[1-8]*.csv',
             'horizon': ['nfcapd.20250829*.csv', 'nfcapd.20250830*.csv', 'nfcapd.20250831*.csv', 'nfcapd.2025090[1-9]*.csv']
         },
+        # 'feature_config': FEATURES_BY_ATTACK_TYPE['all_features'],
         'feature_config': [
             'total_flows', 'total_packets', 'total_bytes', 'avg_duration',
             'packet_rate', 'bit_rate', 'flow_rate', 'avg_packet_size', 
@@ -490,7 +541,14 @@ DATASETS = {
                 'threshold_strategies': {
                     'autoencoder': 'exponential_threshold',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'mean_plus_3std'
+                    'one_class_svm': 'mse_plus_4_5std'
+                },
+                'params': {
+                    'one_class_svm': {
+                        'nu': 0.01,
+                        'tol': 1e-7,
+                        'kernel': 'sgd_rbf',
+                    },
                 }
             },
             '10': {

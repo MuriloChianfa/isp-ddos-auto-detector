@@ -488,7 +488,8 @@ class CrossEvaluator:
         axes[0, 0].set_xticks(range(len(model_avg)))
         axes[0, 0].set_xticklabels(model_avg.index, rotation=45, ha='right')
         axes[0, 0].set_ylabel('Average ROC-AUC Score')
-        axes[0, 0].set_title('By Model (avg across datasets & windows)')
+        # axes[0, 0].set_title('By Model (avg across datasets & windows)')
+        axes[0, 0].set_title('By Model')
         axes[0, 0].grid(True, alpha=0.3, axis='y')
         axes[0, 0].set_ylim([0, 1])
         
@@ -502,7 +503,8 @@ class CrossEvaluator:
         axes[0, 1].set_xticks(range(len(dataset_avg)))
         axes[0, 1].set_xticklabels([d[:20] for d in dataset_avg.index], rotation=45, ha='right')
         axes[0, 1].set_ylabel('Average ROC-AUC Score')
-        axes[0, 1].set_title('By Dataset (avg across models & windows)')
+        axes[0, 1].set_title('By Dataset')
+        # axes[0, 1].set_title('By Dataset (avg across models & windows)')
         axes[0, 1].grid(True, alpha=0.3, axis='y')
         axes[0, 1].set_ylim([0, 1])
         
@@ -515,7 +517,8 @@ class CrossEvaluator:
         axes[1, 0].set_xticks(range(len(window_avg)))
         axes[1, 0].set_xticklabels(window_avg.index, rotation=45, ha='right')
         axes[1, 0].set_ylabel('Average ROC-AUC Score')
-        axes[1, 0].set_title('By Time Window (avg across models & datasets)')
+        axes[1, 0].set_title('By Time Window')
+        # axes[1, 0].set_title('By Time Window (avg across models & datasets)')
         axes[1, 0].grid(True, alpha=0.3, axis='y')
         axes[1, 0].set_ylim([0, 1])
         
@@ -712,16 +715,20 @@ class CrossEvaluator:
         # ROC-AUC heatmap
         sns.heatmap(pivot_roc, annot=True, fmt='.3f', cmap='RdYlGn', 
                    ax=axes[0], vmin=0, vmax=1, cbar_kws={'label': 'ROC-AUC'})
-        axes[0].set_title('ROC-AUC: Models vs Datasets (avg across windows)', 
+        axes[0].set_title('ROC-AUC: Models vs Datasets', 
                          fontsize=12, fontweight='bold')
+        # axes[0].set_title('ROC-AUC: Models vs Datasets (avg across windows)', 
+        #                  fontsize=12, fontweight='bold')
         axes[0].set_xlabel('Dataset', fontsize=11)
         axes[0].set_ylabel('Model', fontsize=11)
         
         # F1-Score heatmap
         sns.heatmap(pivot_f1, annot=True, fmt='.3f', cmap='RdYlGn',
                    ax=axes[1], vmin=0, vmax=1, cbar_kws={'label': 'F1-Score'})
-        axes[1].set_title('F1-Score: Models vs Datasets (avg across windows)', 
+        axes[1].set_title('F1-Score: Models vs Datasets', 
                          fontsize=12, fontweight='bold')
+        # axes[1].set_title('F1-Score: Models vs Datasets (avg across windows)', 
+        #                  fontsize=12, fontweight='bold')
         axes[1].set_xlabel('Dataset', fontsize=11)
         axes[1].set_ylabel('Model', fontsize=11)
         
@@ -750,15 +757,19 @@ class CrossEvaluator:
         
         sns.heatmap(pivot_roc_windows, annot=True, fmt='.3f', cmap='RdYlGn',
                    ax=axes[0], vmin=0, vmax=1, cbar_kws={'label': 'ROC-AUC'})
-        axes[0].set_title('ROC-AUC: Models vs Time Windows (avg across datasets)', 
+        # axes[0].set_title('ROC-AUC: Models vs Time Windows (avg across datasets)', 
+        #                  fontsize=12, fontweight='bold')
+        axes[0].set_title('ROC-AUC: Models vs Time Windows', 
                          fontsize=12, fontweight='bold')
         axes[0].set_xlabel('Time Window', fontsize=11)
         axes[0].set_ylabel('Model', fontsize=11)
         
         sns.heatmap(pivot_f1_windows, annot=True, fmt='.3f', cmap='RdYlGn',
                    ax=axes[1], vmin=0, vmax=1, cbar_kws={'label': 'F1-Score'})
-        axes[1].set_title('F1-Score: Models vs Time Windows (avg across datasets)', 
+        axes[1].set_title('F1-Score: Models vs Time Windows', 
                          fontsize=12, fontweight='bold')
+        # axes[1].set_title('F1-Score: Models vs Time Windows (avg across datasets)', 
+        #                  fontsize=12, fontweight='bold')
         axes[1].set_xlabel('Time Window', fontsize=11)
         axes[1].set_ylabel('Model', fontsize=11)
         

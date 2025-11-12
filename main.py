@@ -56,8 +56,11 @@ Examples:
   # Single evaluation
   python main.py -d itp-multivector-udp-100gbps-peak -m isolation_forest -t 300
   
-  # Batch evaluation - all combinations (64 total)
+  # Batch evaluation on all combinations (cached results will be skipped)
   python main.py --batch
+  
+  # Batch evaluation - force re-run everything
+  python main.py --batch --force
   
   # Batch evaluation - specific dataset with all models and time spans
   python main.py --batch --batch-datasets itp-multivector-udp-100gbps-peak
@@ -75,6 +78,29 @@ Examples:
   
   # Dry run to preview
   python main.py --batch-dry-run
+  
+  # Display summary of all results
+  python main.py --summary
+  
+  # Display detailed summary with all metrics
+  python main.py --summary --summary-detailed
+  
+  # Display summary grouped by dataset
+  python main.py --summary --summary-group-by dataset
+  
+  # Display summary for specific datasets and models
+  python main.py --summary \\
+    --summary-datasets itp-multivector-udp-100gbps-peak \\
+    --summary-models isolation_forest --summary-models autoencoder
+  
+  # Display top 10 performers and export to CSV
+  python main.py --summary --summary-top-n 10 --summary-export-csv
+  
+  # Display summary in GitHub markdown format
+  python main.py --summary --summary-format github
+  
+  # Clear evaluation cache
+  python main.py --clear-cache
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -187,8 +213,96 @@ Examples:
         dest='time_spans',
         help='Time spans for batch mode (can be specified multiple times). If not specified, all time spans are used.'
     )
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Force re-evaluation even if cached results exist (batch mode only)'
+    )
+    parser.add_argument(
+        '--clear-cache',
+        action='store_true',
+        help='Clear evaluation cache and exit'
+    )
+    parser.add_argument(
+        '--summary',
+        action='store_true',
+        help='Display summary of all evaluation results and exit'
+    )
+    parser.add_argument(
+        '--summary-datasets',
+        type=str,
+        action='append',
+        help='Filter summary by specific datasets (can be specified multiple times)'
+    )
+    parser.add_argument(
+        '--summary-models',
+        type=str,
+        action='append',
+        help='Filter summary by specific models (can be specified multiple times)'
+    )
+    parser.add_argument(
+        '--summary-time-spans',
+        type=int,
+        action='append',
+        help='Filter summary by specific time spans (can be specified multiple times)'
+    )
+    parser.add_argument(
+        '--summary-format',
+        type=str,
+        choices=['grid', 'simple', 'fancy_grid', 'pipe', 'html', 'latex', 'github'],
+        default='github',
+        help='Table format for summary display (default: github)'
+    )
+    parser.add_argument(
+        '--summary-detailed',
+        action='store_true',
+        help='Show detailed summary with all metrics'
+    )
+    parser.add_argument(
+        '--summary-group-by',
+        type=str,
+        choices=['dataset', 'model', 'timespan'],
+        help='Group summary results by dataset, model, or timespan'
+    )
+    parser.add_argument(
+        '--summary-export-csv',
+        action='store_true',
+        help='Export summary to CSV file'
+    )
+    parser.add_argument(
+        '--summary-top-n',
+        type=int,
+        help='Show top N best performers by F1 score'
+    )
+    parser.add_argument(
+        '--summary-no-stats',
+        action='store_true',
+        help='Disable summary statistics display'
+    )
     
     args = parser.parse_args()
+    
+    if args.clear_cache:
+        from framework.evaluation_cache import EvaluationCache
+        cache = EvaluationCache()
+        cache.clear_cache()
+        exit(0)
+    
+    if args.summary:
+        from framework.summary import display_all_results_summary
+        
+        display_all_results_summary(
+            datasets=args.summary_datasets,
+            models=args.summary_models,
+            time_spans=args.summary_time_spans,
+            format=args.summary_format,
+            detailed=args.summary_detailed,
+            group_by=args.summary_group_by,
+            export_csv=args.summary_export_csv,
+            show_stats=not args.summary_no_stats,
+            top_n=args.summary_top_n
+        )
+        exit(0)
     
     if args.list_datasets:
         list_datasets()
@@ -239,6 +353,7 @@ Examples:
             models=models,
             time_spans=time_spans,
             dry_run=args.batch_dry_run,
+            force=args.force,
             **kwargs
         )
         exit(0)

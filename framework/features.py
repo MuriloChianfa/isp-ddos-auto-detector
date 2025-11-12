@@ -171,13 +171,39 @@ class NetworkFeatureExtractor:
         """
         from config import DEFAULT_EMA_CONFIG
         
+        # Determine which EMA features are requested in feature_config
+        requested_ema_features = []
+        
+        # Extract feature list based on config format
+        feature_list = None
+        if isinstance(self.feature_config, dict) and 'features' in self.feature_config:
+            feature_list = self.feature_config['features']
+        elif isinstance(self.feature_config, list):
+            feature_list = self.feature_config
+        
+        # Only generate EMA features that are explicitly requested
+        if feature_list:
+            # Find all features ending with '_ema' in the feature config
+            requested_ema_features = [f for f in feature_list if f.endswith('_ema')]
+        
+        # If no EMA features are requested, return unchanged
+        if not requested_ema_features:
+            return features_df
+        
         # Get alpha from config (window-specific override or default)
         alpha = self.ema_alpha if self.ema_alpha is not None else DEFAULT_EMA_CONFIG['alpha']
-        ema_features_list = DEFAULT_EMA_CONFIG['features']
-        available_ema_features = [f for f in ema_features_list if f in features_df.columns]
         
-        if available_ema_features:
-            features_df = self.apply_ema_smoothing(features_df, available_ema_features, alpha=alpha)
+        # Extract base feature names from requested EMA features
+        # For example: 'packet_rate_ema' -> 'packet_rate'
+        base_features_to_smooth = []
+        for ema_feature in requested_ema_features:
+            base_feature = ema_feature.replace('_ema', '')
+            if base_feature in features_df.columns:
+                base_features_to_smooth.append(base_feature)
+        
+        # Apply EMA smoothing only to requested features
+        if base_features_to_smooth:
+            features_df = self.apply_ema_smoothing(features_df, base_features_to_smooth, alpha=alpha)
         
         return features_df
     

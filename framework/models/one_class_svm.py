@@ -7,6 +7,8 @@ that learns a decision boundary around normal data points in feature space.
 
 import numpy as np
 from sklearn.svm import OneClassSVM
+from sklearn.linear_model import SGDOneClassSVM
+from sklearn.kernel_approximation import RBFSampler
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, Tuple, Any, Optional, List
 import logging
@@ -35,13 +37,13 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
     def __init__(self, nu: float = 0.1, kernel: str = 'rbf', gamma: str = 'scale', 
                  degree: int = 3, coef0: float = 0.0, cache_size: int = 54512, 
                  tol: float = 1e-2, max_iter: int = -1, shrinking: bool = True,
-                 max_samples: int = None):
+                 max_samples: int = None, n_components: int = 100):
         """
         Initialize the One-Class SVM anomaly detector.
         
         Args:
             nu: Upper bound on fraction of training errors and lower bound of support vectors
-            kernel: Kernel type ('linear', 'poly', 'rbf', 'sigmoid')
+            kernel: Kernel type ('linear', 'poly', 'rbf', 'sigmoid', 'sgd_rbf')
             gamma: Kernel coefficient ('scale', 'auto' or float)
             degree: Degree of the polynomial kernel (ignored by other kernels)
             coef0: Independent term in kernel function (for 'poly' and 'sigmoid')
@@ -50,6 +52,7 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             max_iter: Max iterations for solver (-1 = no limit)
             shrinking: Whether to use shrinking heuristic (can speed up training)
             max_samples: Max training samples to use (None = use all, int = subsample for speed)
+            n_components: Number of components for RBF kernel approximation (for sgd_rbf)
         """
         super().__init__(model_name="one_class_svm")
         self.nu = nu
@@ -62,8 +65,10 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         self.max_iter = max_iter
         self.shrinking = shrinking
         self.max_samples = max_samples
+        self.n_components = n_components
         self.model = None
         self.scaler = StandardScaler()
+        self.rbf_sampler = None  # For sgd_rbf kernel approximation
         
     def build_model(self, input_dim: int) -> None:
         """Build the One-Class SVM model"""
@@ -72,34 +77,74 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         if input_dim <= 0:
             raise ValueError(f"Invalid input dimension: {input_dim}")
         
-        self.model = OneClassSVM(
-            nu=self.nu,
-            kernel=self.kernel,
-            gamma=self.gamma,
-            degree=self.degree,
-            coef0=self.coef0,
-            cache_size=self.cache_size,
-            tol=self.tol,
-            max_iter=self.max_iter,
-            shrinking=self.shrinking,
-            verbose=False
-        )
+        if self.kernel == 'sgd_rbf':
+            # Use RBFSampler + SGDOneClassSVM for scalable RBF kernel approximation
+            print("Using SGDOneClassSVM with RBF kernel approximation...")
+            
+            # Initialize RBF sampler for kernel approximation
+            # gamma calculation similar to sklearn's 'scale' option
+            gamma_value = 1.0 / input_dim if self.gamma == 'scale' else (
+                1.0 if self.gamma == 'auto' else float(self.gamma)
+            )
+            
+            self.rbf_sampler = RBFSampler(
+                gamma=gamma_value,
+                n_components=self.n_components,
+                random_state=42
+            )
+            
+            self.model = SGDOneClassSVM(
+                nu=self.nu,
+                fit_intercept=True,
+                max_iter=self.max_iter if self.max_iter > 0 else 1000000,
+                tol=self.tol,
+                shuffle=True,
+                verbose=0,
+                random_state=42,
+                learning_rate='optimal',
+                eta0=0.0,
+                power_t=0.5,
+                warm_start=False,
+                average=False
+            )
+        else:
+            self.model = OneClassSVM(
+                nu=self.nu,
+                kernel=self.kernel,
+                gamma=self.gamma,
+                degree=self.degree,
+                coef0=self.coef0,
+                cache_size=self.cache_size,
+                tol=self.tol,
+                max_iter=self.max_iter,
+                shrinking=self.shrinking,
+                verbose=False
+            )
         
         print(f"One-Class SVM parameters:")
         print(f"  Features: {input_dim}")
         print(f"  Nu: {self.nu}")
         print(f"  Kernel: {self.kernel}")
-        print(f"  Gamma: {self.gamma}")
-        if self.kernel == 'poly':
-            print(f"  Degree: {self.degree}")
-        if self.kernel in ['poly', 'sigmoid']:
-            print(f"  Coef0: {self.coef0}")
-        print(f"  Cache Size: {self.cache_size} MB")
-        print(f"  Tolerance: {self.tol}")
-        print(f"  Shrinking: {self.shrinking}")
+        
+        if self.kernel == 'sgd_rbf':
+            print(f"  Algorithm: SGD (Stochastic Gradient Descent)")
+            print(f"  RBF Components: {self.n_components}")
+            print(f"  Gamma: {gamma_value}")
+            print(f"  Max Iterations: {self.max_iter if self.max_iter > 0 else 1000000}")
+            print(f"  Tolerance: {self.tol}")
+            print(f"  Learning Rate: optimal")
+        else:
+            print(f"  Gamma: {self.gamma}")
+            if self.kernel == 'poly':
+                print(f"  Degree: {self.degree}")
+            if self.kernel in ['poly', 'sigmoid']:
+                print(f"  Coef0: {self.coef0}")
+            print(f"  Cache Size: {self.cache_size} MB")
+            print(f"  Tolerance: {self.tol}")
+            print(f"  Shrinking: {self.shrinking}")
         
     def fit_scaler(self, training_features) -> None:
-        """Fit the scaler on training data"""
+        """Fit the scaler (and RBF sampler if using sgd_rbf) on training data"""
         if training_features is None or len(training_features) == 0:
             raise ValueError("Training features cannot be empty")
         
@@ -110,10 +155,17 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             training_data = training_features
             
         self.scaler.fit(training_data)
+        
+        # Fit RBF sampler if using sgd_rbf kernel
+        if self.kernel == 'sgd_rbf' and self.rbf_sampler is not None:
+            scaled_data = self.scaler.transform(training_data)
+            self.rbf_sampler.fit(scaled_data)
+            logger.info(f"Fitted RBF sampler with {self.n_components} components")
+        
         logger.info(f"Fitted scaler on {len(training_features)} training samples")
         
     def transform_data(self, features) -> np.ndarray:
-        """Transform features using the fitted scaler"""
+        """Transform features using the fitted scaler (and RBF sampler if using sgd_rbf)"""
         if self.scaler is None:
             raise ValueError("Scaler not fitted. Call fit_scaler first.")
         
@@ -122,8 +174,15 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             feature_data = features.values
         else:
             feature_data = features
+        
+        # Apply standard scaling
+        scaled_data = self.scaler.transform(feature_data)
+        
+        # Apply RBF transformation if using sgd_rbf kernel
+        if self.kernel == 'sgd_rbf' and self.rbf_sampler is not None:
+            scaled_data = self.rbf_sampler.transform(scaled_data)
             
-        return self.scaler.transform(feature_data)
+        return scaled_data
         
     def train(self, train_data: np.ndarray, validation_data: Optional[np.ndarray] = None, 
               **kwargs) -> Dict[str, Any]:
@@ -176,8 +235,12 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
         # Convert to anomaly scores (higher = more anomalous)
         # SVM returns negative values for anomalies, so we negate them
-        # anomaly_scores = -decision_scores
-        anomaly_scores = decision_scores
+        anomaly_scores = -decision_scores
+        # anomaly_scores = decision_scores
+        # anomaly_scores = (-decision_scores) ** 2
+        # anomaly_scores = np.exp(-decision_scores) - 1
+        # anomaly_scores = 1 / (1 + np.exp(decision_scores))
+        # anomaly_scores = -decision_scores * np.abs(decision_scores)
         
         # Return original data as "reconstructions" for compatibility
         return data, anomaly_scores
@@ -231,21 +294,36 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         num_features = len(feature_names)
         
         if self.kernel == 'linear':
-            # For linear kernel, we can get feature weights
+            # For linear kernel, we can get feature weights directly
             if hasattr(self.model, 'coef_') and self.model.coef_ is not None:
                 # Get absolute weights as feature importance
-                feature_errors = np.abs(self.model.coef_[0])
+                coef = self.model.coef_[0] if self.model.coef_.ndim > 1 else self.model.coef_
+                feature_errors = np.abs(coef)
                 importance_indices = np.argsort(feature_errors)[::-1]
                 
-                print("\nOne-Class SVM Feature Importance (Linear Kernel):")
+                print(f"\nOne-Class SVM Feature Importance (Linear Kernel):")
                 print("=" * 60)
                 print("Top 15 most important features:")
                 for i, idx in enumerate(importance_indices[:15]):
-                    print(f"{i+1:2d}. {feature_names[idx]:<30} | Weight: {feature_errors[idx]:.6f}")
+                    if idx < len(feature_names):
+                        print(f"{i+1:2d}. {feature_names[idx]:<30} | Weight: {feature_errors[idx]:.6f}")
             else:
                 logger.warning("Linear SVM coefficients not available")
                 feature_errors = np.ones(num_features)
                 importance_indices = np.arange(num_features)
+        elif self.kernel == 'sgd_rbf':
+            # For SGD RBF, coefficients are in transformed space, not original features
+            # We cannot directly map RBF features back to original features
+            logger.info("SGD RBF kernel uses transformed features - direct feature importance not available")
+            print(f"\nOne-Class SVM Feature Analysis (SGD RBF Kernel):")
+            print("=" * 60)
+            print("Note: RBF kernel transformation maps features to a higher-dimensional space.")
+            print(f"Original features: {num_features}, RBF features: {self.n_components}")
+            print("Direct feature importance in original space is not available.")
+            
+            # Return uniform importance
+            feature_errors = np.ones(num_features)
+            importance_indices = np.arange(num_features)
         else:
             # For non-linear kernels, feature importance is not directly available
             # logger.warning(f"One-Class SVM with {self.kernel} kernel doesn't provide direct feature importance")
@@ -287,3 +365,52 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
         base_info.update(svm_info)
         return base_info
+    
+    def save_artifacts(self, dataset_name: str, time_span: int, training_history: Optional[Dict] = None, training_time_seconds: Optional[float] = None) -> str:
+        """
+        Save model artifacts including RBF sampler for sgd_rbf kernel.
+        
+        Overrides base class method to also save the RBFSampler when using sgd_rbf kernel.
+        """
+        import os
+        import joblib
+        
+        # Call parent save method first
+        artifacts_dir = super().save_artifacts(dataset_name, time_span, training_history, training_time_seconds)
+        
+        # Save RBF sampler if it exists (for sgd_rbf kernel)
+        if self.kernel == 'sgd_rbf' and self.rbf_sampler is not None:
+            rbf_sampler_path = os.path.join(artifacts_dir, 'rbf_sampler.pkl')
+            joblib.dump(self.rbf_sampler, rbf_sampler_path)
+            logger.info(f"Saved RBF sampler to: {rbf_sampler_path}")
+        
+        return artifacts_dir
+    
+    @classmethod
+    def load_artifacts(cls, dataset_name: str, model_name: str, time_span: int, **model_kwargs):
+        """
+        Load model artifacts including RBF sampler for sgd_rbf kernel.
+        
+        Overrides base class method to also load the RBFSampler when using sgd_rbf kernel.
+        """
+        import os
+        import joblib
+        
+        # Call parent load method first
+        model = super().load_artifacts(dataset_name, model_name, time_span, **model_kwargs)
+        
+        # Determine artifacts directory
+        from .core.artifacts import ArtifactsManager
+        artifacts_manager = ArtifactsManager(dataset_name, model_name, time_span)
+        artifacts_dir = artifacts_manager.artifacts_dir
+        
+        # Load RBF sampler if it exists (for sgd_rbf kernel)
+        if model.kernel == 'sgd_rbf':
+            rbf_sampler_path = os.path.join(artifacts_dir, 'rbf_sampler.pkl')
+            if os.path.exists(rbf_sampler_path):
+                model.rbf_sampler = joblib.load(rbf_sampler_path)
+                logger.info(f"Loaded RBF sampler from: {rbf_sampler_path}")
+            else:
+                logger.warning(f"RBF sampler not found for sgd_rbf kernel at: {rbf_sampler_path}")
+        
+        return model

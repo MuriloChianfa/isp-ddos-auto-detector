@@ -4,12 +4,13 @@ Handles model creation, loading from artifacts, training, and saving.
 """
 
 import os
+import time
 import numpy as np
 import pandas as pd
 from typing import Dict, Optional, Tuple, Any
 
 from framework.models import create_model
-from framework.models.core.artifacts import artifacts_exist, get_artifacts_info, load_model_artifacts
+from framework.models.core.artifacts import artifacts_exist, get_artifacts_info, load_model_artifacts, FeatureMismatchError
 from framework.models.core.factory import create_model_with_config, load_model_from_artifacts
 from framework.visualization.training_plots import TrainingVisualizer
 
@@ -31,6 +32,7 @@ class ModelManager:
         self.time_span = time_span
         self.model = None
         self.is_loaded_from_artifacts = False
+        self.training_time_seconds = None
     
     def get_or_create_model(self, train_features: pd.DataFrame, 
                            use_fixed_threshold: bool = False,
@@ -55,22 +57,23 @@ class ModelManager:
         
         # Try to load existing model artifacts
         training_history = None
-        if self._try_load_existing_model(force_retrain, use_fixed_threshold):
-            print("Model loaded from artifacts - skipping training phase")
-            training_history = None  # No training history for loaded models
+        if self._try_load_existing_model(force_retrain, use_fixed_threshold, train_features):
+            print("Model loaded from artifacts, skipping training phase")
+            training_history = None
         else:
             # Train new model
             training_history = self._train_new_model(train_features)
         
         return self.model, training_history
     
-    def _try_load_existing_model(self, force_retrain: bool, use_fixed_threshold: bool) -> bool:
+    def _try_load_existing_model(self, force_retrain: bool, use_fixed_threshold: bool, train_features: pd.DataFrame) -> bool:
         """
         Try to load existing model from artifacts
         
         Args:
             force_retrain: Whether to force retraining
             use_fixed_threshold: Whether to use fixed threshold
+            train_features: Training features to validate against loaded model
             
         Returns:
             True if model was loaded successfully, False otherwise
@@ -97,22 +100,39 @@ class ModelManager:
         try:
             print("\nLoading saved model artifacts...")
             
+            # Get input dimension from current features
+            input_dim = train_features.shape[1]
+            
             # Load the model with its saved configuration using the factory function
             loaded_model = load_model_from_artifacts(
                 self.model, self.model_name, self.dataset_name, 
-                self.time_span, artifacts_info, use_fixed_threshold
+                self.time_span, artifacts_info, use_fixed_threshold, input_dim
             )
             
             # Replace the created model with the loaded one
             self.model = loaded_model
             self.is_loaded_from_artifacts = True
             
+            # Load training time from artifacts if available
+            self.training_time_seconds = artifacts_info.get('training_time_seconds')
+            
             print("Model artifacts loaded successfully!")
             print(f"Model is trained: {self.model.is_trained}")
-            print(f"Model threshold: {self.model.threshold}")
+            print(f"Saved threshold: {self.model.threshold}")
             print("Skipping training phase...\n")
             
             return True
+            
+        except FeatureMismatchError as e:
+            print(f"\n{'='*80}")
+            print(f"FEATURE MISMATCH DETECTED")
+            print(f"{'='*80}")
+            print(f"Saved model: {e.expected_features} features")
+            print(f"Current config: {e.actual_features} features")
+            print(f"Automatically retraining with new feature configuration...")
+            print(f"{'='*80}\n")
+            self.is_loaded_from_artifacts = False
+            return False
             
         except Exception as e:
             print(f"Failed to load model artifacts: {e}")
@@ -144,7 +164,14 @@ class ModelManager:
         """
         print("Preparing data for training...")
         
-        # Fit scaler and transform data
+        # Get original input dimension BEFORE any transformations
+        input_dim = train_features.shape[1]
+        print(f"\nNumber of input features: {input_dim}")
+        
+        # Build model with ORIGINAL feature dimension (before RBF transform)
+        self.model.build_model(input_dim)
+        
+        # Fit scaler and transform data (this may apply RBF transform for sgd_rbf kernel)
         self.model.fit_scaler(train_features)
         
         # Prepare validation features (assuming they exist in processed_features)
@@ -157,14 +184,18 @@ class ModelManager:
         scaled_validation_data = scaled_train_data[split_idx:]
         scaled_train_data = scaled_train_data[:split_idx]
         
-        input_dim = scaled_train_data.shape[1]
-        print(f"\nNumber of input features: {input_dim}")
-        
-        # Build model with feature dimension
-        self.model.build_model(input_dim)
-        
         print("\nTraining model...")
+        
+        # Start timing
+        training_start_time = time.time()
+        
         history = self.model.train(scaled_train_data, scaled_validation_data)
+        
+        # Stop timing and store training time
+        training_end_time = time.time()
+        self.training_time_seconds = training_end_time - training_start_time
+        
+        print(f"Training completed in {self.training_time_seconds/60:.2f} minutes ({self.training_time_seconds:.2f} seconds)")
         
         # Save model artifacts after successful training
         self._save_model_artifacts(history)
@@ -191,7 +222,17 @@ class ModelManager:
         self.model.build_model(input_dim)
         
         print("\nTraining model...")
+        
+        # Start timing
+        training_start_time = time.time()
+        
         history = self.model.train(scaled_train_data, scaled_validation_data)
+        
+        # Stop timing and store training time
+        training_end_time = time.time()
+        self.training_time_seconds = training_end_time - training_start_time
+        
+        print(f"Training completed in {self.training_time_seconds/60:.2f} minutes ({self.training_time_seconds:.2f} seconds)")
         
         # Save model artifacts after successful training
         self._save_model_artifacts(history)
@@ -210,7 +251,8 @@ class ModelManager:
             artifacts_path = self.model.save_artifacts(
                 self.dataset_name, 
                 self.time_span, 
-                history.history if hasattr(history, 'history') else history
+                history.history if hasattr(history, 'history') else history,
+                self.training_time_seconds
             )
             print(f"Model artifacts saved to: {artifacts_path}")
         except Exception as e:
@@ -272,7 +314,8 @@ class ModelManager:
             'time_span': self.time_span,
             'is_trained': getattr(self.model, 'is_trained', False),
             'threshold': getattr(self.model, 'threshold', None),
-            'loaded_from_artifacts': self.is_loaded_from_artifacts
+            'loaded_from_artifacts': self.is_loaded_from_artifacts,
+            'training_time_seconds': self.training_time_seconds
         }
         
         # Add model-specific information

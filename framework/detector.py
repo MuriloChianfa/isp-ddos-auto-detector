@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 class AnomalyDetector:
     """Handles anomaly detection and evaluation logic"""
     
-    def __init__(self, model: Any, dataset_name: str, model_name: str, time_span: int):
+    def __init__(self, model: Any, dataset_name: str, model_name: str, time_span: int, 
+                 is_loaded_from_artifacts: bool = False):
         """
         Initialize AnomalyDetector
         
@@ -30,15 +31,18 @@ class AnomalyDetector:
             dataset_name: Name of the dataset
             model_name: Name of the model
             time_span: Time span in seconds
+            is_loaded_from_artifacts: Whether the model was loaded from saved artifacts
         """
         self.model = model
         self.dataset_name = dataset_name
         self.model_name = model_name
         self.time_span = time_span
+        self.is_loaded_from_artifacts = is_loaded_from_artifacts
     
     def optimize_hyperparameters(self, X_train: np.ndarray, X_val: np.ndarray, 
                                  model_name: str, n_iter: int = 50, 
-                                 scoring: str = 'anomaly_score',
+                                 scoring: str = 'f1_score',
+                                 y_val: np.ndarray = None,
                                  output_dir: str = './results/optimization/') -> Dict:
         """
         Optimize hyperparameters using random search
@@ -48,7 +52,8 @@ class AnomalyDetector:
             X_val: Validation data
             model_name: Model to optimize ('isolation_forest', 'one_class_svm', 'local_outlier_factor')
             n_iter: Number of iterations for random search
-            scoring: Scoring method (fixed to 'anomaly_score')
+            scoring: Scoring method (default: 'f1_score', options: 'f1_score', 'f2_score', 'anomaly_score')
+            y_val: True labels for validation set (required for f1_score and f2_score)
             output_dir: Directory to save optimization results
             
         Returns:
@@ -67,23 +72,31 @@ class AnomalyDetector:
             optimizer = IsolationForestRandomSearch(
                 n_iter=n_iter, 
                 random_state=42, 
-                scoring=scoring
+                scoring=scoring,
+                y_val=y_val
             )
         elif model_name == 'one_class_svm':
+            # Get the current model's kernel to restrict optimization to that kernel only
+            current_kernel = getattr(self.model, 'kernel', None)
+            logger.info(f"Optimizing with kernel: {current_kernel if current_kernel else 'all kernels'}")
+            
             optimizer = OneClassSVMRandomSearch(
                 n_iter=n_iter, 
                 random_state=42, 
                 scoring=scoring,
+                y_val=y_val,
                 cache_size=54512,
                 tol=1e-2,
                 max_iter=-1,
-                shrinking=True
+                shrinking=True,
+                kernel=current_kernel
             )
         elif model_name == 'local_outlier_factor':
             optimizer = LocalOutlierFactorRandomSearch(
                 n_iter=n_iter, 
                 random_state=42, 
-                scoring=scoring
+                scoring=scoring,
+                y_val=y_val
             )
         else:
             raise ValueError(f"Optimization not supported for model: {model_name}")
@@ -144,9 +157,14 @@ class AnomalyDetector:
             print(f"Horizon anomaly scores computed: {len(horizon_scores)} samples")
         
         # Calculate optimal threshold
+        if self.is_loaded_from_artifacts:
+            print("\nRecalculating threshold with current strategy...")
         threshold, all_thresholds = self.calculate_optimal_threshold(
             train_scores, val_scores, use_fixed_threshold
         )
+        if self.is_loaded_from_artifacts:
+            print(f"\nUsing threshold: {threshold}")
+        print("\nDetecting anomalies for all splits...")
         
         # Build processing list
         processing_list = [

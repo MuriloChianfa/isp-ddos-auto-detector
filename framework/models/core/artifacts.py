@@ -22,6 +22,14 @@ from ...utils import get_artifacts_path
 logger = logging.getLogger(__name__)
 
 
+class FeatureMismatchError(Exception):
+    """Exception raised when loaded model features don't match current configuration"""
+    def __init__(self, message: str, expected_features: int, actual_features: int):
+        super().__init__(message)
+        self.expected_features = expected_features
+        self.actual_features = actual_features
+
+
 class ModelArtifactsManager:
     """
     Manager class for saving and loading model artifacts.
@@ -51,13 +59,14 @@ class ModelArtifactsManager:
         """Create artifacts directory if it doesn't exist."""
         os.makedirs(self.artifacts_dir, exist_ok=True)
         
-    def save_model_artifacts(self, model, training_history: Optional[Dict] = None) -> str:
+    def save_model_artifacts(self, model, training_history: Optional[Dict] = None, training_time_seconds: Optional[float] = None) -> str:
         """
         Save complete model artifacts.
         
         Args:
             model: Trained model instance
             training_history: Training history dictionary (optional)
+            training_time_seconds: Time taken to train the model in seconds (optional)
             
         Returns:
             str: Path to the saved artifacts directory
@@ -118,7 +127,8 @@ class ModelArtifactsManager:
             'time_span': self.time_span,
             'model_type': model.__class__.__name__,
             'save_timestamp': datetime.now().isoformat(),
-            'model_info': model.get_model_info() if hasattr(model, 'get_model_info') else {}
+            'model_info': model.get_model_info() if hasattr(model, 'get_model_info') else {},
+            'training_time_seconds': training_time_seconds
         }
         
         # Add model-specific configuration
@@ -277,6 +287,9 @@ class ModelArtifactsManager:
         model_config = metadata.get('model_config', {})
         init_kwargs = {**model_kwargs, **model_config}
         
+        # Store input_dim for validation before removing it
+        input_dim = init_kwargs.get('input_dim')
+        
         # Remove non-init parameters
         init_kwargs.pop('input_dim', None)
         
@@ -287,6 +300,22 @@ class ModelArtifactsManager:
         if os.path.exists(scaler_path):
             model.scaler = joblib.load(scaler_path)
             logger.info(f"Loaded scaler from: {scaler_path}")
+            
+            # Validate feature count if provided
+            logger.info(f"Feature validation: input_dim={input_dim}, scaler_features={model.scaler.n_features_in_ if hasattr(model.scaler, 'n_features_in_') else 'N/A'}")
+            
+            if input_dim is not None and hasattr(model.scaler, 'n_features_in_'):
+                expected_features = model.scaler.n_features_in_
+                if expected_features != input_dim:
+                    # Feature mismatch, raise a special exception that can be caught and handled
+                    error_msg = (
+                        f"Feature mismatch: Saved model has {expected_features} features, "
+                        f"but current config specifies {input_dim} features. "
+                        f"Retraining required."
+                    )
+                    logger.warning(error_msg)
+                    # Use a custom exception type for feature mismatch
+                    raise FeatureMismatchError(error_msg, expected_features, input_dim)
         
         # Load threshold
         threshold_path = os.path.join(self.artifacts_dir, 'threshold.json')
@@ -411,6 +440,7 @@ class ModelArtifactsManager:
                 'model_config': metadata.get('model_config', {}),
                 'threshold': summary.get('threshold'),
                 'has_training_history': 'training_history' in metadata,
+                'training_time_seconds': metadata.get('training_time_seconds'),
                 'files': summary.get('files', {})
             }
         except Exception as e:
@@ -437,7 +467,7 @@ class ModelArtifactsManager:
 
 
 def save_model_artifacts(model, dataset_name: str, model_name: str, time_span: int, 
-                        training_history: Optional[Dict] = None) -> str:
+                        training_history: Optional[Dict] = None, training_time_seconds: Optional[float] = None) -> str:
     """
     Convenience function to save model artifacts.
     
@@ -447,12 +477,13 @@ def save_model_artifacts(model, dataset_name: str, model_name: str, time_span: i
         model_name: Name of the model
         time_span: Time span in seconds
         training_history: Training history dictionary (optional)
+        training_time_seconds: Time taken to train the model in seconds (optional)
         
     Returns:
         str: Path to the saved artifacts directory
     """
     manager = ModelArtifactsManager(dataset_name, model_name, time_span)
-    return manager.save_model_artifacts(model, training_history)
+    return manager.save_model_artifacts(model, training_history, training_time_seconds)
 
 
 def load_model_artifacts(model_class, dataset_name: str, model_name: str, time_span: int, 

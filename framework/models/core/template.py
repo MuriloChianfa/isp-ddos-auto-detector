@@ -211,7 +211,7 @@ class BaseAnomalyDetector(ABC):
             'threshold_value': self.threshold
         }
     
-    def save_artifacts(self, dataset_name: str, time_span: int, training_history: Optional[Dict] = None) -> str:
+    def save_artifacts(self, dataset_name: str, time_span: int, training_history: Optional[Dict] = None, training_time_seconds: Optional[float] = None) -> str:
         """
         Save model artifacts using the artifacts manager.
         
@@ -219,12 +219,13 @@ class BaseAnomalyDetector(ABC):
             dataset_name: Name of the dataset
             time_span: Time span in seconds
             training_history: Training history dictionary (optional)
+            training_time_seconds: Time taken to train the model in seconds (optional)
             
         Returns:
             str: Path to the saved artifacts directory
         """
         from .artifacts import save_model_artifacts
-        return save_model_artifacts(self, dataset_name, self.model_name, time_span, training_history)
+        return save_model_artifacts(self, dataset_name, self.model_name, time_span, training_history, training_time_seconds)
     
     @classmethod
     def load_artifacts(cls, dataset_name: str, model_name: str, time_span: int, **model_kwargs):
@@ -351,7 +352,9 @@ class ModelValidationMixin:
         """
         valid_strategies = [
             'normal_mse_mean', 'mean_plus_1std', 'mean_plus_2std', 'mean_plus_3std',
-            'mse_plus_3std', 'mse_plus_4std', 'mse_plus_5std', 'mse_plus_5_5std', 'mse_plus_8std', 'mse_plus_40std', 'mse_plus_80std', 'exponential_threshold', 'sigmoid_threshold',
+            'mse_plus_3std', 'mse_plus_4std', 'mse_plus_4_5std', 'mse_plus_5std', 'mse_plus_5_5std',
+            'mse_plus_6std', 'mse_plus_8std', 'mse_plus_15std', 'mse_plus_40std', 'mse_plus_80std',
+            'exponential_threshold', 'sigmoid_threshold',
             'percentile_95', 'percentile_99', 'percentile_99_5', 'percentile_99_9'
         ]
         
@@ -438,9 +441,12 @@ class ThresholdCalculatorMixin:
             'mean_plus_3std': mean_score + 3 * std_score,
             'mse_plus_3std': mean_score + 3 * std_score,  # Linear: μ + 3σ
             'mse_plus_4std': mean_score + 4 * std_score,  # Linear: μ + 4σ
+            'mse_plus_4_5std': mean_score + 4.5 * std_score,  # Linear: μ + 4.5σ
             'mse_plus_5std': mean_score + 5 * std_score,  # Linear: μ + 5σ
             'mse_plus_5_5std': mean_score + 5.5 * std_score,  # Linear: μ + 5.5σ
+            'mse_plus_6std': mean_score + 6 * std_score,  # Linear: μ + 6σ
             'mse_plus_8std': mean_score + 8 * std_score,  # Linear: μ + 8σ
+            'mse_plus_15std': mean_score + 15 * std_score,  # Linear: μ + 15σ
             'mse_plus_80std': mean_score + 80 * std_score,  # Linear: μ + 80σ
             'mse_plus_40std': mean_score + 40 * std_score,  # Linear: μ + 40σ
             'exponential_threshold': np.exp(mean_score + 10 * std_score),  # Exponential: e^(μ + 10σ)

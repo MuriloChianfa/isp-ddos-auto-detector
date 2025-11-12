@@ -222,44 +222,118 @@ class DDoSDetectorPipeline:
         
         # Run hyperparameter optimization if requested
         if self.optimize and self.model_name in ['isolation_forest', 'one_class_svm', 'local_outlier_factor']:
-            print("\n" + "="*70)
-            print("RUNNING HYPERPARAMETER OPTIMIZATION")
-            print("="*70)
+            # Check if one_class_svm is using sgd_rbf kernel (not compatible with standard optimization)
+            if self.model_name == 'one_class_svm':
+                from framework.models.core.factory import get_model_params
+                model_params = get_model_params(self.model_name, self.dataset_name, self.time_span)
+                if model_params.get('kernel') == 'sgd_rbf':
+                    print("\n" + "="*70)
+                    print("SKIPPING HYPERPARAMETER OPTIMIZATION")
+                    print("="*70)
+                    print("Note: Hyperparameter optimization is not supported for sgd_rbf kernel.")
+                    print("The sgd_rbf kernel uses SGDOneClassSVM with RBF kernel approximation,")
+                    print("which has a different architecture than standard OneClassSVM.")
+                    print("Using default parameters from config instead.")
+                    print("="*70 + "\n")
+                    # Skip optimization for sgd_rbf
+                    self.optimize = False
             
-            # Create a temporary model manager to get scaled data
-            temp_model_manager = ModelManager(
-                self.model_name, self.dataset_name, self.time_span
-            )
-            temp_model, _ = temp_model_manager.get_or_create_model(
-                train_features, self.use_fixed_threshold, force_retrain=True
-            )
-            
-            # Scale the data
-            scaled_train = temp_model.transform_data(train_features)
-            scaled_val = temp_model.transform_data(val_features)
-            
-            # Create detector for optimization
-            from framework.detector import AnomalyDetector
-            temp_detector = AnomalyDetector(
-                temp_model, self.dataset_name, self.model_name, self.time_span
-            )
+            if self.optimize:  # Recheck after potential modification
+                print("\n" + "="*70)
+                print("RUNNING HYPERPARAMETER OPTIMIZATION")
+                print("="*70)
+                
+                # Create a temporary model manager to get scaled data
+                temp_model_manager = ModelManager(
+                    self.model_name, self.dataset_name, self.time_span
+                )
+                temp_model, _ = temp_model_manager.get_or_create_model(
+                    train_features, self.use_fixed_threshold, force_retrain=True
+                )
+                
+                # Scale the data
+                scaled_train = temp_model.transform_data(train_features)
+                scaled_val = temp_model.transform_data(val_features)
+                
+                # Generate validation labels from attack periods
+                # Get attack periods (they apply to test set, but we'll use a portion for validation)
+                windows = self.dataset_config.get('windows', {})
+                window_config = windows.get(str(self.time_span), {})
+                attack_periods_raw = window_config.get('attack_periods', [])
+                
+                # Get validation timestamps
+                val_timestamps = self.features_dict['validation']['timestamp']
+                
+                # Convert attack periods to datetime if they're tuples
+                attack_periods = []
+                for period in attack_periods_raw:
+                    if isinstance(period, tuple):
+                        start_dt = pd.to_datetime(period[0])
+                        end_dt = pd.to_datetime(period[1])
+                        # Make sure timezone matches val_timestamps
+                        if val_timestamps.dt.tz is not None:
+                            if start_dt.tz is None:
+                                start_dt = start_dt.tz_localize('UTC')
+                            if end_dt.tz is None:
+                                end_dt = end_dt.tz_localize('UTC')
+                        attack_periods.append({
+                            'start': start_dt,
+                            'end': end_dt
+                        })
+                    elif isinstance(period, dict):
+                        attack_periods.append(period)
+                
+                # Generate ground truth labels for validation set (1 = attack, 0 = normal)
+                val_labels = np.zeros(len(val_timestamps), dtype=int)
+                if attack_periods:
+                    for period in attack_periods:
+                        mask = (val_timestamps >= period['start']) & (val_timestamps <= period['end'])
+                        val_labels = val_labels | mask.values
+                    # print(f"Validation set: {np.sum(val_labels)} attack samples out of {len(val_labels)} total ({100*np.sum(val_labels)/len(val_labels):.2f}%)")
+                # else:
+                #     print("Warning: No attack periods defined, using all normal labels for validation")
+                
+                # Determine scoring method based on validation labels
+                num_attack_samples = np.sum(val_labels)
+                if num_attack_samples == 0:
+                    scoring_method = 'anomaly_score'
+                    # print("\nNote: No attack samples in validation set.")
+                    # print("Falling back to 'anomaly_score' (unsupervised) for optimization.")
+                    # print("This method optimizes for anomaly separation without labeled data.")
+                    val_labels = None  # Not needed for anomaly_score
+                elif num_attack_samples < 10:
+                    scoring_method = 'anomaly_score'
+                    # print(f"\nWarning: Very few attack samples ({num_attack_samples}) in validation set.")
+                    # print("Falling back to 'anomaly_score' for more stable optimization.")
+                    val_labels = None
+                else:
+                    scoring_method = 'f1_score'
+                    print(f"\nUsing F1 score for optimization (balanced precision-recall).")
+                    print(f"This will optimize for detecting the {num_attack_samples} attack samples.")
+                
+                # Create detector for optimization
+                from framework.detector import AnomalyDetector
+                temp_detector = AnomalyDetector(
+                    temp_model, self.dataset_name, self.model_name, self.time_span, False
+                )
 
-            # Run optimization
-            # Build output directory following the same pattern as other results
-            time_span_label = f"{self.time_span}seconds"
-            output_dir = f"./results/{self.dataset_name}/{time_span_label}/models/{self.model_name}/optimization/"
-            
-            best_params = temp_detector.optimize_hyperparameters(
-                scaled_train, scaled_val, 
-                self.model_name,
-                n_iter=self.optimize_n_iter,
-                scoring='anomaly_score',
-                output_dir=output_dir
-            )
-            
-            # Update model manager with optimized parameters
-            print(f"\nApplying optimized parameters: {best_params}")
-            temp_model_manager = None
+                # Run optimization
+                # Build output directory following the same pattern as other results
+                time_span_label = f"{self.time_span}seconds"
+                output_dir = f"./results/{self.dataset_name}/{time_span_label}/models/{self.model_name}/optimization/"
+                
+                best_params = temp_detector.optimize_hyperparameters(
+                    scaled_train, scaled_val, 
+                    self.model_name,
+                    n_iter=self.optimize_n_iter,
+                    scoring=scoring_method,
+                    y_val=val_labels,
+                    output_dir=output_dir
+                )
+                
+                # Update model manager with optimized parameters
+                print(f"\nApplying optimized parameters: {best_params}")
+                temp_model_manager = None
         
         # Initialize model manager
         self.model_manager = ModelManager(
@@ -305,8 +379,9 @@ class DDoSDetectorPipeline:
             True if successful, False otherwise
         """
         # Initialize anomaly detector
+        is_loaded = self.model_manager.is_model_loaded_from_artifacts() if self.model_manager else False
         self.detector = AnomalyDetector(
-            self.model, self.dataset_name, self.model_name, self.time_span
+            self.model, self.dataset_name, self.model_name, self.time_span, is_loaded
         )
         
         # Perform anomaly detection
@@ -478,6 +553,27 @@ class DDoSDetectorPipeline:
             
             return analysis_results
             
+        except ValueError as e:
+            error_msg = str(e)
+            # Check if it's a feature mismatch error (scaler or model expecting different number of features)
+            if ("expecting" in error_msg and "features" in error_msg) or \
+               ("n_features" in error_msg) or \
+               ("feature" in error_msg and "mismatch" in error_msg.lower()):
+                # Delete cached model artifacts and retrain
+                if self._handle_feature_mismatch_and_retry():
+                    print("\\n" + "="*60)
+                    print("Analysis completed after retraining")
+                    print("="*60)
+                    return self._get_results()
+                else:
+                    print("\\n" + "="*60)
+                    print("Unable to complete analysis after retraining")
+                    print("="*60)
+                    raise Exception(f"Feature mismatch recovery failed: {error_msg}")
+            else:
+                print(f"\\nPipeline execution failed: {e}")
+                print("="*60)
+                raise e
         except Exception as e:
             print(f"\\nPipeline execution failed: {e}")
             print("="*60)
@@ -697,3 +793,110 @@ class DDoSDetectorPipeline:
                 }
         
         return summary
+
+    def _handle_feature_mismatch_and_retry(self) -> bool:
+        """
+        Handle feature mismatch error by deleting cached model and retraining
+        
+        Returns:
+            True if retry was successful, False otherwise
+        """
+        import shutil
+        
+        try:
+            # Get the model artifacts directory
+            if self.results_manager:
+                results_dir = self.results_manager.get_results_directory()
+                artifacts_dir = os.path.join(results_dir, 'artifacts')
+                
+                # Delete the artifacts directory if it exists
+                if os.path.exists(artifacts_dir):
+                    print(f"\\nDeleting cached model artifacts from: {artifacts_dir}")
+                    shutil.rmtree(artifacts_dir)
+                    print("Cached model artifacts deleted")
+                else:
+                    print(f"\\nNo artifacts directory found at: {artifacts_dir}")
+            
+            # Force retrain flag
+            original_force_retrain = self.force_retrain
+            self.force_retrain = True
+            
+            print("\\nRetraining model with current feature configuration...")
+            print("-" * 60)
+            
+            # Reinitialize and train model (this will force a fresh training)
+            self.model = None
+            self.model_manager = None
+            self.training_history = None
+            
+            if not self.initialize_and_train_model():
+                print("Model retraining failed")
+                self.force_retrain = original_force_retrain
+                return False
+            
+            print("Model retrained successfully")
+            
+            # Now try to perform anomaly detection again
+            print("\\nRetrying anomaly detection...")
+            if not self.perform_anomaly_detection():
+                print("Anomaly detection failed after retraining")
+                self.force_retrain = original_force_retrain
+                return False
+            
+            print("Anomaly detection successful")
+            
+            # Continue with feature analysis
+            print("\\nPerforming feature analysis...")
+            feature_errors, importance_indices, feature_names, importance_analysis = self.perform_feature_analysis()
+            print("Feature analysis completed")
+            
+            # Generate visualizations
+            print("\\nGenerating visualizations...")
+            self.generate_visualizations(feature_errors, importance_indices, feature_names, importance_analysis)
+            print("Visualizations generated")
+            
+            # Save results and evaluate
+            print("\\nSaving results and evaluating...")
+            analysis_results = self.save_results_and_evaluate()
+            print("Results saved and evaluated")
+            
+            # Store results for retrieval
+            self._recovery_results = analysis_results
+            
+            # Restore original force_retrain setting
+            self.force_retrain = original_force_retrain
+            
+            return True
+            
+        except Exception as e:
+            print(f"\\nRecovery attempt failed: {e}")
+            logger.error(f"Feature mismatch recovery failed: {e}", exc_info=True)
+            return False
+    
+    def _get_results(self) -> Dict:
+        """
+        Get the analysis results (used after recovery)
+        
+        Returns:
+            Dictionary containing analysis results
+        """
+        if hasattr(self, '_recovery_results'):
+            results = self._recovery_results
+        else:
+            # Build results from current state
+            results = {
+                'model_info': self.model_manager.get_model_info() if self.model_manager else {},
+                'threshold_used': self.threshold,
+                'total_samples': len(self.combined_features) if self.combined_features is not None else 0,
+                'total_anomalies': len(self.combined_features[self.combined_features['is_anomaly'] == True]) if self.combined_features is not None else 0,
+            }
+        
+        # Add performance metrics if requested
+        if self.evaluate_performance:
+            try:
+                performance_metrics = self.evaluate_realtime_performance()
+                results['performance_metrics'] = performance_metrics
+            except Exception as e:
+                print(f"Warning: Could not evaluate performance: {e}")
+        
+        return results
