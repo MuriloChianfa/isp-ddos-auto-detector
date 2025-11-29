@@ -1,0 +1,22 @@
+{
+  "model_name": "isolation_forest",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 10,
+  "model_type": "IsolationForestAnomalyDetector",
+  "save_timestamp": "2025-11-19T06:02:00.823754",
+  "model_info": {
+    "model_name": "isolation_forest",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 1.440056562423706,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

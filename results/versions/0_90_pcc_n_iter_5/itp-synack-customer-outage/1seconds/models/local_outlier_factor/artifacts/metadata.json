@@ -1,0 +1,22 @@
+{
+  "model_name": "local_outlier_factor",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 1,
+  "model_type": "LocalOutlierFactorAnomalyDetector",
+  "save_timestamp": "2025-11-19T06:55:06.216138",
+  "model_info": {
+    "model_name": "local_outlier_factor",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 16.464122533798218,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

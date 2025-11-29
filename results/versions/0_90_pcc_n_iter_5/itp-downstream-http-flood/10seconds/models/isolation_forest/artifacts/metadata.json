@@ -1,0 +1,22 @@
+{
+  "model_name": "isolation_forest",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 10,
+  "model_type": "IsolationForestAnomalyDetector",
+  "save_timestamp": "2025-11-19T05:58:58.890212",
+  "model_info": {
+    "model_name": "isolation_forest",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 1.0440068244934082,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

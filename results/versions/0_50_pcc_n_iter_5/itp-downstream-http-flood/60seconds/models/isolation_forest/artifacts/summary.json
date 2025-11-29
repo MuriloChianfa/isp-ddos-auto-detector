@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-21T03:36:47.031025",
+  "model_name": "isolation_forest",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 60,
+  "threshold": 0.07537803734895092,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

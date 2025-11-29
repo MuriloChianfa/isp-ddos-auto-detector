@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-19T05:58:38.251256",
+  "model_name": "autoencoder",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 10,
+  "threshold": 1.6837232961679771,
+  "files": {
+    "model": "model.keras",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

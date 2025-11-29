@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-16T21:05:45.597775",
+  "model_name": "isolation_forest",
+  "dataset_name": "itp-multivector-udp-100gbps-peak",
+  "time_span": 300,
+  "threshold": 0.09331705570774464,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

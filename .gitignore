@@ -209,10 +209,4 @@ __marimo__/
 
 # Application specific
 datasets.sh
-datasets/**/*.csv
-results/**/*.png
-results/**/*.keras
-results/**/*.pkl
-results/**/*.h5
-results/**/*.json
 cache/*.pkl

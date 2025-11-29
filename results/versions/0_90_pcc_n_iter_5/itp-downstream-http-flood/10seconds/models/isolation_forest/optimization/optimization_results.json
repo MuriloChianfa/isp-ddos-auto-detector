@@ -1,0 +1,69 @@
+{
+  "best_parameters": {
+    "score": 0.4429591617174657,
+    "params": {
+      "n_estimators": 334,
+      "max_samples": 111,
+      "max_features": 0.72,
+      "contamination": 0.12,
+      "bootstrap": false
+    }
+  },
+  "all_iterations": [
+    {
+      "iteration": 1,
+      "score": 0.4297976218638757,
+      "params": {
+        "n_estimators": 476,
+        "max_samples": 229,
+        "max_features": 0.5,
+        "contamination": 0.1,
+        "bootstrap": false
+      }
+    },
+    {
+      "iteration": 2,
+      "score": 0.41949084794866753,
+      "params": {
+        "n_estimators": 215,
+        "max_samples": 394,
+        "max_features": 1.0,
+        "contamination": 0.15,
+        "bootstrap": false
+      }
+    },
+    {
+      "iteration": 3,
+      "score": 0.4429591617174657,
+      "params": {
+        "n_estimators": 334,
+        "max_samples": 111,
+        "max_features": 0.72,
+        "contamination": 0.12,
+        "bootstrap": false
+      }
+    },
+    {
+      "iteration": 4,
+      "score": 0.4235372016677767,
+      "params": {
+        "n_estimators": 381,
+        "max_samples": 488,
+        "max_features": 0.83,
+        "contamination": 0.05,
+        "bootstrap": false
+      }
+    },
+    {
+      "iteration": 5,
+      "score": 0.42838677824749133,
+      "params": {
+        "n_estimators": 500,
+        "max_samples": 252,
+        "max_features": 0.78,
+        "contamination": 0.09,
+        "bootstrap": false
+      }
+    }
+  ]
+}

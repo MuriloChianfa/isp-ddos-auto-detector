@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-21T03:34:40.469364",
+  "model_name": "local_outlier_factor",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 300,
+  "threshold": 14.259728558619187,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

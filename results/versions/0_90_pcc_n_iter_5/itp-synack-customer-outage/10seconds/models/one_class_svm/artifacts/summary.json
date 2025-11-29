@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-19T06:02:17.965511",
+  "model_name": "one_class_svm",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 10,
+  "threshold": 0.05672321547146139,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

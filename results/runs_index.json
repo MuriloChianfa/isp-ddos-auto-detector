@@ -1,0 +1,60 @@
+{
+  "runs": [
+    {
+      "run_name": "0_70_pcc_n_iter_5",
+      "timestamp": "2025-11-16T23:38:55.507157",
+      "metadata": {
+        "operation": "save_existing_results",
+        "note": "Saved existing results without running new analysis",
+        "saved_items": [
+          "itp-downstream-http-flood",
+          "itp-multivector-udp-100gbps-peak",
+          "itp-synack-customer-outage",
+          "cross_evaluation"
+        ]
+      }
+    },
+    {
+      "run_name": "0_80_pcc_n_iter_5",
+      "timestamp": "2025-11-17T11:02:47.554711",
+      "metadata": {
+        "operation": "save_existing_results",
+        "note": "Saved existing results without running new analysis",
+        "saved_items": [
+          "itp-downstream-http-flood",
+          "itp-multivector-udp-100gbps-peak",
+          "itp-synack-customer-outage",
+          "cross_evaluation"
+        ]
+      }
+    },
+    {
+      "run_name": "0_90_pcc_n_iter_5",
+      "timestamp": "2025-11-19T08:06:14.581400",
+      "metadata": {
+        "operation": "save_existing_results",
+        "note": "Saved existing results without running new analysis",
+        "saved_items": [
+          "itp-downstream-http-flood",
+          "itp-multivector-udp-100gbps-peak",
+          "itp-synack-customer-outage",
+          "cross_evaluation"
+        ]
+      }
+    },
+    {
+      "run_name": "0_50_pcc_n_iter_5",
+      "timestamp": "2025-11-21T11:42:32.166591",
+      "metadata": {
+        "operation": "save_existing_results",
+        "note": "Saved existing results without running new analysis",
+        "saved_items": [
+          "itp-downstream-http-flood",
+          "itp-multivector-udp-100gbps-peak",
+          "itp-synack-customer-outage",
+          "cross_evaluation"
+        ]
+      }
+    }
+  ]
+}

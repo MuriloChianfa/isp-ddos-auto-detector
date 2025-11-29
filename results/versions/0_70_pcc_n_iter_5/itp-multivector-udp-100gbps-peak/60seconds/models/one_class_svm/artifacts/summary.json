@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-16T21:09:47.755220",
+  "model_name": "one_class_svm",
+  "dataset_name": "itp-multivector-udp-100gbps-peak",
+  "time_span": 60,
+  "threshold": 0.03562025620754125,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "analysis_timestamp": "2025-11-19T06:57:59.538755",
+  "dataset_name": "itp-synack-customer-outage",
+  "model_name": "local_outlier_factor",
+  "time_span": 1,
+  "time_window_label": "1seconds",
+  "results_directory": "./results/itp-synack-customer-outage/1seconds/models/local_outlier_factor",
+  "artifacts_directory": "./results/itp-synack-customer-outage/1seconds/models/local_outlier_factor/artifacts",
+  "model_info": {
+    "model_name": "local_outlier_factor",
+    "dataset_name": "itp-synack-customer-outage",
+    "time_span": 1,
+    "is_trained": true,
+    "threshold": 2.4722605343844575,
+    "loaded_from_artifacts": false,
+    "training_time_seconds": 16.464122533798218
+  },
+  "threshold_used": 2.4722605343844575,
+  "total_samples": 236996,
+  "total_anomalies": 8996,
+  "anomalies_csv_path": "./results/itp-synack-customer-outage/1seconds/models/local_outlier_factor/anomalies_detected.csv",
+  "evaluation_metrics": {
+    "true_positives": "5036",
+    "true_negatives": "226450",
+    "false_positives": "3960",
+    "false_negatives": "1550",
+    "precision": 0.5598043574922188,
+    "recall": 0.7646522927421804,
+    "f1_score": 0.6463868566294442,
+    "accuracy": 0.9767506624584381,
+    "false_positive_rate": 0.017186754047133372,
+    "matthews_corrcoef": 0.6429253543893567,
+    "miss_rate": 0.23534770725781962,
+    "fallout": 0.017186754047133372,
+    "roc_auc_score": 0.8737327693475235,
+    "f2_score": 0.7125070741369552,
+    "total_samples": 236996,
+    "attack_periods": "6586",
+    "detected_anomalies": "8996"
+  }
+}

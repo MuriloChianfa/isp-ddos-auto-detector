@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-21T03:51:22.764731",
+  "model_name": "autoencoder",
+  "dataset_name": "itp-multivector-udp-100gbps-peak",
+  "time_span": 10,
+  "threshold": 1.080256467573788,
+  "files": {
+    "model": "model.keras",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

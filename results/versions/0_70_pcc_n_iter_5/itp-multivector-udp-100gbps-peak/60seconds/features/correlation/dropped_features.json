@@ -1,0 +1,912 @@
+{
+  "empty_features": {
+    "small_packet_ratio": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "large_packet_flow_ratio": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "min_inter_arrival_time": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "small_packet_flow_ratio": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "single_packet_flow_ratio": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "bytes_min": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "packets_min": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "duration_min": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    },
+    "amplification_score": {
+      "reason": "Zero variance (constant values)",
+      "variance": 0.0,
+      "nan_count": 0,
+      "nan_percentage": 0.0
+    }
+  },
+  "correlated_features": {
+    "bit_rate": {
+      "correlated_with": "total_bytes",
+      "correlation": 1.0000000000000053,
+      "variance": 1.3392910584647051e+19,
+      "kept_variance": 7.533512203863968e+20,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packet_rate": {
+      "correlated_with": "total_packets",
+      "correlation": 1.0000000000000013,
+      "variance": 151468148940.91565,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_mean": {
+      "correlated_with": "avg_duration",
+      "correlation": 1.0,
+      "variance": 0.5684562440778287,
+      "kept_variance": 0.5684562440778287,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flows_per_second": {
+      "correlated_with": "flow_rate",
+      "correlation": 1.0,
+      "variance": 8796.168134176705,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_mean": {
+      "correlated_with": "packets_per_flow",
+      "correlation": 1.0,
+      "variance": 505909.2193908749,
+      "kept_variance": 505909.2193908749,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_mean": {
+      "correlated_with": "bytes_per_flow",
+      "correlation": 1.0,
+      "variance": 813177630485.8988,
+      "kept_variance": 813177630485.8988,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_ip_unique_count": {
+      "correlated_with": "unique_src_ips",
+      "correlation": 1.0,
+      "variance": 3691258.1802101284,
+      "kept_variance": 3691258.1802101284,
+      "reason": "Lower variance than correlated feature"
+    },
+    "cross_geo_flow_ratio": {
+      "correlated_with": "cross_border_ratio",
+      "correlation": 1.0,
+      "variance": 0.0017078334009716016,
+      "kept_variance": 0.0017078334009716016,
+      "reason": "Lower variance than correlated feature"
+    },
+    "connection_establishment_ratio": {
+      "correlated_with": "syn_flood_ratio",
+      "correlation": 1.0,
+      "variance": 0.0026885155765427344,
+      "kept_variance": 0.0026885155765427344,
+      "reason": "Lower variance than correlated feature"
+    },
+    "zero_duration_connections": {
+      "correlated_with": "zero_duration_ratio",
+      "correlation": 1.0,
+      "variance": 0.0006612597391431422,
+      "kept_variance": 0.0006612597391431422,
+      "reason": "Lower variance than correlated feature"
+    },
+    "very_short_connections": {
+      "correlated_with": "zero_duration_ratio",
+      "correlation": 1.0,
+      "variance": 0.0006612597391431422,
+      "kept_variance": 0.0006612597391431422,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_max": {
+      "correlated_with": "max_bytes_per_flow",
+      "correlation": 1.0,
+      "variance": 3.5072637281436086e+19,
+      "kept_variance": 3.5072637281436086e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_range": {
+      "correlated_with": "max_bytes_per_flow",
+      "correlation": 1.0,
+      "variance": 3.5072637281436086e+19,
+      "kept_variance": 3.5072637281436086e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_std": {
+      "correlated_with": "std_bytes_per_flow",
+      "correlation": 1.0,
+      "variance": 3145166069793479.0,
+      "kept_variance": 3145166069793479.0,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_max": {
+      "correlated_with": "max_packets_per_flow",
+      "correlation": 1.0,
+      "variance": 29311790926414.727,
+      "kept_variance": 29311790926414.727,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_range": {
+      "correlated_with": "max_packets_per_flow",
+      "correlation": 1.0,
+      "variance": 29311790926414.727,
+      "kept_variance": 29311790926414.727,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_std": {
+      "correlated_with": "std_packets_per_flow",
+      "correlation": 1.0,
+      "variance": 2535320095.418591,
+      "kept_variance": 2535320095.418591,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_src_ports_per_ip": {
+      "correlated_with": "avg_src_port_diversity",
+      "correlation": 1.0,
+      "variance": 0.005898389754122585,
+      "kept_variance": 0.005898389754122585,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_range": {
+      "correlated_with": "duration_max",
+      "correlation": 1.0,
+      "variance": 164288.76560910876,
+      "kept_variance": 164288.76560910876,
+      "reason": "Lower variance than correlated feature"
+    },
+    "port_entropy_abs_diff": {
+      "correlated_with": "src_dst_port_entropy_diff",
+      "correlation": -1.0,
+      "variance": 0.5724263697901867,
+      "kept_variance": 0.5724263697901867,
+      "reason": "Lower variance than correlated feature"
+    },
+    "entropy_delta_src_dst_port": {
+      "correlated_with": "src_dst_port_entropy_diff",
+      "correlation": 1.0,
+      "variance": 0.5724263697901867,
+      "kept_variance": 0.5724263697901867,
+      "reason": "Lower variance than correlated feature"
+    },
+    "ip_entropy_abs_diff": {
+      "correlated_with": "src_dst_ip_entropy_diff",
+      "correlation": 1.0,
+      "variance": 0.0952270190492646,
+      "kept_variance": 0.0952270190492646,
+      "reason": "Lower variance than correlated feature"
+    },
+    "entropy_delta_src_dst_ip": {
+      "correlated_with": "src_dst_ip_entropy_diff",
+      "correlation": 1.0,
+      "variance": 0.0952270190492646,
+      "kept_variance": 0.0952270190492646,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_concentration": {
+      "correlated_with": "dst_port_concentration_score",
+      "correlation": 1.0,
+      "variance": 1.2313851088392603e-05,
+      "kept_variance": 1.2313851088392603e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flows_per_second_ema": {
+      "correlated_with": "flow_rate_ema",
+      "correlation": 1.0,
+      "variance": 8809.762834603702,
+      "kept_variance": 8809.762834603702,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_concentration_score": {
+      "correlated_with": "dst_ip_collision_probability",
+      "correlation": 0.9999999999999998,
+      "variance": 1.5623460466990583e-05,
+      "kept_variance": 1.5623460466990583e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_port_simpson_index": {
+      "correlated_with": "src_port_concentration",
+      "correlation": -0.9999999999999991,
+      "variance": 0.0015317410474791737,
+      "kept_variance": 0.001531741047479174,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_simpson_index": {
+      "correlated_with": "dst_port_concentration_score",
+      "correlation": -0.9999999999999988,
+      "variance": 1.231385108839258e-05,
+      "kept_variance": 1.2313851088392603e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "total_flows": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9999999999999983,
+      "variance": 31666205.283036143,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_ip_simpson_index": {
+      "correlated_with": "dst_ip_collision_probability",
+      "correlation": -0.9999999999999983,
+      "variance": 1.5623460466990576e-05,
+      "kept_variance": 1.5623460466990583e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_ip_collision_probability": {
+      "correlated_with": "src_ip_simpson_index",
+      "correlation": -0.9999999999999978,
+      "variance": 8.044957198926278e-07,
+      "kept_variance": 8.044957198926299e-07,
+      "reason": "Lower variance than correlated feature"
+    },
+    "as_diversity_count": {
+      "correlated_with": "unique_src_as",
+      "correlation": 0.9999999879674613,
+      "variance": 105149.93404675079,
+      "kept_variance": 105151.97816281204,
+      "reason": "Lower variance than correlated feature"
+    },
+    "unique_src_geo": {
+      "correlated_with": "geo_diversity_count",
+      "correlation": 0.99857463846897,
+      "variance": 46.29429132043597,
+      "kept_variance": 47.11570531373003,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flow_rate_ema": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9983746520563165,
+      "variance": 8809.762834603702,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "syn_ack_ratio": {
+      "correlated_with": "syn_flood_ratio",
+      "correlation": 0.9983059533242313,
+      "variance": 0.004870281924395991,
+      "kept_variance": 0.0026885155765427344,
+      "reason": "Lower variance than correlated feature"
+    },
+    "tcp_ratio": {
+      "correlated_with": "udp_ratio",
+      "correlation": -0.9979656595159432,
+      "variance": 0.0026814250477963284,
+      "kept_variance": 0.003142820559648957,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packet_rate_ema": {
+      "correlated_with": "bit_rate_ema",
+      "correlation": 0.9977558009375592,
+      "variance": 144587227373.06332,
+      "kept_variance": 1.2889313213544655e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_ip_uniqueness_ratio": {
+      "correlated_with": "avg_flows_per_src",
+      "correlation": -0.9971667971516868,
+      "variance": 0.0009954255027002903,
+      "kept_variance": 0.03838929814079725,
+      "reason": "Lower variance than correlated feature"
+    },
+    "total_bytes": {
+      "correlated_with": "total_packets",
+      "correlation": 0.9966592549565098,
+      "variance": 7.533512203863968e+20,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "unique_src_ips": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9960038747214249,
+      "variance": 3691258.1802101284,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_inter_arrival_time": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.9959755658327257,
+      "variance": 8.143324498507912e-06,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_fan_in": {
+      "correlated_with": "avg_dst_ports_per_ip",
+      "correlation": 0.9949542596711372,
+      "variance": 1.4842590531021111,
+      "kept_variance": 1.539150047580936,
+      "reason": "Lower variance than correlated feature"
+    },
+    "small_request_large_reply_ratio": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9928595762795929,
+      "variance": 12526566.777178306,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_top_5_ratio": {
+      "correlated_with": "dst_top_10_ratio",
+      "correlation": 0.9927263468550608,
+      "variance": 0.0011086796226325774,
+      "kept_variance": 0.0011336708545623755,
+      "reason": "Lower variance than correlated feature"
+    },
+    "syn_flag_ratio": {
+      "correlated_with": "syn_flood_ratio",
+      "correlation": 0.9898858865105014,
+      "variance": 0.0009750103903858681,
+      "kept_variance": 0.0026885155765427344,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_ip_uniqueness_ratio": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.9887796474237621,
+      "variance": 0.002192931862019692,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "traffic_burstiness": {
+      "correlated_with": "spectral_entropy",
+      "correlation": 0.9872850952716563,
+      "variance": 0.002986421541474275,
+      "kept_variance": 0.041587472509359444,
+      "reason": "Lower variance than correlated feature"
+    },
+    "inter_arrival_variance": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.9856149301658549,
+      "variance": 6.103636122132006e-07,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "burst_ratio": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": -0.9854873884541454,
+      "variance": 0.00021726105031640323,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_packets_per_flow": {
+      "correlated_with": "max_bytes_per_flow",
+      "correlation": 0.983361707405527,
+      "variance": 29311790926414.727,
+      "kept_variance": 3.5072637281436086e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_std": {
+      "correlated_with": "duration_variance",
+      "correlation": 0.9825213989499876,
+      "variance": 37.67179880716202,
+      "kept_variance": 171848.98450932026,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_ip_unique_count": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9821759698716755,
+      "variance": 129321.460518928,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "std_packets_per_flow": {
+      "correlated_with": "std_bytes_per_flow",
+      "correlation": 0.9820611734458494,
+      "variance": 2535320095.418591,
+      "kept_variance": 3145166069793479.0,
+      "reason": "Lower variance than correlated feature"
+    },
+    "geo_diversity_ratio": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.98176160469959,
+      "variance": 1.1298330291031737e-05,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_ip_entropy": {
+      "correlated_with": "fan_in_out_ratio",
+      "correlation": 0.9804278301551442,
+      "variance": 0.20534596993314747,
+      "kept_variance": 0.2825377797555005,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_cv": {
+      "correlated_with": "bytes_cv",
+      "correlation": 0.9802391236610162,
+      "variance": 65.5365331225552,
+      "kept_variance": 69.26750605180199,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_kurtosis": {
+      "correlated_with": "packets_kurtosis",
+      "correlation": 0.9775291295716938,
+      "variance": 15125771.521754818,
+      "kept_variance": 15283653.248104373,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_dst_ports_per_ip": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9771102182065787,
+      "variance": 1.539150047580936,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_top_5_ratio": {
+      "correlated_with": "dst_port_top_10_ratio",
+      "correlation": 0.9767886207488576,
+      "variance": 0.0007792320291233612,
+      "kept_variance": 0.000827959740189057,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_skewness": {
+      "correlated_with": "packets_kurtosis",
+      "correlation": 0.9745614678182918,
+      "variance": 716.7430471656738,
+      "kept_variance": 15283653.248104373,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_std_ema": {
+      "correlated_with": "bytes_std_ema",
+      "correlation": 0.9738526230177851,
+      "variance": 479676172.7098359,
+      "kept_variance": 881312979152423.0,
+      "reason": "Lower variance than correlated feature"
+    },
+    "unique_src_as": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9728696646122881,
+      "variance": 105151.97816281204,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "fan_in_out_ratio": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9711258511984141,
+      "variance": 0.2825377797555005,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_variance": {
+      "correlated_with": "bytes_variance",
+      "correlation": 0.9704937446402643,
+      "variance": 2.3997103804730255e+20,
+      "kept_variance": 3.445522636481708e+32,
+      "reason": "Lower variance than correlated feature"
+    },
+    "fan_in_std": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9698669705104807,
+      "variance": 6.846543170152407,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_top_1_ratio": {
+      "correlated_with": "dst_port_concentration_score",
+      "correlation": 0.9665112545995339,
+      "variance": 0.0004716448268499445,
+      "kept_variance": 1.2313851088392603e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_skewness": {
+      "correlated_with": "duration_kurtosis",
+      "correlation": 0.9655912087251803,
+      "variance": 39.54774339611061,
+      "kept_variance": 193839.74412673837,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_top_1_ratio": {
+      "correlated_with": "dst_ip_collision_probability",
+      "correlation": 0.9652379317027,
+      "variance": 0.0007853618255311297,
+      "kept_variance": 1.5623460466990583e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_geo_entropy": {
+      "correlated_with": "syn_flood_ratio",
+      "correlation": 0.9651973943744476,
+      "variance": 0.05739999762644597,
+      "kept_variance": 0.0026885155765427344,
+      "reason": "Lower variance than correlated feature"
+    },
+    "size_uniformity": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": -0.9629839654738117,
+      "variance": 0.0003821733733344723,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_per_flow": {
+      "correlated_with": "packets_per_flow",
+      "correlation": 0.9628375345322974,
+      "variance": 813177630485.8988,
+      "kept_variance": 505909.2193908749,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flag_combination_entropy": {
+      "correlated_with": "flow_size_entropy",
+      "correlation": -0.9626599181789095,
+      "variance": 0.01688111570279531,
+      "kept_variance": 0.08510658599466872,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_fan_out": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": 0.9608587353564126,
+      "variance": 0.017309032937547222,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bit_rate_ema": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.958533849851312,
+      "variance": 1.2889313213544655e+19,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "icmp_ratio": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.9576806586579644,
+      "variance": 2.7477679962510303e-05,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_cv": {
+      "correlated_with": "std_bytes_per_flow",
+      "correlation": 0.957281257331234,
+      "variance": 69.26750605180199,
+      "kept_variance": 3145166069793479.0,
+      "reason": "Lower variance than correlated feature"
+    },
+    "as_diversity_ratio": {
+      "correlated_with": "avg_flows_per_src",
+      "correlation": -0.9553273257932435,
+      "variance": 0.0002551080138022566,
+      "kept_variance": 0.03838929814079725,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_fan_out": {
+      "correlated_with": "flow_rate",
+      "correlation": 0.9548362740460267,
+      "variance": 3092.412168401036,
+      "kept_variance": 8796.168134176705,
+      "reason": "Lower variance than correlated feature"
+    },
+    "std_bytes_per_flow": {
+      "correlated_with": "max_bytes_per_flow",
+      "correlation": 0.9503828418847751,
+      "variance": 3145166069793479.0,
+      "kept_variance": 3.5072637281436086e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "udp_amplification_potential": {
+      "correlated_with": "std_inter_arrival_time",
+      "correlation": 0.9495107716350475,
+      "variance": 0.00020236497778099375,
+      "kept_variance": 0.0001420443871966956,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_skewness": {
+      "correlated_with": "packets_kurtosis",
+      "correlation": 0.9456028868035622,
+      "variance": 716.7130902462358,
+      "kept_variance": 15283653.248104373,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packets_gini_index": {
+      "correlated_with": "packets_per_flow",
+      "correlation": 0.9395131366446643,
+      "variance": 0.0022059140346421735,
+      "kept_variance": 505909.2193908749,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flow_rate": {
+      "correlated_with": "total_packets",
+      "correlation": 0.9374993384607626,
+      "variance": 8796.168134176705,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_flows_per_src": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": 0.9372227413777483,
+      "variance": 0.03838929814079725,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "std_inter_arrival_time": {
+      "correlated_with": "flow_size_entropy",
+      "correlation": -0.9350209213659352,
+      "variance": 0.0001420443871966956,
+      "kept_variance": 0.08510658599466872,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_concentration_score": {
+      "correlated_with": "dst_port_top_10_ratio",
+      "correlation": 0.9340517602951675,
+      "variance": 1.2313851088392603e-05,
+      "kept_variance": 0.000827959740189057,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_top_10_ratio": {
+      "correlated_with": "dst_ip_collision_probability",
+      "correlation": 0.9185069704575889,
+      "variance": 0.0011336708545623755,
+      "kept_variance": 1.5623460466990583e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "entropy_balance_score": {
+      "correlated_with": "src_dst_port_entropy_diff",
+      "correlation": -0.9178253545777619,
+      "variance": 0.5855766258862783,
+      "kept_variance": 0.5724263697901867,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_tcp_duration": {
+      "correlated_with": "avg_duration",
+      "correlation": 0.9132438919614168,
+      "variance": 1.4911814639313645,
+      "kept_variance": 0.5684562440778287,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_entropy": {
+      "correlated_with": "fan_out_std",
+      "correlation": 0.9032149232105876,
+      "variance": 0.41617302819361973,
+      "kept_variance": 0.9151960826645428,
+      "reason": "Lower variance than correlated feature"
+    },
+    "packet_rate_cv": {
+      "correlated_with": "packet_rate_std",
+      "correlation": 0.9022855516581699,
+      "variance": 0.009067843457658264,
+      "kept_variance": 10182159914.071787,
+      "reason": "Lower variance than correlated feature"
+    },
+    "syn_flood_ratio": {
+      "correlated_with": "flow_size_entropy",
+      "correlation": -0.8878815229410699,
+      "variance": 0.0026885155765427344,
+      "kept_variance": 0.08510658599466872,
+      "reason": "Lower variance than correlated feature"
+    },
+    "udp_ratio": {
+      "correlated_with": "flow_size_entropy",
+      "correlation": 0.8852904727738898,
+      "variance": 0.003142820559648957,
+      "kept_variance": 0.08510658599466872,
+      "reason": "Lower variance than correlated feature"
+    },
+    "periodic_pattern_score": {
+      "correlated_with": "flow_size_entropy",
+      "correlation": -0.8766299691958124,
+      "variance": 1.115148204863428e-05,
+      "kept_variance": 0.08510658599466872,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_mean_ema": {
+      "correlated_with": "avg_duration",
+      "correlation": 0.8728411208295367,
+      "variance": 0.5454463586174059,
+      "kept_variance": 0.5684562440778287,
+      "reason": "Lower variance than correlated feature"
+    },
+    "fan_out_std": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": 0.8717404818853295,
+      "variance": 0.9151960826645428,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "ephemeral_port_ratio": {
+      "correlated_with": "registered_port_ratio",
+      "correlation": -0.8687685967790116,
+      "variance": 0.00022378106173948157,
+      "kept_variance": 0.0005216104291504989,
+      "reason": "Lower variance than correlated feature"
+    },
+    "flow_size_entropy": {
+      "correlated_with": "total_packets",
+      "correlation": 0.8669304135534399,
+      "variance": 0.08510658599466872,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "fin_flag_ratio": {
+      "correlated_with": "connection_teardown_ratio",
+      "correlation": 0.8581252001539237,
+      "variance": 3.8044067631316704e-06,
+      "kept_variance": 1.3896446775495879e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_port_concentration": {
+      "correlated_with": "src_dst_port_entropy_diff",
+      "correlation": -0.8575276394252385,
+      "variance": 0.001531741047479174,
+      "kept_variance": 0.5724263697901867,
+      "reason": "Lower variance than correlated feature"
+    },
+    "bytes_variance": {
+      "correlated_with": "max_bytes_per_flow",
+      "correlation": 0.8449585580982827,
+      "variance": 3.445522636481708e+32,
+      "kept_variance": 3.5072637281436086e+19,
+      "reason": "Lower variance than correlated feature"
+    },
+    "traffic_energy": {
+      "correlated_with": "total_packets",
+      "correlation": 0.82941863795531,
+      "variance": 30857832.496443853,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_dst_ip_entropy_diff": {
+      "correlated_with": "avg_src_port_diversity",
+      "correlation": 0.8269862122048021,
+      "variance": 0.0952270190492646,
+      "kept_variance": 0.005898389754122585,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_ports_per_src": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": 0.8212342615384746,
+      "variance": 0.03760403273802538,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_src_port_diversity": {
+      "correlated_with": "cross_border_ratio",
+      "correlation": -0.8190201136968435,
+      "variance": 0.005898389754122585,
+      "kept_variance": 0.0017078334009716016,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_dst_port_entropy_diff": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": -0.8145870832694101,
+      "variance": 0.5724263697901867,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_port_entropy": {
+      "correlated_with": "zero_duration_ratio",
+      "correlation": -0.8087929545116267,
+      "variance": 0.2470136449889747,
+      "kept_variance": 0.0006612597391431422,
+      "reason": "Lower variance than correlated feature"
+    },
+    "dst_port_top_10_ratio": {
+      "correlated_with": "dst_ip_collision_probability",
+      "correlation": 0.8075680040089724,
+      "variance": 0.000827959740189057,
+      "kept_variance": 1.5623460466990583e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "well_known_port_ratio": {
+      "correlated_with": "registered_port_ratio",
+      "correlation": -0.7989792493342112,
+      "variance": 0.00015175729814044108,
+      "kept_variance": 0.0005216104291504989,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_fan_in": {
+      "correlated_with": "cross_border_ratio",
+      "correlation": -0.7974435531644753,
+      "variance": 3047.7606891491514,
+      "kept_variance": 0.0017078334009716016,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_bytes_per_flow": {
+      "correlated_with": "packets_per_flow",
+      "correlation": 0.7919703046114688,
+      "variance": 3.5072637281436086e+19,
+      "kept_variance": 505909.2193908749,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_flows_per_src": {
+      "correlated_with": "total_packets",
+      "correlation": 0.7787157445675688,
+      "variance": 9148.53031480195,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_kurtosis": {
+      "correlated_with": "duration_max",
+      "correlation": 0.7708765411636703,
+      "variance": 193839.74412673837,
+      "kept_variance": 164288.76560910876,
+      "reason": "Lower variance than correlated feature"
+    },
+    "duration_cv": {
+      "correlated_with": "duration_variance",
+      "correlation": 0.7681600670547353,
+      "variance": 0.5530128759292523,
+      "kept_variance": 171848.98450932026,
+      "reason": "Lower variance than correlated feature"
+    },
+    "psh_flag_ratio": {
+      "correlated_with": "registered_port_ratio",
+      "correlation": -0.7493945374047141,
+      "variance": 0.00012121068490989764,
+      "kept_variance": 0.0005216104291504989,
+      "reason": "Lower variance than correlated feature"
+    },
+    "max_ports_per_src": {
+      "correlated_with": "avg_dst_port_diversity",
+      "correlation": 0.728740995295658,
+      "variance": 9523.435632766073,
+      "kept_variance": 0.027875728111149748,
+      "reason": "Lower variance than correlated feature"
+    },
+    "ack_flag_ratio": {
+      "correlated_with": "src_as_entropy",
+      "correlation": -0.7227406847086305,
+      "variance": 0.001407933311318303,
+      "kept_variance": 0.034315780056111266,
+      "reason": "Lower variance than correlated feature"
+    },
+    "zero_duration_ratio": {
+      "correlated_with": "avg_duration",
+      "correlation": -0.7188583660874467,
+      "variance": 0.0006612597391431422,
+      "kept_variance": 0.5684562440778287,
+      "reason": "Lower variance than correlated feature"
+    },
+    "rst_flag_ratio": {
+      "correlated_with": "connection_teardown_ratio",
+      "correlation": 0.7188271730693105,
+      "variance": 1.20174474800698e-06,
+      "kept_variance": 1.3896446775495879e-05,
+      "reason": "Lower variance than correlated feature"
+    },
+    "avg_packet_size": {
+      "correlated_with": "total_packets",
+      "correlation": 0.7146069723589615,
+      "variance": 5057.825433441116,
+      "kept_variance": 545285336187296.3,
+      "reason": "Lower variance than correlated feature"
+    },
+    "src_as_entropy": {
+      "correlated_with": "avg_duration",
+      "correlation": 0.7069946167836855,
+      "variance": 0.034315780056111266,
+      "kept_variance": 0.5684562440778287,
+      "reason": "Lower variance than correlated feature"
+    }
+  },
+  "summary": {
+    "total_empty": 9,
+    "total_correlated": 121,
+    "total_dropped": 130
+  }
+}

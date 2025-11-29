@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-19T06:02:00.823962",
+  "model_name": "isolation_forest",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 10,
+  "threshold": 0.1006026471408639,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

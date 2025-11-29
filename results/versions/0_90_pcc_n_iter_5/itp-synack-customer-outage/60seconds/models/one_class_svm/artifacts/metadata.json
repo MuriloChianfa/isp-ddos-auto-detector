@@ -1,0 +1,22 @@
+{
+  "model_name": "one_class_svm",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 60,
+  "model_type": "OneClassSVMAnomalyDetector",
+  "save_timestamp": "2025-11-19T05:56:04.933729",
+  "model_info": {
+    "model_name": "one_class_svm",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 0.044013023376464844,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

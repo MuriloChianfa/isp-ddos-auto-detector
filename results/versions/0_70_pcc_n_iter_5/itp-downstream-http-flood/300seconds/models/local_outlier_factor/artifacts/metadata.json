@@ -1,0 +1,22 @@
+{
+  "model_name": "local_outlier_factor",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 300,
+  "model_type": "LocalOutlierFactorAnomalyDetector",
+  "save_timestamp": "2025-11-16T21:03:21.622246",
+  "model_info": {
+    "model_name": "local_outlier_factor",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 0.12637782096862793,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

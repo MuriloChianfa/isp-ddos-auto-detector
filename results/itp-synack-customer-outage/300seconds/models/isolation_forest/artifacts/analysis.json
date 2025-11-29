@@ -1,0 +1,41 @@
+{
+  "analysis_timestamp": "2025-11-21T03:34:33.018260",
+  "dataset_name": "itp-synack-customer-outage",
+  "model_name": "isolation_forest",
+  "time_span": 300,
+  "time_window_label": "300seconds",
+  "results_directory": "./results/itp-synack-customer-outage/300seconds/models/isolation_forest",
+  "artifacts_directory": "./results/itp-synack-customer-outage/300seconds/models/isolation_forest/artifacts",
+  "model_info": {
+    "model_name": "isolation_forest",
+    "dataset_name": "itp-synack-customer-outage",
+    "time_span": 300,
+    "is_trained": true,
+    "threshold": 0.1669340916398127,
+    "loaded_from_artifacts": false,
+    "training_time_seconds": 0.8683006763458252
+  },
+  "threshold_used": 0.1669340916398127,
+  "total_samples": 797,
+  "total_anomalies": 24,
+  "anomalies_csv_path": "./results/itp-synack-customer-outage/300seconds/models/isolation_forest/anomalies_detected.csv",
+  "evaluation_metrics": {
+    "true_positives": "23",
+    "true_negatives": "773",
+    "false_positives": "1",
+    "false_negatives": "0",
+    "precision": 0.9583333333333334,
+    "recall": 1.0,
+    "f1_score": 0.9787234042553191,
+    "accuracy": 0.998745294855709,
+    "false_positive_rate": 0.0012919896640826874,
+    "matthews_corrcoef": 0.9783124125615094,
+    "miss_rate": 0.0,
+    "fallout": 0.0012919896640826874,
+    "roc_auc_score": 0.9993540051679586,
+    "f2_score": 0.9913793103448276,
+    "total_samples": 797,
+    "attack_periods": "23",
+    "detected_anomalies": "24"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "best_parameters": {
+    "score": -0.002010087438640775,
+    "params": {
+      "learning_rate": 0.001,
+      "latent_dim": 9,
+      "hidden_layers": "[38, 26, 18]",
+      "batch_size": 64
+    }
+  },
+  "all_iterations": [
+    {
+      "iteration": 1,
+      "score": -0.002922114526261266,
+      "params": {
+        "learning_rate": 0.001,
+        "latent_dim": 4,
+        "hidden_layers": "[32, 19, 9]",
+        "batch_size": 32
+      }
+    },
+    {
+      "iteration": 2,
+      "score": -0.002324827401481111,
+      "params": {
+        "learning_rate": 0.01,
+        "latent_dim": 7,
+        "hidden_layers": "[36, 25, 15]",
+        "batch_size": 128
+      }
+    },
+    {
+      "iteration": 3,
+      "score": -0.0029712040910753203,
+      "params": {
+        "learning_rate": 0.01,
+        "latent_dim": 5,
+        "hidden_layers": "[36, 21, 10]",
+        "batch_size": 128
+      }
+    },
+    {
+      "iteration": 4,
+      "score": -0.002394132721478908,
+      "params": {
+        "learning_rate": 0.05,
+        "latent_dim": 16,
+        "hidden_layers": "[32, 25, 17]",
+        "batch_size": 128
+      }
+    },
+    {
+      "iteration": 5,
+      "score": -0.002010087438640775,
+      "params": {
+        "learning_rate": 0.001,
+        "latent_dim": 9,
+        "hidden_layers": "[38, 26, 18]",
+        "batch_size": 64
+      }
+    }
+  ]
+}

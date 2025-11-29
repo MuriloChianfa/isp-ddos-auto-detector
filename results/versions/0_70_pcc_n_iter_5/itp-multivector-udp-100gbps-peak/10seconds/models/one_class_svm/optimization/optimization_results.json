@@ -1,0 +1,93 @@
+{
+  "best_parameters": {
+    "score": 197.3537886940056,
+    "params": {
+      "nu": 0.01,
+      "kernel": "sigmoid",
+      "gamma": 0.0046,
+      "coef0": -1.0,
+      "cache_size": 54512,
+      "tol": 0.01,
+      "max_iter": -1,
+      "shrinking": true,
+      "verbose": false
+    }
+  },
+  "all_iterations": [
+    {
+      "iteration": 1,
+      "score": -2146.173751936921,
+      "params": {
+        "nu": 0.163,
+        "kernel": "sigmoid",
+        "gamma": 0.0002,
+        "coef0": 0.56,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 2,
+      "score": 197.3537886940056,
+      "params": {
+        "nu": 0.01,
+        "kernel": "sigmoid",
+        "gamma": 0.0046,
+        "coef0": -1.0,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 3,
+      "score": -462.8013758943027,
+      "params": {
+        "nu": 0.163,
+        "kernel": "sigmoid",
+        "gamma": 0.001,
+        "coef0": 0.11,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 4,
+      "score": -503.3979286317293,
+      "params": {
+        "nu": 0.178,
+        "kernel": "sigmoid",
+        "gamma": 0.0046,
+        "coef0": 0.11,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 5,
+      "score": -392.3190377952563,
+      "params": {
+        "nu": 0.224,
+        "kernel": "sigmoid",
+        "gamma": 0.0464,
+        "coef0": 0.11,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    }
+  ]
+}

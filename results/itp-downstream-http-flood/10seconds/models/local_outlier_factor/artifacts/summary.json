@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-21T03:42:35.270628",
+  "model_name": "local_outlier_factor",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 10,
+  "threshold": 19.21407819065547,
+  "files": {
+    "model": "model.pkl",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

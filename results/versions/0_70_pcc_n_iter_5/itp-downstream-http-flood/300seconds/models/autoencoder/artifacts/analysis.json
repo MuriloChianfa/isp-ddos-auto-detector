@@ -1,0 +1,41 @@
+{
+  "analysis_timestamp": "2025-11-16T21:03:07.114565",
+  "dataset_name": "itp-downstream-http-flood",
+  "model_name": "autoencoder",
+  "time_span": 300,
+  "time_window_label": "300seconds",
+  "results_directory": "./results/itp-downstream-http-flood/300seconds/models/autoencoder",
+  "artifacts_directory": "./results/itp-downstream-http-flood/300seconds/models/autoencoder/artifacts",
+  "model_info": {
+    "model_name": "autoencoder",
+    "dataset_name": "itp-downstream-http-flood",
+    "time_span": 300,
+    "is_trained": true,
+    "threshold": 1.3085826773068785,
+    "loaded_from_artifacts": false,
+    "training_time_seconds": 33.922600746154785
+  },
+  "threshold_used": 1.3085826773068785,
+  "total_samples": 466,
+  "total_anomalies": 9,
+  "anomalies_csv_path": "./results/itp-downstream-http-flood/300seconds/models/autoencoder/anomalies_detected.csv",
+  "evaluation_metrics": {
+    "true_positives": "7",
+    "true_negatives": "457",
+    "false_positives": "2",
+    "false_negatives": "0",
+    "precision": 0.7777777777777778,
+    "recall": 1.0,
+    "f1_score": 0.8750000000000001,
+    "accuracy": 0.9957081545064378,
+    "false_positive_rate": 0.004357298474945534,
+    "matthews_corrcoef": 0.8799936180750518,
+    "miss_rate": 0.0,
+    "fallout": 0.004357298474945534,
+    "roc_auc_score": 0.9978213507625273,
+    "f2_score": 0.9459459459459459,
+    "total_samples": 466,
+    "attack_periods": "7",
+    "detected_anomalies": "9"
+  }
+}

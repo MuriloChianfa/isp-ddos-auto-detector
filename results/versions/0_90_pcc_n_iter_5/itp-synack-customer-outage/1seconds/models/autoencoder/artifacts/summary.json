@@ -1,0 +1,14 @@
+{
+  "artifacts_saved": true,
+  "saved_at": "2025-11-19T06:45:55.592084",
+  "model_name": "autoencoder",
+  "dataset_name": "itp-synack-customer-outage",
+  "time_span": 1,
+  "threshold": 0.5028010356267189,
+  "files": {
+    "model": "model.keras",
+    "scaler": "scaler.pkl",
+    "threshold": "threshold.json",
+    "metadata": "metadata.json"
+  }
+}

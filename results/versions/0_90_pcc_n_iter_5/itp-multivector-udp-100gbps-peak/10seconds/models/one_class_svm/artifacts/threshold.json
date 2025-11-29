@@ -1,0 +1,31 @@
+{
+  "selected_threshold": 0.05616099882935038,
+  "selected_strategy": "percentile_99_5",
+  "is_trained": true,
+  "all_strategies": {
+    "normal_mse_mean": -0.14622678799509722,
+    "mean_plus_1std": 0.3188963256231282,
+    "mean_plus_2std": 0.7840194392413535,
+    "mean_plus_3std": 1.249142552859579,
+    "mse_plus_3std": 1.249142552859579,
+    "mse_plus_4std": 1.7142656664778044,
+    "mse_plus_4_5std": 1.9468272232869173,
+    "mse_plus_5std": 2.17938878009603,
+    "mse_plus_5_5std": 2.4119503369051425,
+    "mse_plus_6std": 2.644511893714255,
+    "mse_plus_8std": 3.574758120950706,
+    "mse_plus_15std": 6.830619916278284,
+    "mse_plus_30std": 13.807466620551665,
+    "mse_plus_35std": 16.133082188642792,
+    "mse_plus_38std": 17.528451529497467,
+    "mse_plus_80std": 37.063622301462935,
+    "mse_plus_40std": 18.45869775673392,
+    "exponential_threshold": 90.46873742301605,
+    "sigmoid_threshold": 0.777151397679026,
+    "percentile_95": -0.0047645351446093005,
+    "percentile_99": 0.03942991469262863,
+    "percentile_99_5": 0.05616099882935038,
+    "percentile_99_9": 0.08017655160164468
+  },
+  "threshold": 0.05616099882935038
+}

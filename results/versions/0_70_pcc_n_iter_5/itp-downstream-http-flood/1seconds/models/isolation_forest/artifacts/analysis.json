@@ -1,0 +1,41 @@
+{
+  "analysis_timestamp": "2025-11-16T21:30:02.732966",
+  "dataset_name": "itp-downstream-http-flood",
+  "model_name": "isolation_forest",
+  "time_span": 1,
+  "time_window_label": "1seconds",
+  "results_directory": "./results/itp-downstream-http-flood/1seconds/models/isolation_forest",
+  "artifacts_directory": "./results/itp-downstream-http-flood/1seconds/models/isolation_forest/artifacts",
+  "model_info": {
+    "model_name": "isolation_forest",
+    "dataset_name": "itp-downstream-http-flood",
+    "time_span": 1,
+    "is_trained": true,
+    "threshold": 0.12507724943269657,
+    "loaded_from_artifacts": false,
+    "training_time_seconds": 2.2230029106140137
+  },
+  "threshold_used": 0.12507724943269657,
+  "total_samples": 139510,
+  "total_anomalies": 887,
+  "anomalies_csv_path": "./results/itp-downstream-http-flood/1seconds/models/isolation_forest/anomalies_detected.csv",
+  "evaluation_metrics": {
+    "true_positives": "310",
+    "true_negatives": "138614",
+    "false_positives": "577",
+    "false_negatives": "9",
+    "precision": 0.34949267192784667,
+    "recall": 0.9717868338557993,
+    "f1_score": 0.5140961857379768,
+    "accuracy": 0.9957995842591929,
+    "false_positive_rate": 0.004145382962978928,
+    "matthews_corrcoef": 0.5814815325575421,
+    "miss_rate": 0.02821316614420063,
+    "fallout": 0.004145382962978928,
+    "roc_auc_score": 0.9838207254464101,
+    "f2_score": 0.7165973185390662,
+    "total_samples": 139510,
+    "attack_periods": "319",
+    "detected_anomalies": "887"
+  }
+}

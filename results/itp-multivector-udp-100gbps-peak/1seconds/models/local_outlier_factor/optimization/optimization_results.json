@@ -1,0 +1,87 @@
+{
+  "best_parameters": {
+    "score": 1.2294514344098983,
+    "params": {
+      "p": 3,
+      "n_neighbors": 183,
+      "metric": "chebyshev",
+      "leaf_size": 83,
+      "contamination": 0.01,
+      "algorithm": "ball_tree",
+      "novelty": true,
+      "n_jobs": -1
+    }
+  },
+  "all_iterations": [
+    {
+      "iteration": 1,
+      "score": 1.1545718828579112,
+      "params": {
+        "p": 1,
+        "n_neighbors": 167,
+        "metric": "manhattan",
+        "leaf_size": 170,
+        "contamination": 0.129,
+        "algorithm": "ball_tree",
+        "novelty": true,
+        "n_jobs": -1
+      }
+    },
+    {
+      "iteration": 2,
+      "score": 1.2294514344098983,
+      "params": {
+        "p": 3,
+        "n_neighbors": 183,
+        "metric": "chebyshev",
+        "leaf_size": 83,
+        "contamination": 0.01,
+        "algorithm": "ball_tree",
+        "novelty": true,
+        "n_jobs": -1
+      }
+    },
+    {
+      "iteration": 3,
+      "score": 1.17047362017169,
+      "params": {
+        "p": 2,
+        "n_neighbors": 134,
+        "metric": "minkowski",
+        "leaf_size": 53,
+        "contamination": 0.164,
+        "algorithm": "kd_tree",
+        "novelty": true,
+        "n_jobs": -1
+      }
+    },
+    {
+      "iteration": 4,
+      "score": 1.1396561000544116,
+      "params": {
+        "p": 2,
+        "n_neighbors": 20,
+        "metric": "manhattan",
+        "leaf_size": 24,
+        "contamination": 0.061,
+        "algorithm": "ball_tree",
+        "novelty": true,
+        "n_jobs": -1
+      }
+    },
+    {
+      "iteration": 5,
+      "score": 1.1613286709230326,
+      "params": {
+        "p": 1,
+        "n_neighbors": 52,
+        "metric": "euclidean",
+        "leaf_size": 97,
+        "contamination": 0.01,
+        "algorithm": "kd_tree",
+        "novelty": true,
+        "n_jobs": -1
+      }
+    }
+  ]
+}

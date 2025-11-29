@@ -1,0 +1,87 @@
+{
+  "best_parameters": {
+    "score": -1.2556917225549917,
+    "params": {
+      "nu": 0.01,
+      "kernel": "rbf",
+      "gamma": 0.0046,
+      "cache_size": 54512,
+      "tol": 0.01,
+      "max_iter": -1,
+      "shrinking": true,
+      "verbose": false
+    }
+  },
+  "all_iterations": [
+    {
+      "iteration": 1,
+      "score": -45.62596440729809,
+      "params": {
+        "nu": 0.163,
+        "kernel": "rbf",
+        "gamma": 0.0002,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 2,
+      "score": -1.2556917225549917,
+      "params": {
+        "nu": 0.01,
+        "kernel": "rbf",
+        "gamma": 0.0046,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 3,
+      "score": -40.830227915075774,
+      "params": {
+        "nu": 0.163,
+        "kernel": "rbf",
+        "gamma": 0.001,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 4,
+      "score": -28.4978022363727,
+      "params": {
+        "nu": 0.178,
+        "kernel": "rbf",
+        "gamma": 0.0046,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    },
+    {
+      "iteration": 5,
+      "score": -2.5546671790111697,
+      "params": {
+        "nu": 0.224,
+        "kernel": "rbf",
+        "gamma": 0.0464,
+        "cache_size": 54512,
+        "tol": 0.01,
+        "max_iter": -1,
+        "shrinking": true,
+        "verbose": false
+      }
+    }
+  ]
+}

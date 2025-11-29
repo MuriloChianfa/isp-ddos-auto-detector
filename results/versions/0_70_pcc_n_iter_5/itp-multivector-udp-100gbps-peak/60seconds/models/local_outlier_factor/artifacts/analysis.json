@@ -1,0 +1,41 @@
+{
+  "analysis_timestamp": "2025-11-16T21:10:06.292477",
+  "dataset_name": "itp-multivector-udp-100gbps-peak",
+  "model_name": "local_outlier_factor",
+  "time_span": 60,
+  "time_window_label": "60seconds",
+  "results_directory": "./results/itp-multivector-udp-100gbps-peak/60seconds/models/local_outlier_factor",
+  "artifacts_directory": "./results/itp-multivector-udp-100gbps-peak/60seconds/models/local_outlier_factor/artifacts",
+  "model_info": {
+    "model_name": "local_outlier_factor",
+    "dataset_name": "itp-multivector-udp-100gbps-peak",
+    "time_span": 60,
+    "is_trained": true,
+    "threshold": 5.560329035109647,
+    "loaded_from_artifacts": false,
+    "training_time_seconds": 0.18592476844787598
+  },
+  "threshold_used": 5.560329035109647,
+  "total_samples": 5881,
+  "total_anomalies": 237,
+  "anomalies_csv_path": "./results/itp-multivector-udp-100gbps-peak/60seconds/models/local_outlier_factor/anomalies_detected.csv",
+  "evaluation_metrics": {
+    "true_positives": "41",
+    "true_negatives": "5644",
+    "false_positives": "196",
+    "false_negatives": "0",
+    "precision": 0.1729957805907173,
+    "recall": 1.0,
+    "f1_score": 0.2949640287769784,
+    "accuracy": 0.9666723346369666,
+    "false_positive_rate": 0.03356164383561644,
+    "matthews_corrcoef": 0.40888844177534195,
+    "miss_rate": 0.0,
+    "fallout": 0.03356164383561644,
+    "roc_auc_score": 0.9832191780821917,
+    "f2_score": 0.5112219451371571,
+    "total_samples": 5881,
+    "attack_periods": "41",
+    "detected_anomalies": "237"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "model_name": "one_class_svm",
+  "dataset_name": "itp-downstream-http-flood",
+  "time_span": 10,
+  "model_type": "OneClassSVMAnomalyDetector",
+  "save_timestamp": "2025-11-19T05:59:11.023671",
+  "model_info": {
+    "model_name": "one_class_svm",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 0.0528104305267334,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}

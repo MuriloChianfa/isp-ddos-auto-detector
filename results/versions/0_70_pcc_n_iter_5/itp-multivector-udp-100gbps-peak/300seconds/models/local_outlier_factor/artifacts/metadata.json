@@ -1,0 +1,22 @@
+{
+  "model_name": "local_outlier_factor",
+  "dataset_name": "itp-multivector-udp-100gbps-peak",
+  "time_span": 300,
+  "model_type": "LocalOutlierFactorAnomalyDetector",
+  "save_timestamp": "2025-11-16T21:06:02.447026",
+  "model_info": {
+    "model_name": "local_outlier_factor",
+    "is_trained": true,
+    "has_threshold": false,
+    "threshold_value": null
+  },
+  "training_time_seconds": 0.01895594596862793,
+  "training_history": {
+    "loss": [
+      0.1
+    ],
+    "val_loss": [
+      0.1
+    ]
+  }
+}
