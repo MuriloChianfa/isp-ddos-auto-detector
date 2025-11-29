@@ -24,9 +24,15 @@ This research presents a comprehensive machine learning framework for unsupervis
   <summary style="font-size: 16px;"><strong>Setup Environment</strong></summary>
 
   ```bash
+  # Firstly, install Git LFS
+  git lfs install
+
   # Clone the repository
   git clone https://github.com/MuriloChianfa/isp-ddos-auto-detector.git
   cd isp-ddos-auto-detector
+
+  # Pull large files, like derived datasets
+  git lfs pull
 
   # Create conda environment from specification
   conda env create -f environment.yml
@@ -60,9 +66,11 @@ This research presents a comprehensive machine learning framework for unsupervis
   <summary style="font-size: 16px;"><strong>Basic Examples</strong></summary>
 
   ```bash
-  # List available datasets and models
-  python main.py --list-datasets
+  # List available models
   python main.py --list-models
+
+  # List available datasets
+  python main.py --list-datasets
 
   # Show all possible commands
   python main.py --help
