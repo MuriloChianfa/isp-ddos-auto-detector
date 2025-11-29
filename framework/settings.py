@@ -4,13 +4,14 @@ Handles validation of model parameters, dataset configuration, and feature setti
 """
 
 import os
+import logging
 from typing import Dict, List, Optional
-from config import DATASETS, DEFAULT_DATASET
-from typing import Dict, Optional, List
 from config import DATASETS, DEFAULT_DATASET
 from framework.models import list_available_models, get_model_descriptions
 from framework.utils import get_time_span_description, get_time_span_detailed_description
 from framework.constants import SUPPORTED_TIME_SPANS
+
+logger = logging.getLogger(__name__)
 
 
 class SettingsManager:
@@ -247,3 +248,74 @@ class SettingsManager:
             print("Note: Using fallback configurations where window-specific settings are missing.")
             
         return True, dataset_config
+
+
+def get_feature_config(dataset_name: str, time_span: int, model_name: Optional[str] = None) -> Optional[List[str]]:
+    """
+    Get feature configuration with automatic optimal feature loading.
+    
+    Priority order:
+    1. Config feature_config (highest priority - explicit overrides)
+    2. Optimal features from correlation analysis (auto-loaded from results/)
+    3. None (fallback - use all available features)
+    
+    Args:
+        dataset_name: Name of the dataset
+        time_span: Time span in seconds
+        model_name: Optional model name for model-specific feature configs
+        
+    Returns:
+        List of feature names or None (use all features)
+    """
+    from framework.optimal import load_optimal_features
+    
+    feature_config = None
+    feature_source = "all features"
+    
+    # Try to load optimal features
+    optimal_features = load_optimal_features(dataset_name, str(time_span))
+    if optimal_features:
+        feature_config = optimal_features
+        feature_source = "optimal"
+        logger.debug(f"Loaded optimal features for {dataset_name} ({time_span}s)")
+    else:
+        logger.warning(f"No optimal features found for {dataset_name} ({time_span}s), using all available features")
+    
+    # Check for explicit config override
+    dataset_config = DATASETS.get(dataset_name, {})
+    
+    # Dataset-level feature_config (lower priority)
+    if 'feature_config' in dataset_config:
+        feature_config = dataset_config['feature_config']
+        feature_source = "config (dataset-level)"
+    
+    # Window-level feature_config (higher priority)
+    window_config = dataset_config.get('windows', {}).get(str(time_span), {})
+    if 'feature_config' in window_config:
+        window_feature_config = window_config['feature_config']
+        
+        # Check if it's a dict with model-specific configs
+        if isinstance(window_feature_config, dict):
+            is_model_specific = any(
+                key in ['autoencoder', 'isolation_forest', 'one_class_svm', 'local_outlier_factor']
+                for key in window_feature_config.keys()
+            )
+            
+            if is_model_specific and model_name:
+                # Model-specific config available
+                if model_name in window_feature_config:
+                    feature_config = window_feature_config[model_name]
+                    feature_source = f"config (model-specific: {model_name})"
+            else:
+                # It's a general dict config or list
+                feature_config = window_feature_config
+                feature_source = "config (window-level)"
+        else:
+            # It's a list
+            feature_config = window_feature_config
+            feature_source = "config (window-level)"
+    
+    if feature_config:
+        logger.debug(f"Final features source for {dataset_name} ({time_span}s): {feature_source}")
+    
+    return feature_config

@@ -4,7 +4,6 @@ Generates comprehensive comparisons of ROC-AUC, Precision-Recall and other metri
 across multiple models, datasets, and time windows.
 """
 
-import argparse
 import os
 import pandas as pd
 import numpy as np
@@ -65,7 +64,10 @@ class CrossEvaluator:
         
         for file_path in analysis_files:
             try:
-                # Parse path structure
+                # Skip files in the versions folder
+                if 'versions' in file_path.parts:
+                    continue
+                
                 parts = file_path.parts
                 
                 if 'results' in parts and 'models' in parts:
@@ -267,6 +269,10 @@ class CrossEvaluator:
         # Process ROC curves
         for file_path in roc_files:
             try:
+                # Skip files in the versions folder
+                if 'versions' in file_path.parts:
+                    continue
+                
                 parts = file_path.parts
                 
                 if 'results' in parts and 'models' in parts:
@@ -304,6 +310,10 @@ class CrossEvaluator:
         # Process PR curves
         for file_path in pr_files:
             try:
+                # Skip files in the versions folder
+                if 'versions' in file_path.parts:
+                    continue
+                
                 parts = file_path.parts
                 
                 if 'results' in parts and 'models' in parts:
@@ -488,7 +498,6 @@ class CrossEvaluator:
         axes[0, 0].set_xticks(range(len(model_avg)))
         axes[0, 0].set_xticklabels(model_avg.index, rotation=45, ha='right')
         axes[0, 0].set_ylabel('Average ROC-AUC Score')
-        # axes[0, 0].set_title('By Model (avg across datasets & windows)')
         axes[0, 0].set_title('By Model')
         axes[0, 0].grid(True, alpha=0.3, axis='y')
         axes[0, 0].set_ylim([0, 1])
@@ -504,7 +513,6 @@ class CrossEvaluator:
         axes[0, 1].set_xticklabels([d[:20] for d in dataset_avg.index], rotation=45, ha='right')
         axes[0, 1].set_ylabel('Average ROC-AUC Score')
         axes[0, 1].set_title('By Dataset')
-        # axes[0, 1].set_title('By Dataset (avg across models & windows)')
         axes[0, 1].grid(True, alpha=0.3, axis='y')
         axes[0, 1].set_ylim([0, 1])
         
@@ -518,7 +526,6 @@ class CrossEvaluator:
         axes[1, 0].set_xticklabels(window_avg.index, rotation=45, ha='right')
         axes[1, 0].set_ylabel('Average ROC-AUC Score')
         axes[1, 0].set_title('By Time Window')
-        # axes[1, 0].set_title('By Time Window (avg across models & datasets)')
         axes[1, 0].grid(True, alpha=0.3, axis='y')
         axes[1, 0].set_ylim([0, 1])
         
@@ -717,8 +724,6 @@ class CrossEvaluator:
                    ax=axes[0], vmin=0, vmax=1, cbar_kws={'label': 'ROC-AUC'})
         axes[0].set_title('ROC-AUC: Models vs Datasets', 
                          fontsize=12, fontweight='bold')
-        # axes[0].set_title('ROC-AUC: Models vs Datasets (avg across windows)', 
-        #                  fontsize=12, fontweight='bold')
         axes[0].set_xlabel('Dataset', fontsize=11)
         axes[0].set_ylabel('Model', fontsize=11)
         
@@ -727,8 +732,6 @@ class CrossEvaluator:
                    ax=axes[1], vmin=0, vmax=1, cbar_kws={'label': 'F1-Score'})
         axes[1].set_title('F1-Score: Models vs Datasets', 
                          fontsize=12, fontweight='bold')
-        # axes[1].set_title('F1-Score: Models vs Datasets (avg across windows)', 
-        #                  fontsize=12, fontweight='bold')
         axes[1].set_xlabel('Dataset', fontsize=11)
         axes[1].set_ylabel('Model', fontsize=11)
         
@@ -757,8 +760,6 @@ class CrossEvaluator:
         
         sns.heatmap(pivot_roc_windows, annot=True, fmt='.3f', cmap='RdYlGn',
                    ax=axes[0], vmin=0, vmax=1, cbar_kws={'label': 'ROC-AUC'})
-        # axes[0].set_title('ROC-AUC: Models vs Time Windows (avg across datasets)', 
-        #                  fontsize=12, fontweight='bold')
         axes[0].set_title('ROC-AUC: Models vs Time Windows', 
                          fontsize=12, fontweight='bold')
         axes[0].set_xlabel('Time Window', fontsize=11)
@@ -768,8 +769,6 @@ class CrossEvaluator:
                    ax=axes[1], vmin=0, vmax=1, cbar_kws={'label': 'F1-Score'})
         axes[1].set_title('F1-Score: Models vs Time Windows', 
                          fontsize=12, fontweight='bold')
-        # axes[1].set_title('F1-Score: Models vs Time Windows (avg across datasets)', 
-        #                  fontsize=12, fontweight='bold')
         axes[1].set_xlabel('Time Window', fontsize=11)
         axes[1].set_ylabel('Model', fontsize=11)
         
@@ -847,98 +846,28 @@ class CrossEvaluator:
         print("="*70 + "\n")
 
 
-def parse_args():
-    """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(
-        description='Cross-Evaluation Tool for DDoS Detection Models',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Evaluate all models across all datasets and windows
-  python cross.py
-  
-  # Evaluate specific datasets
-  python cross.py --datasets itp-downstream-http-flood itp-synack-customer-outage
-  
-  # Evaluate specific time windows
-  python cross.py --windows 1seconds 60seconds 300seconds
-  
-  # Evaluate specific models only
-  python cross.py --models autoencoder isolation_forest
-  
-  # Combined filters
-  python cross.py --datasets itp-multivector-udp-100gbps-peak --windows 10seconds --models autoencoder
-  
-  # Force regeneration of missing curve data without prompting
-  python cross.py --regenerate-curves
-        """
-    )
+def run_cross_evaluation(datasets=None, windows=None, models=None, 
+                        results_dir='./results', output_dir='./results/cross_evaluation',
+                        regenerate_curves=False):
+    """
+    Main function to run cross-evaluation analysis
     
-    parser.add_argument(
-        '--datasets', '-d',
-        type=str,
-        nargs='+',
-        default=None,
-        help='Datasets to evaluate (default: all available)'
-    )
-    
-    parser.add_argument(
-        '--windows', '-w',
-        type=str,
-        nargs='+',
-        default=None,
-        help='Time windows to evaluate (e.g., 1seconds 60seconds 300seconds)'
-    )
-    
-    parser.add_argument(
-        '--models', '-m',
-        type=str,
-        nargs='+',
-        default=None,
-        help='Models to evaluate (default: all available)'
-    )
-    
-    parser.add_argument(
-        '--results-dir',
-        type=str,
-        default='./results',
-        help='Base directory containing model results (default: ./results)'
-    )
-    
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='./results/cross_evaluation',
-        help='Output directory for cross-evaluation results (default: ./results/cross_evaluation)'
-    )
-    
-    parser.add_argument(
-        '--regenerate-curves',
-        action='store_true',
-        help='Automatically regenerate missing curve data without prompting'
-    )
-    
-    return parser.parse_args()
-
-
-def main():
-    """Main entry point"""
-    args = parse_args()
-    
-    # Initialize evaluator
+    Args:
+        datasets: List of dataset names to include (None = all)
+        windows: List of time windows to include (None = all)
+        models: List of model names to include (None = all)
+        results_dir: Base directory containing model results
+        output_dir: Output directory for cross-evaluation results
+        regenerate_curves: If True, automatically regenerate missing curve data
+    """
     evaluator = CrossEvaluator(
-        results_base_dir=args.results_dir,
-        output_dir=args.output_dir
+        results_base_dir=results_dir,
+        output_dir=output_dir
     )
     
-    # Run cross-evaluation
     evaluator.run_cross_evaluation(
-        datasets=args.datasets,
-        windows=args.windows,
-        models=args.models,
-        auto_regenerate=args.regenerate_curves
+        datasets=datasets,
+        windows=windows,
+        models=models,
+        auto_regenerate=regenerate_curves
     )
-
-
-if __name__ == "__main__":
-    main()

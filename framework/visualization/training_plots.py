@@ -1,6 +1,11 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import os
+import gc
 from ..utils import get_results_path
+
+plt.ioff()  # Disable interactive mode
 
 
 class TrainingVisualizer:
@@ -55,6 +60,8 @@ class TrainingVisualizer:
         filename = os.path.join(self.results_dir, f"training_history.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Training history plot saved to: {filename}")
         return filename

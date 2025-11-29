@@ -114,7 +114,18 @@ class IsolationForestRandomSearch(RandomSearchOptimizer):
         if X_val is None:
             X_val = X_train
             
+        # Get base parameter distributions
         param_distributions = self.get_param_distributions()
+        
+        # Adjust max_samples based on training data size
+        n_samples = len(X_train)
+        max_samples_limit = min(n_samples, 512)
+        if max_samples_limit < 64:
+            # For very small datasets, use smaller values
+            param_distributions['max_samples'] = [int(x) for x in np.linspace(max(10, n_samples // 4), n_samples, 10)] + ['auto']
+        else:
+            # Adjust the upper limit to not exceed training samples
+            param_distributions['max_samples'] = [int(x) for x in np.linspace(64, max_samples_limit, 20)] + ['auto']
         
         # Sample parameters
         param_list = list(ParameterSampler(
@@ -130,6 +141,8 @@ class IsolationForestRandomSearch(RandomSearchOptimizer):
         
         for i, params in enumerate(param_list, 1):
             try:
+                print(f"\rOptimization progress: [{i}/{self.n_iter}] Testing parameters...", end='', flush=True)
+                
                 # Train model with current parameters
                 model = IsolationForest(
                     random_state=self.random_state,
@@ -152,14 +165,18 @@ class IsolationForestRandomSearch(RandomSearchOptimizer):
                 if score > best_score:
                     best_score = score
                     best_params = params
-                    logger.info(f"Iteration {i}/{self.n_iter}: New best score = {score:.6f}")
+                    print(f"\rIteration {i}/{self.n_iter}: New best score = {score:.6f}")
                     logger.info(f"  Params: {params}")
                 else:
                     logger.debug(f"Iteration {i}/{self.n_iter}: Score = {score:.6f}")
                     
             except Exception as e:
+                print(f"\rIteration {i}/{self.n_iter}: Failed")
                 logger.warning(f"Iteration {i} failed with params {params}: {e}")
                 continue
+        
+        # Clear progress line
+        print()
         
         self.best_params_ = best_params
         self.best_score_ = best_score
@@ -246,13 +263,48 @@ class OneClassSVMRandomSearch(RandomSearchOptimizer):
         ))
         
         logger.info(f"Starting One-Class SVM random search with {self.n_iter} iterations...")
+        logger.info(f"Training samples: {len(X_train)}, Validation samples: {len(X_val)}")
         logger.info(f"Performance settings: cache_size={self.cache_size}MB, tol={self.tol}, shrinking={self.shrinking}")
+        
+        # Initialize original_y_val
+        original_y_val = None
+        
+        # For large datasets, sample training data for faster optimization
+        # One-Class SVM is O(n^2) to O(n^3) in complexity, so large datasets are very slow
+        max_train_samples = 50000  # Reasonable size for optimization
+        if len(X_train) > max_train_samples:
+            train_sample_indices = np.random.choice(len(X_train), max_train_samples, replace=False)
+            X_train_sample = X_train[train_sample_indices]
+            logger.info(f"Subsampling training data: {len(X_train)} -> {max_train_samples} samples for faster optimization")
+            print(f"Note: Using {max_train_samples:,} training samples (of {len(X_train):,}) for faster optimization")
+        else:
+            X_train_sample = X_train
+        
+        # For large datasets, sample validation data for faster scoring
+        max_val_samples = 25000
+        if len(X_val) > max_val_samples:
+            val_sample_indices = np.random.choice(len(X_val), max_val_samples, replace=False)
+            X_val_sample = X_val[val_sample_indices]
+            if self.y_val is not None:
+                y_val_sample = self.y_val[val_sample_indices]
+                # Temporarily store original y_val and use sample
+                original_y_val = self.y_val
+                self.y_val = y_val_sample
+            logger.info(f"Subsampling validation data: {len(X_val)} -> {max_val_samples} samples for faster scoring")
+            print(f"Note: Using {max_val_samples:,} validation samples (of {len(X_val):,}) for faster scoring")
+        else:
+            X_val_sample = X_val
         
         best_score = float('-inf')
         best_params = None
         
         for i, params in enumerate(param_list, 1):
             try:
+                import time
+                start_time = time.time()
+                
+                print(f"\rOptimization progress: [{i}/{self.n_iter}] Testing parameters...", end='', flush=True)
+                
                 # Remove irrelevant params based on kernel
                 kernel = params['kernel']
                 if kernel == 'rbf':
@@ -260,6 +312,10 @@ class OneClassSVMRandomSearch(RandomSearchOptimizer):
                     params.pop('coef0', None)
                 elif kernel == 'sigmoid':
                     params.pop('degree', None)
+                
+                logger.info(f"\n{'='*60}")
+                logger.info(f"Iteration {i}/{self.n_iter}")
+                logger.info(f"Parameters: {params}")
                 
                 # Add performance optimization parameters
                 params['cache_size'] = self.cache_size
@@ -269,17 +325,26 @@ class OneClassSVMRandomSearch(RandomSearchOptimizer):
                 params['verbose'] = False
                     
                 # Train model with current parameters
+                print(f"\rIteration {i}/{self.n_iter}: Training with nu={params.get('nu'):.3f}, kernel={params.get('kernel')}...", end='', flush=True)
                 model = OneClassSVM(**params)
-                model.fit(X_train)
+                model.fit(X_train_sample)
+                train_time = time.time() - start_time
+                logger.info(f"Training completed in {train_time:.2f} seconds")
                 
                 # Score on validation set
-                score = self.score_model(model, X_val)
+                score_start = time.time()
+                score = self.score_model(model, X_val_sample)
+                score_time = time.time() - score_start
+                total_time = time.time() - start_time
+                logger.info(f"Scoring completed in {score_time:.2f} seconds (total: {total_time:.2f}s)")
                 
                 # Store results
                 result = {
                     'params': params.copy(),
                     'score': score,
-                    'iteration': i
+                    'iteration': i,
+                    'train_time': train_time,
+                    'score_time': score_time
                 }
                 self.cv_results_.append(result)
                 
@@ -287,14 +352,22 @@ class OneClassSVMRandomSearch(RandomSearchOptimizer):
                 if score > best_score:
                     best_score = score
                     best_params = params.copy()
-                    logger.info(f"Iteration {i}/{self.n_iter}: New best score = {score:.6f}")
+                    print(f"\rIteration {i}/{self.n_iter}: New best score = {score:.6f} (time: {total_time:.1f}s)")
                     logger.info(f"  Params: {params}")
                 else:
                     logger.debug(f"Iteration {i}/{self.n_iter}: Score = {score:.6f}")
                     
             except Exception as e:
+                print(f"\rIteration {i}/{self.n_iter}: Failed")
                 logger.warning(f"Iteration {i} failed with params {params}: {e}")
                 continue
+        
+        # Clear progress line
+        print()
+        
+        # Restore original y_val if it was sampled
+        if original_y_val is not None:
+            self.y_val = original_y_val
         
         self.best_params_ = best_params
         self.best_score_ = best_score
@@ -312,10 +385,11 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
     def get_param_distributions(self) -> Dict:
         """Define parameter distributions for random search"""
         return {
-            'n_neighbors': [int(x) for x in np.linspace(5, 100, 20)],
-            'contamination': [round(x, 3) for x in np.linspace(0.01, 0.30, 20)],
-            'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
-            'leaf_size': [int(x) for x in np.linspace(10, 100, 10)],
+            'n_neighbors': [int(x) for x in np.linspace(20, 200, 12)],
+            'contamination': [round(x, 3) for x in np.linspace(0.01, 0.30, 18)],
+            # 'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+            'algorithm': ['ball_tree', 'kd_tree'],
+            'leaf_size': [int(x) for x in np.linspace(10, 200, 14)],
             'metric': ['minkowski', 'euclidean', 'manhattan', 'chebyshev'],
             'p': [1, 2, 3]  # For minkowski metric
         }
@@ -352,7 +426,7 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
         
         # For large datasets, sample training data for faster optimization
         # LOF is O(n^2) in complexity, so large datasets are very slow
-        max_train_samples = 50000  # Reasonable size for optimization
+        max_train_samples = 100000  # Reasonable size for optimization
         if len(X_train) > max_train_samples:
             train_sample_indices = np.random.choice(len(X_train), max_train_samples, replace=False)
             X_train_sample = X_train[train_sample_indices]
@@ -362,7 +436,7 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
             X_train_sample = X_train
         
         # For large datasets, sample validation data for faster scoring
-        max_val_samples = 10000
+        max_val_samples = 50000
         if len(X_val) > max_val_samples:
             val_sample_indices = np.random.choice(len(X_val), max_val_samples, replace=False)
             X_val_sample = X_val[val_sample_indices]
@@ -384,6 +458,8 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
                 import time
                 start_time = time.time()
                 
+                print(f"\rOptimization progress: [{i}/{self.n_iter}] Testing parameters...", end='', flush=True)
+                
                 # Add novelty=True for prediction
                 params['novelty'] = True
                 params['n_jobs'] = -1
@@ -392,28 +468,21 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
                 logger.info(f"\n{'='*60}")
                 logger.info(f"Iteration {i}/{self.n_iter}")
                 logger.info(f"Parameters: {params}")
-                print(f"\nOptimization iteration {i}/{self.n_iter}...")
                 
                 # Train model with current parameters
-                logger.info("Training model...")
-                print(f"  Training with params: n_neighbors={params.get('n_neighbors')}, contamination={params.get('contamination'):.3f}...")
+                print(f"\rIteration {i}/{self.n_iter}: Training with n_neighbors={params.get('n_neighbors')}, contamination={params.get('contamination'):.3f}...", end='', flush=True)
                 model = LocalOutlierFactor(**params)
                 model.fit(X_train_sample)
                 train_time = time.time() - start_time
                 logger.info(f"Training completed in {train_time:.2f} seconds")
-                print(f"  Training completed in {train_time:.1f}s")
                 
                 # Score on validation set
-                logger.info("Scoring on validation set...")
-                print(f"  Scoring...")
                 score_start = time.time()
                 score = self.score_model(model, X_val_sample)
                 score_time = time.time() - score_start
                 total_time = time.time() - start_time
                 logger.info(f"Scoring completed in {score_time:.2f} seconds (total: {total_time:.2f}s)")
-                print(f"  Score: {score:.6f} (completed in {total_time:.1f}s total)")
                 
-                # Store results
                 result = {
                     'params': params.copy(),
                     'score': score,
@@ -427,13 +496,18 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
                 if score > best_score:
                     best_score = score
                     best_params = params.copy()
-                    logger.info(f"NEW BEST SCORE: {score:.6f}")
+                    print(f"\rIteration {i}/{self.n_iter}: New best score = {score:.6f} (time: {total_time:.1f}s)")
+                    logger.info(f"  Params: {params}")
                 else:
-                    logger.info(f"Score: {score:.6f} (best so far: {best_score:.6f})")
+                    logger.debug(f"Iteration {i}/{self.n_iter}: Score = {score:.6f}")
                     
             except Exception as e:
+                print(f"\rIteration {i}/{self.n_iter}: Failed")
                 logger.warning(f"Iteration {i} failed with params {params}: {e}")
                 continue
+        
+        # Clear progress line
+        print()
         
         # Restore original y_val if it was sampled
         if original_y_val is not None:
@@ -449,10 +523,302 @@ class LocalOutlierFactorRandomSearch(RandomSearchOptimizer):
         return best_params, self.cv_results_
 
 
+class AutoencoderRandomSearch(RandomSearchOptimizer):
+    """Random search for Autoencoder hyperparameters"""
+    
+    def __init__(self, n_iter=50, random_state=42, scoring='f1_score', y_val=None, 
+                 input_dim=None, epochs=50, use_early_stopping=True):
+        """
+        Initialize Autoencoder optimizer
+        
+        Args:
+            n_iter: Number of parameter settings sampled
+            random_state: Random state for reproducibility
+            scoring: Scoring method (default: 'f1_score', options: 'f1_score', 'f2_score', 'mse_score')
+            y_val: True labels for validation set (required for f1_score and f2_score)
+            input_dim: Number of input features (required to scale architecture)
+            epochs: Number of training epochs per iteration (default: 50 for faster optimization)
+            use_early_stopping: Whether to use early stopping during training
+        """
+        super().__init__(n_iter, random_state, scoring, y_val)
+        self.input_dim = input_dim
+        self.epochs = epochs
+        self.use_early_stopping = use_early_stopping
+        
+        if input_dim is None:
+            raise ValueError("input_dim is required for autoencoder optimization")
+    
+    def get_param_distributions(self) -> Dict:
+        """Define parameter distributions for random search"""
+        # Generate hidden layer configurations based on input_dim
+        hidden_layers_options = self._generate_hidden_layer_configs()
+        
+        return {
+            'hidden_layers': hidden_layers_options,
+            'latent_dim': [int(x) for x in np.linspace(4, min(32, self.input_dim // 2), 10)],
+            'batch_size': [32, 64, 128],
+            'learning_rate': [0.001, 0.005, 0.01, 0.05]
+        }
+    
+    def _generate_hidden_layer_configs(self) -> List[List[int]]:
+        """
+        Generate hidden layer configurations scaled to input_dim
+        
+        Strategy:
+        - Number of layers: 2-4
+        - First layer: 60-95% of input_dim
+        - Subsequent layers: 50-80% of previous layer
+        - Ensure decreasing sizes
+        """
+        configs = []
+        
+        # 2-layer architectures
+        for first_pct in [0.6, 0.7, 0.8, 0.9]:
+            first_layer = min(self.input_dim - 1, max(4, int(self.input_dim * first_pct)))
+            for second_pct in [0.5, 0.6, 0.7]:
+                second_layer = max(4, int(first_layer * second_pct))
+                if second_layer < first_layer:
+                    configs.append([first_layer, second_layer])
+        
+        # 3-layer architectures
+        for first_pct in [0.7, 0.8, 0.9, 0.95]:
+            first_layer = min(self.input_dim - 1, max(4, int(self.input_dim * first_pct)))
+            for second_pct in [0.6, 0.7, 0.8]:
+                second_layer = max(4, int(first_layer * second_pct))
+                for third_pct in [0.5, 0.6, 0.7]:
+                    third_layer = max(4, int(second_layer * third_pct))
+                    if third_layer < second_layer < first_layer:
+                        configs.append([first_layer, second_layer, third_layer])
+        
+        # 4-layer architectures
+        for first_pct in [0.8, 0.9]:
+            first_layer = min(self.input_dim - 1, max(4, int(self.input_dim * first_pct)))
+            second_layer = max(4, int(first_layer * 0.75))
+            third_layer = max(4, int(second_layer * 0.7))
+            fourth_layer = max(4, int(third_layer * 0.6))
+            if fourth_layer < third_layer < second_layer < first_layer:
+                configs.append([first_layer, second_layer, third_layer, fourth_layer])
+        
+        # Remove duplicates while preserving order
+        unique_configs = []
+        seen = set()
+        for config in configs:
+            config_tuple = tuple(config)
+            if config_tuple not in seen:
+                seen.add(config_tuple)
+                unique_configs.append(config)
+        
+        return unique_configs
+    
+    def fit(self, X_train: np.ndarray, X_val: np.ndarray = None) -> Tuple[Dict, List]:
+        """
+        Perform random search for Autoencoder
+        
+        Args:
+            X_train: Training features (already scaled)
+            X_val: Validation features (already scaled, if None uses X_train)
+        
+        Returns:
+            best_params: Best parameters found
+            cv_results: All results from search
+        """
+        if X_val is None:
+            X_val = X_train
+        
+        param_distributions = self.get_param_distributions()
+        
+        # Sample parameters
+        param_list = list(ParameterSampler(
+            param_distributions,
+            n_iter=self.n_iter,
+            random_state=self.random_state
+        ))
+        
+        logger.info(f"Starting Autoencoder random search with {self.n_iter} iterations...")
+        logger.info(f"Input dimension: {self.input_dim}")
+        logger.info(f"Training samples: {len(X_train)}, Validation samples: {len(X_val)}")
+        logger.info(f"Epochs per iteration: {self.epochs}")
+        
+        best_score = float('-inf')
+        best_params = None
+        
+        for i, params in enumerate(param_list, 1):
+            try:
+                import time
+                start_time = time.time()
+                
+                print(f"\rOptimization progress: [{i}/{self.n_iter}] Testing parameters...", end='', flush=True)
+                
+                logger.info(f"\n{'='*60}")
+                logger.info(f"Iteration {i}/{self.n_iter}")
+                logger.info(f"Parameters: {params}")
+                
+                # Extract parameters
+                hidden_layers = params['hidden_layers']
+                latent_dim = params['latent_dim']
+                batch_size = params['batch_size']
+                learning_rate = params['learning_rate']
+                
+                # Ensure latent_dim is smaller than last hidden layer
+                if latent_dim >= hidden_layers[-1]:
+                    latent_dim = max(2, hidden_layers[-1] // 2)
+                    params['latent_dim'] = latent_dim
+                
+                # Build and train autoencoder
+                from framework.models.autoencoder import AutoencoderAnomalyDetector
+                import tensorflow as tf
+                
+                # Create model
+                model = AutoencoderAnomalyDetector(
+                    latent_dim=latent_dim,
+                    hidden_layers=hidden_layers
+                )
+                
+                # Build model
+                model.build_model(self.input_dim)
+                
+                # Recompile with custom learning rate
+                optimizer = tf.keras.optimizers.Adam(
+                    learning_rate=learning_rate,
+                    beta_1=0.9,
+                    beta_2=0.999,
+                    epsilon=1e-7
+                )
+                model.autoencoder.compile(
+                    optimizer=optimizer,
+                    loss='mse',
+                    metrics=['mae']
+                )
+                
+                # Train model
+                print(f"\rIteration {i}/{self.n_iter}: Training architecture {hidden_layers} -> {latent_dim}...", end='', flush=True)
+                history = model.train(
+                    X_train, X_val,
+                    epochs=self.epochs,
+                    batch_size=batch_size
+                )
+                
+                train_time = time.time() - start_time
+                logger.info(f"Training completed in {train_time:.2f} seconds")
+                
+                # Score on validation set
+                score_start = time.time()
+                score = self.score_model(model, X_val)
+                score_time = time.time() - score_start
+                total_time = time.time() - start_time
+                
+                logger.info(f"Scoring completed in {score_time:.2f} seconds (total: {total_time:.2f}s)")
+                
+                # Store results
+                result = {
+                    'params': params.copy(),
+                    'score': score,
+                    'iteration': i,
+                    'train_time': train_time,
+                    'score_time': score_time,
+                    'final_epoch': len(history.history['loss'])
+                }
+                self.cv_results_.append(result)
+                
+                # Update best
+                if score > best_score:
+                    best_score = score
+                    best_params = params.copy()
+                    print(f"\rIteration {i}/{self.n_iter}: New best score = {score:.6f} (time: {total_time:.1f}s)")
+                    logger.info(f"  Architecture: {hidden_layers} -> {latent_dim}")
+                    logger.info(f"  Batch size: {batch_size}, Learning rate: {learning_rate}")
+                else:
+                    logger.debug(f"Iteration {i}/{self.n_iter}: Score = {score:.6f}")
+                
+                # Clean up to prevent memory issues
+                del model
+                tf.keras.backend.clear_session()
+                
+            except Exception as e:
+                print(f"\rIteration {i}/{self.n_iter}: Failed - {str(e)[:80]}")
+                logger.warning(f"Iteration {i} failed with params {params}: {e}")
+                logger.debug(f"Full traceback:", exc_info=True)
+                # Clean up on error
+                try:
+                    import tensorflow as tf
+                    tf.keras.backend.clear_session()
+                except:
+                    pass
+                continue
+        
+        # Clear progress line
+        print()
+        
+        # Check if any iteration succeeded
+        if best_params is None:
+            logger.error("\nOptimization failed! All iterations failed.")
+            logger.error("Check the logs above for specific error messages.")
+            raise RuntimeError("All optimization iterations failed. No valid parameters found.")
+        
+        self.best_params_ = best_params
+        self.best_score_ = best_score
+        
+        logger.info(f"\nOptimization completed!")
+        logger.info(f"Best score: {best_score:.6f}")
+        logger.info(f"Best parameters: {best_params}")
+        
+        return best_params, self.cv_results_
+    
+    def score_model(self, model, X_val: np.ndarray) -> float:
+        """Calculate score for a trained autoencoder"""
+        from sklearn.metrics import f1_score, fbeta_score, precision_score, recall_score
+        
+        if self.scoring == 'mse_score':
+            # Lower MSE = better, so negate for maximization
+            _, mse = model.predict(X_val)
+            mean_mse = np.mean(mse)
+            # Return negative MSE so lower MSE = higher score
+            return -mean_mse
+            
+        elif self.scoring in ['f1_score', 'f2_score']:
+            # Need true labels for supervised metrics
+            if self.y_val is None:
+                raise ValueError(f"y_val is required for scoring method: {self.scoring}")
+            
+            # Get reconstruction errors
+            _, mse = model.predict(X_val)
+            
+            # Calculate threshold using percentile method on MSE
+            threshold = np.percentile(mse, 95)
+            
+            # Predict anomalies (1 = anomaly, 0 = normal)
+            y_pred = (mse > threshold).astype(int)
+            
+            if self.scoring == 'f1_score':
+                # F1 score: balanced precision and recall
+                score = f1_score(self.y_val, y_pred, zero_division=0)
+                logger.debug(f"  F1={score:.4f}, P={precision_score(self.y_val, y_pred, zero_division=0):.4f}, R={recall_score(self.y_val, y_pred, zero_division=0):.4f}")
+            elif self.scoring == 'f2_score':
+                # F2 score: weighs recall higher than precision (2x weight)
+                score = fbeta_score(self.y_val, y_pred, beta=2, zero_division=0)
+                logger.debug(f"  F2={score:.4f}, P={precision_score(self.y_val, y_pred, zero_division=0):.4f}, R={recall_score(self.y_val, y_pred, zero_division=0):.4f}")
+            
+            return score
+        else:
+            raise ValueError(f"Unknown scoring method: {self.scoring}")
+
+
 def save_optimization_results(results: List[Dict], output_path: str, best_params: Dict = None, best_score: float = None):
     """Save optimization results to JSON file"""
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Handle empty results
+    if not results:
+        logger.warning("No optimization results to save (all iterations failed)")
+        output_data = {
+            'best_parameters': None,
+            'all_iterations': [],
+            'error': 'All optimization iterations failed'
+        }
+        with open(output_file, 'w') as f:
+            json.dump(output_data, f, indent=2)
+        return
     
     # Convert results to serializable format
     serializable_results = []
@@ -485,6 +851,94 @@ def save_optimization_results(results: List[Dict], output_path: str, best_params
         json.dump(output_data, f, indent=2)
     
     logger.info(f"Optimization results saved to {output_file}")
+
+
+def save_optimal_parameters_py(best_params: Dict, best_score: float, dataset_name: str, 
+                               time_span: int, model_name: str, output_dir: str, 
+                               n_iter: int, scoring: str) -> str:
+    """
+    Save optimal parameters to a Python file for easy import in config.py
+    
+    Args:
+        best_params: Best parameters found during optimization
+        best_score: Best score achieved
+        dataset_name: Name of the dataset
+        time_span: Time span in seconds
+        model_name: Name of the model
+        output_dir: Base output directory
+        n_iter: Number of iterations used
+        scoring: Scoring method used
+        
+    Returns:
+        Path to the saved Python file
+    """
+    params_dir = Path(output_dir) / "parameters"
+    params_dir.mkdir(parents=True, exist_ok=True)
+    
+    output_path = params_dir / "optimal_params.py"
+    
+    # Build the Python file content
+    lines = []
+    lines.append('"""')
+    lines.append(f'Optimal parameters for {model_name} - {dataset_name} ({time_span}s window)')
+    lines.append('')
+    lines.append('Generated from hyperparameter optimization:')
+    lines.append(f'- Optimization iterations: {n_iter}')
+    lines.append(f'- Scoring method: {scoring}')
+    lines.append(f'- Best score: {best_score:.6f}')
+    lines.append('"""')
+    lines.append('')
+    
+    # Add the parameter configuration
+    lines.append('# Optimal parameters configuration')
+    lines.append('OPTIMAL_PARAMS = {')
+    
+    # Format parameters with proper types and indentation
+    for key, value in sorted(best_params.items()):
+        if isinstance(value, str):
+            lines.append(f"    '{key}': '{value}',")
+        elif isinstance(value, bool):
+            lines.append(f"    '{key}': {value},")
+        elif isinstance(value, (int, float)):
+            lines.append(f"    '{key}': {value},")
+        else:
+            lines.append(f"    '{key}': {repr(value)},")
+    
+    lines.append('}')
+    lines.append('')
+    
+    # Add metadata
+    lines.append('# Optimization metadata')
+    lines.append('METADATA = {')
+    lines.append(f"    'dataset': '{dataset_name}',")
+    lines.append(f"    'time_span': '{time_span}s',")
+    lines.append(f"    'model': '{model_name}',")
+    lines.append(f"    'n_iterations': {n_iter},")
+    lines.append(f"    'scoring_method': '{scoring}',")
+    lines.append(f"    'best_score': {best_score:.6f},")
+    lines.append('}')
+    lines.append('')
+    
+    # Add usage instructions
+    lines.append('# Usage example:')
+    lines.append('#')
+    lines.append('# In config.py, import and use this configuration:')
+    lines.append('#')
+    dataset_py_name = dataset_name.replace('-', '_')
+    time_label = f"{time_span}seconds"
+    lines.append(f"#   from results.{dataset_py_name}.{time_label}.models.{model_name}.parameters.optimal_params import OPTIMAL_PARAMS")
+    lines.append('#')
+    lines.append(f"#   DATASETS['{dataset_name}']['windows']['{time_span}']['params'] = {{")
+    lines.append(f"#       '{model_name}': OPTIMAL_PARAMS")
+    lines.append('#   }')
+    lines.append('')
+    
+    # Write to file
+    with open(output_path, 'w') as f:
+        f.write('\n'.join(lines))
+    
+    logger.info(f"Optimal parameters saved to {output_path}")
+    return str(output_path)
 
 
 def load_optimization_results(input_path: str) -> List[Dict]:

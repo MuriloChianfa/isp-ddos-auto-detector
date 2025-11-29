@@ -29,3 +29,9 @@ export OUTPUT_DIR=/root/datasets/isp-synflood-multiple-days
 
 /root/datasets/convert-to-csv.sh
 
+export FILTER="src net 100.64.0.0/10"
+export DATASET_DIR=/root/datasets/ds5/
+export OUTPUT_DIR=/root/isp-ddos-auto-detector/datasets/isp-cgnat-egress-anomalies
+
+/root/isp-ddos-auto-detector/datasets/convert-to-csv.sh
+

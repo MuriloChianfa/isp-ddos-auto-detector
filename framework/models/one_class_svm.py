@@ -37,7 +37,7 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
     def __init__(self, nu: float = 0.1, kernel: str = 'rbf', gamma: str = 'scale', 
                  degree: int = 3, coef0: float = 0.0, cache_size: int = 54512, 
                  tol: float = 1e-2, max_iter: int = -1, shrinking: bool = True,
-                 max_samples: int = None, n_components: int = 100):
+                 max_samples: int = None, n_components: int = 100, verbose: bool = False, **kwargs):
         """
         Initialize the One-Class SVM anomaly detector.
         
@@ -53,6 +53,8 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
             shrinking: Whether to use shrinking heuristic (can speed up training)
             max_samples: Max training samples to use (None = use all, int = subsample for speed)
             n_components: Number of components for RBF kernel approximation (for sgd_rbf)
+            verbose: Enable verbose output during training
+            **kwargs: Additional parameters (ignored, for compatibility)
         """
         super().__init__(model_name="one_class_svm")
         self.nu = nu
@@ -66,6 +68,7 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         self.shrinking = shrinking
         self.max_samples = max_samples
         self.n_components = n_components
+        self.verbose = verbose
         self.model = None
         self.scaler = StandardScaler()
         self.rbf_sampler = None  # For sgd_rbf kernel approximation
@@ -99,7 +102,7 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
                 max_iter=self.max_iter if self.max_iter > 0 else 1000000,
                 tol=self.tol,
                 shuffle=True,
-                verbose=0,
+                verbose=0 if not self.verbose else 1,
                 random_state=42,
                 learning_rate='optimal',
                 eta0=0.0,
@@ -118,7 +121,7 @@ class OneClassSVMAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
                 tol=self.tol,
                 max_iter=self.max_iter,
                 shrinking=self.shrinking,
-                verbose=False
+                verbose=self.verbose
             )
         
         print(f"One-Class SVM parameters:")

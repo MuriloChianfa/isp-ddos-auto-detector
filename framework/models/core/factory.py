@@ -15,11 +15,12 @@ logger = logging.getLogger(__name__)
 def get_model_params(model_name: str, dataset_name: Optional[str] = None, 
                      time_span: Optional[int] = None) -> Dict[str, Any]:
     """
-    Get model parameters with optional dataset/window-specific overrides.
+    Get model parameters with automatic optimal parameter loading.
     
     Priority order:
-    1. Dataset-specific window params (if dataset_name and time_span provided)
-    2. Default params from config.MODEL_DEFAULT_PARAMS
+    1. Dataset-specific window params from config (highest priority - explicit overrides)
+    2. Optimal params from hyperparameter optimization (auto-loaded from results/)
+    3. Default params from config.MODEL_DEFAULT_PARAMS (fallback)
     
     Args:
         model_name: Name of the model
@@ -31,20 +32,34 @@ def get_model_params(model_name: str, dataset_name: Optional[str] = None,
     """
     # Import here to avoid circular imports
     from config import MODEL_DEFAULT_PARAMS, DATASETS
+    from framework.optimal import load_optimal_params
     
     # Start with default params
     params = MODEL_DEFAULT_PARAMS.get(model_name, {}).copy()
+    param_source = "defaults"
     
-    # Override with dataset/window-specific params if available
+    # Try to load optimal params if dataset and time_span provided
+    if dataset_name and time_span:
+        optimal_params = load_optimal_params(dataset_name, str(time_span), model_name)
+        if optimal_params:
+            params.update(optimal_params)
+            param_source = "optimal"
+            logger.debug(f"Loaded optimal params for {model_name} on {dataset_name} ({time_span}s)")
+        else:
+            logger.warning(f"No optimal params found for {model_name} on {dataset_name} ({time_span}s), using defaults")
+    
+    # Override with explicit config params if available (highest priority)
     if dataset_name and time_span:
         dataset_config = DATASETS.get(dataset_name, {})
         window_config = dataset_config.get('windows', {}).get(str(time_span), {})
         window_params = window_config.get('params', {}).get(model_name, {})
         
         if window_params:
-            logger.info(f"Using dataset-specific params for {model_name} on {dataset_name} ({time_span}s)")
             params.update(window_params)
+            logger.info(f"Using config override params for {model_name} on {dataset_name} ({time_span}s)")
+            param_source = "config"
     
+    logger.debug(f"Final params source for {model_name}: {param_source}")
     return params
 
 

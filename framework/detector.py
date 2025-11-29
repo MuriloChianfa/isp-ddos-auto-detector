@@ -11,7 +11,9 @@ from framework.optimization import (
     IsolationForestRandomSearch, 
     OneClassSVMRandomSearch, 
     LocalOutlierFactorRandomSearch,
-    save_optimization_results
+    AutoencoderRandomSearch,
+    save_optimization_results,
+    save_optimal_parameters_py
 )
 import logging
 
@@ -43,7 +45,9 @@ class AnomalyDetector:
                                  model_name: str, n_iter: int = 50, 
                                  scoring: str = 'f1_score',
                                  y_val: np.ndarray = None,
-                                 output_dir: str = './results/optimization/') -> Dict:
+                                 output_dir: str = './results/optimization/',
+                                 dataset_name: str = None,
+                                 time_span: int = None) -> Dict:
         """
         Optimize hyperparameters using random search
         
@@ -55,6 +59,8 @@ class AnomalyDetector:
             scoring: Scoring method (default: 'f1_score', options: 'f1_score', 'f2_score', 'anomaly_score')
             y_val: True labels for validation set (required for f1_score and f2_score)
             output_dir: Directory to save optimization results
+            dataset_name: Name of the dataset (for saving optimal parameters)
+            time_span: Time span in seconds (for saving optimal parameters)
             
         Returns:
             best_params: Best parameters found
@@ -98,6 +104,30 @@ class AnomalyDetector:
                 scoring=scoring,
                 y_val=y_val
             )
+        elif model_name == 'autoencoder':
+            # For autoencoder, need input dimension
+            input_dim = X_train.shape[1]
+            
+            # Map scoring methods to autoencoder-compatible ones
+            if scoring == 'anomaly_score':
+                # anomaly_score is for sklearn models, use mse_score for autoencoder
+                logger.info("Mapping 'anomaly_score' to 'mse_score' for autoencoder optimization")
+                scoring = 'mse_score'
+                y_val = None  # MSE score doesn't need labels
+            elif y_val is None and scoring in ['f1_score', 'f2_score']:
+                # Can't use supervised metrics without labels
+                logger.info("No validation labels provided, switching to 'mse_score' for unsupervised optimization")
+                scoring = 'mse_score'
+            
+            optimizer = AutoencoderRandomSearch(
+                n_iter=n_iter,
+                random_state=42,
+                scoring=scoring,
+                y_val=y_val,
+                input_dim=input_dim,
+                epochs=50,  # Reduced epochs for faster optimization
+                use_early_stopping=True
+            )
         else:
             raise ValueError(f"Optimization not supported for model: {model_name}")
         
@@ -107,6 +137,14 @@ class AnomalyDetector:
         # Save results with best parameters at the top
         output_path = f"{output_dir}/optimization_results.json"
         save_optimization_results(cv_results, output_path, best_params, optimizer.best_score_)
+        
+        # Save optimal parameters as importable Python file
+        if dataset_name and time_span:
+            py_output_path = save_optimal_parameters_py(
+                best_params, optimizer.best_score_, dataset_name, 
+                time_span, model_name, output_dir, n_iter, scoring
+            )
+            logger.info(f"Optimal parameters Python file: {py_output_path}")
         
         logger.info(f"\n{'='*70}")
         logger.info(f"Optimization completed!")
@@ -136,7 +174,7 @@ class AnomalyDetector:
         train_features = processed_features['train']['features']
         val_features = processed_features['validation']['features']
         test_features = processed_features['test']['features']
-        horizon_features = processed_features.get('horizon', {}).get('features', None)
+        # horizon_features = processed_features.get('horizon', {}).get('features', None)
         
         # Transform data
         scaled_train_data = self.model.transform_data(train_features)
@@ -149,12 +187,12 @@ class AnomalyDetector:
         test_reconstructions, test_scores = self.model.predict(scaled_test_data)
         
         # Process horizon data if available
-        horizon_reconstructions, horizon_scores = None, None
-        scaled_horizon_data = None
-        if horizon_features is not None:
-            scaled_horizon_data = self.model.transform_data(horizon_features)
-            horizon_reconstructions, horizon_scores = self.model.predict(scaled_horizon_data)
-            print(f"Horizon anomaly scores computed: {len(horizon_scores)} samples")
+        # horizon_reconstructions, horizon_scores = None, None
+        # scaled_horizon_data = None
+        # if horizon_features is not None:
+        #     scaled_horizon_data = self.model.transform_data(horizon_features)
+        #     horizon_reconstructions, horizon_scores = self.model.predict(scaled_horizon_data)
+        #     print(f"Horizon anomaly scores computed: {len(horizon_scores)} samples")
         
         # Calculate optimal threshold
         if self.is_loaded_from_artifacts:
@@ -168,13 +206,13 @@ class AnomalyDetector:
         
         # Build processing list
         processing_list = [
-            ('train', scaled_train_data, train_scores, processed_features['train']),
-            ('validation', scaled_validation_data, val_scores, processed_features['validation']),
+            # ('train', scaled_train_data, train_scores, processed_features['train']),
+            # ('validation', scaled_validation_data, val_scores, processed_features['validation']),
             ('test', scaled_test_data, test_scores, processed_features['test'])
         ]
         
-        if horizon_features is not None and horizon_scores is not None:
-            processing_list.append(('horizon', scaled_horizon_data, horizon_scores, processed_features['horizon']))
+        # if horizon_features is not None and horizon_scores is not None:
+        #     processing_list.append(('horizon', scaled_horizon_data, horizon_scores, processed_features['horizon']))
         
         # Process each split
         all_features = []
@@ -236,9 +274,12 @@ class AnomalyDetector:
         """
         print("\nThreshold method comparison:")
         threshold_methods = [
-            'percentile_99', 'mean_plus_3std', 
-            'exponential_threshold', 'sigmoid_threshold'
+            'percentile_99', 'mean_plus_3std',
         ]
+        # threshold_methods = [
+        #     'percentile_99', 'mean_plus_3std', 
+        #     'exponential_threshold', 'sigmoid_threshold'
+        # ]
         
         # Get test scores for comparison (use validation scores as proxy)
         test_scores = val_scores

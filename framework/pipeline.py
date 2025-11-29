@@ -56,6 +56,7 @@ class DDoSDetectorPipeline:
         # Optimization parameters
         self.optimize = kwargs.get('optimize', False)
         self.optimize_n_iter = kwargs.get('optimize_n_iter', 10)
+        self.optimize_only = kwargs.get('optimize_only', False)
         
         # Initialize components
         self.settings_manager = SettingsManager()
@@ -78,57 +79,33 @@ class DDoSDetectorPipeline:
     
     def _get_feature_config_with_hierarchy(self):
         """
-        Get feature configuration with proper hierarchy:
-        1. Dataset-level feature_config (lowest priority)
-        2. Time span-level feature_config (medium priority)
-           - If list: applies to all models
-           - If dict: can specify per-model features
-        3. Model-specific within time span dict (highest priority)
+        Get feature configuration with proper hierarchy using automatic optimal loading.
+        
+        Uses the centralized get_feature_config() function which implements:
+        1. Config overrides (highest priority)
+        2. Optimal features from correlation analysis
+        3. All features fallback (lowest priority)
         
         Returns:
             Feature configuration (list or dict)
         """
-        # Start with dataset-level config
-        feature_config = self.dataset_config.get('feature_config', [])
+        from framework.settings import get_feature_config
         
-        # Get window-specific config
+        # Get feature config with auto-loading
+        feature_config = get_feature_config(self.dataset_name, self.time_span, self.model_name)
+        
+        # Handle EMA alpha from window config if needed
         windows = self.dataset_config.get('windows', {})
         window_config = windows.get(str(self.time_span), {})
         
-        # Override with time span-level config if available
-        if 'feature_config' in window_config:
-            window_feature_config = window_config['feature_config']
-            
-            # Check if it's a dict with model-specific configs
-            if isinstance(window_feature_config, dict):
-                # Check if it has model names as keys (model-specific)
-                # vs old format with 'include_groups', 'exclude_features', etc.
-                is_model_specific = any(
-                    key in ['autoencoder', 'isolation_forest', 'one_class_svm', 'local_outlier_factor']
-                    for key in window_feature_config.keys()
-                )
-                
-                if is_model_specific:
-                    # It's a model-specific dict, use the model's config if available
-                    if self.model_name in window_feature_config:
-                        feature_config = window_feature_config[self.model_name]
-                    # else: keep dataset-level config
-                else:
-                    # It's old format dict (include_groups, etc.), use as-is
-                    feature_config = window_feature_config
-            else:
-                # It's a list, applies to all models
-                feature_config = window_feature_config
-        
-        # Handle EMA alpha separately (for backward compatibility)
-        if isinstance(feature_config, dict):
-            # If it's a dict, merge EMA alpha from window config if not already present
-            if 'ema_alpha' in window_config and 'ema_alpha' not in feature_config:
-                feature_config = feature_config.copy()
-                feature_config['ema_alpha'] = window_config['ema_alpha']
-        else:
-            # If it's a list, wrap it with EMA alpha if needed
-            if 'ema_alpha' in window_config:
+        if 'ema_alpha' in window_config:
+            if isinstance(feature_config, dict):
+                # If it's a dict, merge EMA alpha if not already present
+                if 'ema_alpha' not in feature_config:
+                    feature_config = feature_config.copy()
+                    feature_config['ema_alpha'] = window_config['ema_alpha']
+            elif feature_config:
+                # If it's a list, wrap it with EMA alpha
                 feature_config = {
                     'features': feature_config,
                     'ema_alpha': window_config['ema_alpha']
@@ -221,7 +198,7 @@ class DDoSDetectorPipeline:
         val_features = self.processed_features['validation']['features']
         
         # Run hyperparameter optimization if requested
-        if self.optimize and self.model_name in ['isolation_forest', 'one_class_svm', 'local_outlier_factor']:
+        if self.optimize and self.model_name in ['isolation_forest', 'one_class_svm', 'local_outlier_factor', 'autoencoder']:
             # Check if one_class_svm is using sgd_rbf kernel (not compatible with standard optimization)
             if self.model_name == 'one_class_svm':
                 from framework.models.core.factory import get_model_params
@@ -328,8 +305,30 @@ class DDoSDetectorPipeline:
                     n_iter=self.optimize_n_iter,
                     scoring=scoring_method,
                     y_val=val_labels,
-                    output_dir=output_dir
+                    output_dir=output_dir,
+                    dataset_name=self.dataset_name,
+                    time_span=self.time_span
                 )
+                
+                # If optimize_only flag is set, stop here without training
+                if getattr(self, 'optimize_only', False):
+                    print("\n" + "="*70)
+                    print("OPTIMIZATION COMPLETE - Stopping before training")
+                    print("="*70)
+                    print(f"\nBest parameters have been saved to:")
+                    params_file = f"{output_dir}/parameters/optimal_params.py"
+                    print(f"  {params_file}")
+                    print("\n" + "="*70)
+                    
+                    # Return special status for batch mode
+                    return {
+                        'status': 'optimization_complete',
+                        'params_file': params_file,
+                        'best_params': best_params,
+                        'dataset': self.dataset_name,
+                        'model': self.model_name,
+                        'time_span': self.time_span
+                    }
                 
                 # Update model manager with optimized parameters
                 print(f"\nApplying optimized parameters: {best_params}")
@@ -526,7 +525,16 @@ class DDoSDetectorPipeline:
                 raise Exception("Feature extraction failed")
             
             # Step 3: Initialize and train model
-            if not self.initialize_and_train_model():
+            result = self.initialize_and_train_model()
+            
+            # Check if this was optimization-only mode
+            if isinstance(result, dict) and result.get('status') == 'optimization_complete':
+                print("\n" + "="*60)
+                print("OPTIMIZATION-ONLY MODE: Skipping training and detection")
+                print("="*60)
+                return result
+            
+            if not result:
                 raise Exception("Model initialization/training failed")
             
             # Step 4: Perform anomaly detection
@@ -712,7 +720,7 @@ class DDoSDetectorPipeline:
             
             print(f"\\nPerformance charts generated:")
             for chart_path in chart_paths:
-                print(f"  • {os.path.basename(chart_path)}")
+                print(f"  -> {os.path.basename(chart_path)}")
             print(f"Charts saved to: {performance_charts_dir}")
             
         except Exception as e:
@@ -745,17 +753,17 @@ class DDoSDetectorPipeline:
         best_latency = min(performance_results.items(), 
                           key=lambda x: x[1].avg_latency_ms)
         
-        print(f"• Best throughput: {best_throughput[0]} ({best_throughput[1].throughput_samples_per_sec:.2f} samples/sec)")
-        print(f"• Best latency: {best_latency[0]} ({best_latency[1].avg_latency_ms:.3f} ms)")
+        print(f"-> Best throughput: {best_throughput[0]} ({best_throughput[1].throughput_samples_per_sec:.2f} samples/sec)")
+        print(f"-> Best latency: {best_latency[0]} ({best_latency[1].avg_latency_ms:.3f} ms)")
         
         # Real-time capability assessment
         for test_name, metrics in performance_results.items():
             if metrics.throughput_samples_per_sec >= 100:  # Can handle 100+ samples/sec
-                print(f"• {test_name}: Suitable for high-frequency real-time detection")
+                print(f"-> {test_name}: Suitable for high-frequency real-time detection")
             elif metrics.throughput_samples_per_sec >= 10:  # Can handle 10+ samples/sec
-                print(f"• {test_name}: Suitable for medium-frequency real-time detection")
+                print(f"-> {test_name}: Suitable for medium-frequency real-time detection")
             else:
-                print(f"• {test_name}: May not be suitable for real-time detection")
+                print(f"-> {test_name}: May not be suitable for real-time detection")
         
         print("="*80)
     

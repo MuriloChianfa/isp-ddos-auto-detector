@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend to prevent memory leaks
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
@@ -9,7 +11,11 @@ from multiprocessing import Pool, cpu_count, Manager
 from functools import partial
 import sys
 import time
+import gc
 from ..utils import get_results_path
+
+# Disable interactive mode to prevent memory accumulation
+plt.ioff()
 
 
 class DatasetFeatureVisualizer:
@@ -133,6 +139,9 @@ class DatasetFeatureVisualizer:
         filepath = os.path.join(self.results_dir, dataset_type, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close(fig)
+        plt.clf()  # Clear the current figure
+        del fig, axes, clean_data  # Explicitly delete large objects
+        gc.collect()  # Force garbage collection
         
         return filepath
         
@@ -221,6 +230,9 @@ class DatasetFeatureVisualizer:
         filepath = os.path.join(comparison_dir, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close(fig)
+        plt.clf()  # Clear the current figure
+        del fig, axes, comparison_data  # Explicitly delete large objects
+        gc.collect()  # Force garbage collection
         
         return filepath
 
@@ -236,11 +248,18 @@ class DatasetFeatureVisualizer:
             Tuple: (success: bool, filepath: str, feature_name: str, dataset_type: str)
         """
         try:
+            # Configure matplotlib for this worker process
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            plt.ioff()  # Disable interactive mode
+            
             task_type = task_info[0]
             feature_name = task_info[1]
             progress_info = task_info[-1]  # Always the last element
             
             import os
+            import gc
             pid = os.getpid()
             
             if task_type == "distribution":
@@ -290,6 +309,10 @@ class DatasetFeatureVisualizer:
             sys.stdout.flush()
             dataset_type_for_error = task_info[2] if len(task_info) > 4 and task_type == "distribution" else "comparison"
             return (False, None, feature_name, dataset_type_for_error)
+        finally:
+            # Clean up memory in worker process
+            plt.close('all')  # Close all figures
+            gc.collect()  # Force garbage collection
         
     def generate_all_feature_plots(self, features_dict, create_comparisons=True):
         """
@@ -391,6 +414,10 @@ class DatasetFeatureVisualizer:
         print("=" * 80)
         print(f"Parallel processing completed in {processing_time:.2f} seconds")
         
+        # Clean up any remaining matplotlib figures
+        plt.close('all')
+        gc.collect()
+        
         # Process results and generate summary
         distribution_count = 0
         comparison_count = 0
@@ -431,7 +458,7 @@ class DatasetFeatureVisualizer:
         print("FEATURE VISUALIZATION SUMMARY")
         print("="*60)
         
-        print(f"Total features analyzed: {len(all_features)}")
+        print(f"Total features: {len(all_features)}")
         print(f"Datasets processed: {', '.join(features_dict.keys())}")
         
         # Print directory structure
@@ -446,14 +473,14 @@ class DatasetFeatureVisualizer:
                 print(f"{subindent}{len(plot_files)} plot files generated")
         
         print(f"\nPlots are organized as follows:")
-        print(f"  • Individual dataset plots: {self.results_dir}/[train|validation|test]/*.{self.save_format}")
-        print(f"  • Cross-dataset comparisons: {self.results_dir}/comparisons/*.{self.save_format}")
+        print(f"  -> Individual dataset plots: {self.results_dir}/[train|validation|test]/*.{self.save_format}")
+        print(f"  -> Cross-dataset comparisons: {self.results_dir}/comparisons/*.{self.save_format}")
         
         # Feature categories
         feature_categories = self.categorize_features(all_features)
         print(f"\nFeature categories:")
         for category, features in feature_categories.items():
-            print(f"  • {category}: {len(features)} features")
+            print(f"  -> {category}: {len(features)} features")
             
     def categorize_features(self, features):
         """Categorize features for better organization"""

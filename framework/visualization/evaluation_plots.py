@@ -1,9 +1,14 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import os
+import gc
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
+
+plt.ioff()  # Disable interactive mode
 
 
 class EvaluationVisualizer:
@@ -57,6 +62,8 @@ class EvaluationVisualizer:
         filename = os.path.join(self.evaluation_dir, "ground_truth_evaluation.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Evaluation plot saved to: {filename}")
         return filename
@@ -102,6 +109,8 @@ class EvaluationVisualizer:
         filename = os.path.join(self.evaluation_dir, "model_labels_evaluation.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Model labels evaluation plot saved to: {filename}")
         return filename
@@ -148,6 +157,8 @@ class EvaluationVisualizer:
         filename = os.path.join(self.evaluation_dir, "confusion_matrix_heatmap.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Confusion matrix heatmap saved to: {filename}")
         return filename
@@ -224,6 +235,8 @@ Min Error: {np.min(feature_errors):.4f}"""
         filename = os.path.join(self.evaluation_dir, "feature_importance.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Feature importance plot saved to: {filename}")
         return filename
@@ -358,6 +371,8 @@ Min Error: {np.min(feature_errors):.4f}"""
         filename = os.path.join(self.evaluation_dir, "feature_importance_detailed.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Detailed feature importance plot saved to: {filename}")
         return filename
@@ -441,6 +456,8 @@ Min Error: {np.min(feature_errors):.4f}"""
         filename = os.path.join(self.evaluation_dir, "roc_curve.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"ROC curve plot saved to: {filename}")
         return filename
@@ -532,6 +549,8 @@ Min Error: {np.min(feature_errors):.4f}"""
         filename = os.path.join(self.evaluation_dir, "precision_recall_curve.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Precision-Recall curve plot saved to: {filename}")
         return filename

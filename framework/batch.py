@@ -7,7 +7,7 @@ from itertools import product
 from datetime import datetime
 from framework.models import list_available_models
 from framework.constants import SUPPORTED_TIME_SPANS
-from framework.evaluation_cache import EvaluationCache
+from framework.stats import EvaluationCache
 from config import DATASETS, MODEL_DEFAULT_PARAMS, MODEL_THRESHOLD_STRATEGIES
 
 
@@ -79,21 +79,31 @@ def run_batch_evaluation(main_func, datasets=None, models=None, time_spans=None,
     print(f"Models: {', '.join(models)}")
     print(f"Time Spans: {', '.join(map(str, time_spans))} seconds")
     print(f"Total combinations: {total}")
-    if cached_count > 0 and not force:
-        print(f"Cached: {cached_count} ({cached_count/total*100:.1f}%)")
-        print(f"To run: {total - cached_count} ({(total-cached_count)/total*100:.1f}%)")
-    # if force:
-    #     print(f"Force mode: Will re-run all evaluations (ignoring {cached_count} cached)")
-    print(f"Mode: {'DRY RUN' if dry_run else 'EXECUTION'}")
+    
+    # Check if this is optimization mode
+    is_optimization = kwargs.get('optimize', False) and kwargs.get('optimize_only', False)
+    
+    if is_optimization:
+        print(f"Mode: HYPERPARAMETER OPTIMIZATION")
+        print(f"Iterations per combination: {kwargs.get('optimize_n_iter', 10)}")
+    else:
+        if cached_count > 0 and not force:
+            print(f"Cached: {cached_count} ({cached_count/total*100:.1f}%)")
+            print(f"To run: {total - cached_count} ({(total-cached_count)/total*100:.1f}%)")
+        print(f"Mode: {'DRY RUN' if dry_run else 'EVALUATION'}")
+    
     print("="*80)
     
     if not dry_run:
         import sys
-        # Skip prompt if stdin is not interactive (e.g., in CI/CD or piped commands)
-        if not sys.stdin.isatty():
-            print(f"\\nAuto-proceeding with {total} evaluations (non-interactive mode)")
+        # Skip prompt if force flag is set, stdin is not interactive (e.g., in CI/CD or piped commands)
+        if force:
+            print(f"\nAuto-proceeding with {total} {'optimizations' if is_optimization else 'evaluations'} (force mode)")
+        elif not sys.stdin.isatty():
+            print(f"\nAuto-proceeding with {total} {'optimizations' if is_optimization else 'evaluations'} (non-interactive mode)")
         else:
-            response = input(f"\nProceed with {total} evaluations? (yes/no): ")
+            action = "optimizations" if is_optimization else "evaluations"
+            response = input(f"\nProceed with {total} {action}? (yes/no): ")
             if response.lower() not in ['yes', 'y']:
                 print("Cancelled by user")
                 return None
@@ -108,7 +118,7 @@ def run_batch_evaluation(main_func, datasets=None, models=None, time_spans=None,
     # Run evaluations
     for idx, (dataset, model, time_span) in enumerate(combinations, 1):
         print(f"\n{'='*80}")
-        print(f"Evaluation {idx}/{total}")
+        print(f"{'Optimization' if is_optimization else 'Evaluation'} {idx}/{total}")
         print(f"Dataset: {dataset}, Model: {model}, Time Span: {time_span}s")
         print(f"{'='*80}")
         
@@ -146,8 +156,19 @@ def run_batch_evaluation(main_func, datasets=None, models=None, time_spans=None,
         results_dir = f"./results/{dataset}/{time_span}seconds/models/{model}"
         results_path = results_dir
         
-        # Check cache
-        if not force and cache.is_cached(dataset, model, time_span, params, 
+        # In optimization mode, check if parameters already exist
+        if is_optimization:
+            import os
+            params_file = f"{results_dir}/parameters/optimal_params.py"
+            if os.path.exists(params_file) and not force:
+                print(f"\nSKIPPED: Optimal parameters already exist")
+                print(f"   File: {params_file}")
+                print(f"   Use --force to re-optimize")
+                cached += 1
+                continue
+        
+        # Check cache (only for evaluation mode)
+        if not is_optimization and not force and cache.is_cached(dataset, model, time_span, params, 
                                         feature_config, threshold_strategy):
             cached_info = cache.get_cached_info(dataset, model, time_span, params,
                                                feature_config, threshold_strategy)
@@ -173,30 +194,42 @@ def run_batch_evaluation(main_func, datasets=None, models=None, time_spans=None,
             # Run the evaluation
             result = main_func(dataset_name=dataset, **eval_kwargs)
             
-            if result is not None:
-                print(f"Completed successfully")
-                successful += 1
-                
-                try:
-                    metrics = None
-                    if hasattr(result, 'metrics'):
-                        metrics = result.metrics
-                    elif isinstance(result, dict) and 'metrics' in result:
-                        metrics = result['metrics']
-                    
-                    cache.add_to_cache(
-                        dataset, model, time_span,
-                        results_path,
-                        params, feature_config, threshold_strategy,
-                        metrics
-                    )
-                except Exception as e:
-                    print(f"Warning: Failed to cache result: {e}")
-                
+            # Handle optimization mode results
+            if is_optimization:
+                if result and result.get('status') == 'optimization_complete':
+                    print(f"Optimization completed successfully")
+                    print(f"   Parameters saved to: {result.get('params_file', 'unknown')}")
+                    successful += 1
+                else:
+                    print(f"Optimization failed or returned unexpected result")
+                    failed += 1
+                    failures.append((dataset, model, time_span))
             else:
-                print(f"Failed (returned None)")
-                failed += 1
-                failures.append((dataset, model, time_span))
+                # Handle normal evaluation results
+                if result is not None:
+                    print(f"Completed successfully")
+                    successful += 1
+                    
+                    try:
+                        metrics = None
+                        if hasattr(result, 'metrics'):
+                            metrics = result.metrics
+                        elif isinstance(result, dict) and 'metrics' in result:
+                            metrics = result['metrics']
+                        
+                        cache.add_to_cache(
+                            dataset, model, time_span,
+                            results_path,
+                            params, feature_config, threshold_strategy,
+                            metrics
+                        )
+                    except Exception as e:
+                        print(f"Warning: Failed to cache result: {e}")
+                    
+                else:
+                    print(f"Failed (returned None)")
+                    failed += 1
+                    failures.append((dataset, model, time_span))
         except KeyboardInterrupt:
             print("\n\nBatch evaluation interrupted by user")
             break
@@ -210,16 +243,16 @@ def run_batch_evaluation(main_func, datasets=None, models=None, time_spans=None,
     duration = end_time - start_time
     
     print("\n" + "="*80)
-    print("BATCH EVALUATION SUMMARY")
+    print(f"BATCH {'OPTIMIZATION' if is_optimization else 'EVALUATION'} SUMMARY")
     print("="*80)
-    print(f"Total evaluations: {total}")
+    print(f"Total combinations: {total}")
     print(f"Successful: {successful} ({successful/total*100:.1f}%)")
-    print(f"Cached: {cached} ({cached/total*100:.1f}%)")
+    print(f"{'Skipped' if is_optimization else 'Cached'}: {cached} ({cached/total*100:.1f}%)")
     print(f"Failed: {failed} ({failed/total*100:.1f}%)")
     print(f"Duration: {duration}")
     
     if failures:
-        print(f"\nFailed evaluations:")
+        print(f"\nFailed {'optimizations' if is_optimization else 'evaluations'}:")
         for dataset, model, time_span in failures:
             print(f"  - Dataset: {dataset}, Model: {model}, Time Span: {time_span}s")
     

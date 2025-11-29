@@ -4,9 +4,11 @@ Handles saving detected anomalies and printing comprehensive analysis summaries.
 """
 
 import os
+import json
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional
+from datetime import datetime
 from framework.utils import get_results_path, get_artifacts_path, get_time_span_description, get_time_window_label
 
 
@@ -150,16 +152,14 @@ class ResultsManager:
         print(f"Dataset used: {self.dataset_name} ({dataset_config['description']})")
         print(f"Time window configuration: {time_desc} ({self.time_span} seconds)")
     
-    def save_analysis_metadata(self, analysis_results: Dict):
+    def save_analysis_metadata(self, analysis_results: Dict, additional_config: Optional[Dict] = None):
         """
         Save metadata about the analysis to a JSON file in the artifacts directory
         
         Args:
             analysis_results: Dictionary containing analysis results and metadata
+            additional_config: Optional dictionary with additional configuration details
         """
-        import json
-        from datetime import datetime
-        
         # Get artifacts directory path
         artifacts_dir = get_artifacts_path(self.dataset_name, self.model_name, self.time_span)
         os.makedirs(artifacts_dir, exist_ok=True)
@@ -174,6 +174,10 @@ class ResultsManager:
             'artifacts_directory': artifacts_dir,
             **analysis_results
         }
+        
+        # Add additional configuration if provided
+        if additional_config:
+            metadata['configuration'] = additional_config
 
         metadata_file = os.path.join(artifacts_dir, "analysis.json")
         with open(metadata_file, 'w') as f:

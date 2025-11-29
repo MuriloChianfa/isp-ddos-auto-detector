@@ -1,58 +1,34 @@
 #!/usr/bin/env python3
 """
-Standalone script for generating dataset feature visualizations.
-This script can be used to create feature plots without running the full pipeline.
+Feature plots generation module for network traffic datasets.
+This module can be used to create feature plots without running the full pipeline.
 """
 
-import argparse
-import sys
 import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from framework.loader import NetworkDataLoader
 from framework.features import NetworkFeatureExtractor
 from framework.visualization.dataset_plots import DatasetFeatureVisualizer
-from framework.utils import get_time_span_description, get_time_span_detailed_description
+from framework.utils import get_time_span_description
 from framework.constants import SUPPORTED_TIME_SPANS
 from config import DATASETS, DEFAULT_DATASET, DEFAULT_TIME_SPAN
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Generate PNG visualizations for all network traffic dataset features',
-        epilog="""
-Examples:
-  %(prog)s                                    # Generate all plots for default dataset
-  %(prog)s -d isp-synflood-multiple-days     # Generate plots for specific dataset
-  %(prog)s --no-comparisons                  # Skip cross-dataset comparison plots
-  %(prog)s -t 60                             # Use 60-second time windows instead of default
-  %(prog)s --max-processes 12                # Use 12 parallel processes for faster generation
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument('--dataset', '-d', default=None,
-                       help=f'Dataset to analyze (default: {DEFAULT_DATASET}). Available: {", ".join(DATASETS.keys())}')
-    parser.add_argument('--no-comparisons', action='store_true',
-                       help='Skip generating cross-dataset comparison plots')
-    parser.add_argument(
-        '--time-span', '-t',
-        type=int,
-        choices=SUPPORTED_TIME_SPANS,
-        default=DEFAULT_TIME_SPAN,
-        help=f'Time span for feature aggregation in seconds. Options: {", ".join(map(str, SUPPORTED_TIME_SPANS))}. Default: {DEFAULT_TIME_SPAN}'
-    )
-    parser.add_argument(
-        '--max-processes',
-        type=int,
-        default=12,
-        help='Maximum number of processes to use for parallel plot generation (default: 12)'
-    )
+def run_feature_plots(dataset_name=None, time_span=None, no_comparisons=False, max_processes=12):
+    """
+    Generate PNG visualizations for all network traffic dataset features
     
-    args = parser.parse_args()
-    
+    Args:
+        dataset_name: Name of the dataset to analyze (None = default)
+        time_span: Time span for feature aggregation in seconds (None = default)
+        no_comparisons: If True, skip cross-dataset comparison plots
+        max_processes: Maximum number of processes for parallel plot generation
+        
+    Returns:
+        0 on success, 1 on error
+    """
     # Select dataset configuration
-    dataset_name = args.dataset if args.dataset else DEFAULT_DATASET
+    if dataset_name is None:
+        dataset_name = DEFAULT_DATASET
     
     if dataset_name not in DATASETS:
         print(f"Error: Dataset '{dataset_name}' not found in configuration.")
@@ -61,8 +37,14 @@ Examples:
     
     dataset_config = DATASETS[dataset_name]
     
-    # Get time_span from arguments
-    time_span = args.time_span
+    # Get time_span
+    if time_span is None:
+        time_span = DEFAULT_TIME_SPAN
+    
+    if time_span not in SUPPORTED_TIME_SPANS:
+        print(f"Error: Time span {time_span} not supported.")
+        print(f"Supported time spans: {', '.join(map(str, SUPPORTED_TIME_SPANS))}")
+        return 1
     
     # Create dataset-specific output directory for features
     output_dir = os.path.join("./results", dataset_name, f"{time_span}seconds", "features")
@@ -108,11 +90,11 @@ Examples:
             dataset_name=dataset_name, 
             save_format='png',
             time_span=time_span,
-            max_processes=args.max_processes
+            max_processes=max_processes
         )
         feature_viz.generate_all_feature_plots(
             features_dict, 
-            create_comparisons=not args.no_comparisons
+            create_comparisons=not no_comparisons
         )
         
         print("\n" + "=" * 60)
@@ -125,7 +107,7 @@ Examples:
             available_features = [col for col in features_dict[dataset_type].columns if col != 'timestamp']
             print(f"  - {dataset_type.capitalize()}: {len(available_features)} features")
         
-        if not args.no_comparisons:
+        if not no_comparisons:
             all_features = set()
             for df in features_dict.values():
                 all_features.update([col for col in df.columns if col != 'timestamp'])
@@ -137,7 +119,7 @@ Examples:
         print("  - Box plots for outlier analysis") 
         print("  - Time series plots")
         print("  - Q-Q plots for normality assessment")
-        if not args.no_comparisons:
+        if not no_comparisons:
             print("  - Cross-dataset comparison plots")
         print(f"\nAll plots saved with {time_span}-second time windows ({get_time_span_description(time_span)} aggregation)")
         
@@ -151,7 +133,3 @@ Examples:
         import traceback
         traceback.print_exc()
         return 1
-
-
-if __name__ == "__main__":
-    exit(main())

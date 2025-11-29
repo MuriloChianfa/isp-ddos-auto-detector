@@ -3,9 +3,12 @@ Simple performance plotting module.
 Creates easy-to-understand charts that actually help with performance analysis.
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import gc
 from typing import List, Dict, Optional, Tuple, Any, Union
 import logging
 from pathlib import Path
@@ -13,6 +16,8 @@ import csv
 from datetime import datetime
 
 from framework.performance import PerformanceMetrics
+
+plt.ioff()  # Disable interactive mode
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +114,8 @@ class PerformancePlotter:
         chart_path = str(self.output_dir / f"performance_comparison_{model_name}.png")
         plt.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         logger.info(f"Performance comparison chart saved to: {chart_path}")
         return chart_path
@@ -175,6 +182,8 @@ class PerformancePlotter:
         chart_path = str(self.output_dir / f"resource_usage_{model_name}.png")
         plt.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         logger.info(f"Resource usage chart saved to: {chart_path}")
         return chart_path
@@ -243,6 +252,8 @@ class PerformancePlotter:
         chart_path = str(self.output_dir / f"performance_summary_{model_name}.png")
         plt.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         logger.info(f"Performance summary chart saved to: {chart_path}")
         return chart_path

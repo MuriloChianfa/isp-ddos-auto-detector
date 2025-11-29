@@ -353,8 +353,8 @@ class ModelValidationMixin:
         valid_strategies = [
             'normal_mse_mean', 'mean_plus_1std', 'mean_plus_2std', 'mean_plus_3std',
             'mse_plus_3std', 'mse_plus_4std', 'mse_plus_4_5std', 'mse_plus_5std', 'mse_plus_5_5std',
-            'mse_plus_6std', 'mse_plus_8std', 'mse_plus_15std', 'mse_plus_40std', 'mse_plus_80std',
-            'exponential_threshold', 'sigmoid_threshold',
+            'mse_plus_6std', 'mse_plus_8std', 'mse_plus_15std', 'mse_plus_30std', 'mse_plus_35std', 'mse_plus_38std',
+            'mse_plus_40std', 'mse_plus_80std', 'exponential_threshold', 'sigmoid_threshold',
             'percentile_95', 'percentile_99', 'percentile_99_5', 'percentile_99_9'
         ]
         
@@ -447,6 +447,9 @@ class ThresholdCalculatorMixin:
             'mse_plus_6std': mean_score + 6 * std_score,  # Linear: μ + 6σ
             'mse_plus_8std': mean_score + 8 * std_score,  # Linear: μ + 8σ
             'mse_plus_15std': mean_score + 15 * std_score,  # Linear: μ + 15σ
+            'mse_plus_30std': mean_score + 30 * std_score,  # Linear: μ + 30σ
+            'mse_plus_35std': mean_score + 35 * std_score,  # Linear: μ + 35σ
+            'mse_plus_38std': mean_score + 38 * std_score,  # Linear: μ + 38σ
             'mse_plus_80std': mean_score + 80 * std_score,  # Linear: μ + 80σ
             'mse_plus_40std': mean_score + 40 * std_score,  # Linear: μ + 40σ
             'exponential_threshold': np.exp(mean_score + 10 * std_score),  # Exponential: e^(μ + 10σ)

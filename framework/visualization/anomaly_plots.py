@@ -1,9 +1,14 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import os
+import gc
 from ..utils import get_results_path
+
+plt.ioff()  # Disable interactive mode
 
 
 class AnomalyVisualizer:
@@ -73,6 +78,8 @@ class AnomalyVisualizer:
         focused_filename = os.path.join(self.results_dir, f"anomaly_detection_focused.png")
         plt.savefig(focused_filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Threshold-focused anomaly plot saved to: {focused_filename}")
         return focused_filename
@@ -172,6 +179,8 @@ class AnomalyVisualizer:
         full_filename = os.path.join(self.results_dir, filename)
         plt.savefig(full_filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"{data_label} plot saved to: {full_filename}")
         return full_filename

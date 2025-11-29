@@ -41,10 +41,10 @@ class GroundTruthEvaluator:
         print(f"  Samples above threshold: {np.sum(detection_labels)} anomalies")
         
         # DEBUG: Compare with model's is_anomaly if available
-        if 'is_anomaly' in test_data.columns:
-            model_labels = test_data['is_anomaly'].values
-            print(f"  Model's is_anomaly detected: {np.sum(model_labels)} anomalies")
-            print(f"  Difference (threshold - model): {np.sum(detection_labels) - np.sum(model_labels)} samples")
+        # if 'is_anomaly' in test_data.columns:
+        #     model_labels = test_data['is_anomaly'].values
+        #     print(f"  Model's is_anomaly detected: {np.sum(model_labels)} anomalies")
+        #     print(f"  Difference (threshold - model): {np.sum(detection_labels) - np.sum(model_labels)} samples")
         
         # If no attack periods provided, return empty ground truth
         if not attack_periods:
@@ -183,8 +183,8 @@ class GroundTruthEvaluator:
         # If model labels (is_anomaly) are available, create a separate comparison plot
         if 'is_anomaly' in test_data.columns:
             model_labels = test_data['is_anomaly'].values
-            print("\nCreating additional evaluation plot for model's is_anomaly labels...")
-            self.visualizer.plot_model_labels_evaluation(test_data, y_true, model_labels)
+            # print("\nCreating additional evaluation plot for model's is_anomaly labels...")
+            # self.visualizer.plot_model_labels_evaluation(test_data, y_true, model_labels)
             
             # Also calculate and print metrics for model labels
             model_metrics = self.calculate_metrics(y_true, model_labels)

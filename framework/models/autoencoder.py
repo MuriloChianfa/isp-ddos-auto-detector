@@ -35,18 +35,24 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         history: Training history from model fitting
     """
     
-    def __init__(self, latent_dim: int = 8, hidden_layers: Optional[List[int]] = None):
+    def __init__(self, latent_dim: int = 8, hidden_layers: Optional[List[int]] = None,
+                 batch_size: int = 64, learning_rate: float = 0.01, **kwargs):
         """
         Initialize the autoencoder anomaly detector.
         
         Args:
             latent_dim: Dimension of the latent (bottleneck) layer
             hidden_layers: List of hidden layer dimensions for encoder (decoder mirrors these)
-                          Default: [24, 18, 12]
+                          Default: Will be auto-scaled based on input_dim in build_model()
+            batch_size: Batch size for training (default: 64)
+            learning_rate: Learning rate for optimizer (default: 0.01)
+            **kwargs: Additional parameters (ignored, for compatibility)
         """
         super().__init__(model_name="autoencoder")
         self.latent_dim = latent_dim
-        self.hidden_layers = hidden_layers if hidden_layers is not None else [24, 18, 12]
+        self.hidden_layers = hidden_layers  # Don't set default here - will be set in build_model
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
         self.autoencoder = None
         self.scaler = MinMaxScaler()
         self.history = None
@@ -58,6 +64,20 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         # Validate input
         if input_dim <= 0:
             raise ValueError(f"Invalid input dimension: {input_dim}")
+        
+        # Set default hidden layers if not provided, scaled to input_dim
+        if self.hidden_layers is None:
+            # Default architecture: 3 layers decreasing from ~75%, ~50%, ~30% of input_dim
+            self.hidden_layers = [
+                max(4, int(input_dim * 0.75)),
+                max(4, int(input_dim * 0.5)),
+                max(4, int(input_dim * 0.3))
+            ]
+            # Ensure first layer is smaller than input_dim
+            self.hidden_layers[0] = min(self.hidden_layers[0], input_dim - 1)
+            # Ensure layers are strictly decreasing
+            for i in range(1, len(self.hidden_layers)):
+                self.hidden_layers[i] = min(self.hidden_layers[i], self.hidden_layers[i-1] - 1)
         
         if not self.hidden_layers:
             raise ValueError("Hidden layers configuration is empty")
@@ -90,10 +110,9 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         
         self.autoencoder = keras.Sequential(layers)
         
-        # Optimizer settings
-        initial_learning_rate = 0.01
+        # Optimizer settings - use stored learning rate
         optimizer = keras.optimizers.Adam(
-            learning_rate=initial_learning_rate,
+            learning_rate=self.learning_rate,
             beta_1=0.9,
             beta_2=0.999,
             epsilon=1e-7
@@ -143,8 +162,12 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         return self.scaler.transform(feature_data)
         
     def train(self, scaled_train_data: np.ndarray, scaled_validation_data: Optional[np.ndarray] = None, 
-              epochs: int = 100, batch_size: int = 64, **kwargs) -> Dict[str, Any]:
+              epochs: int = 100, batch_size: int = None, **kwargs) -> Dict[str, Any]:
         """Train the autoencoder with improved training strategy"""
+        
+        # Use stored batch_size if not provided
+        if batch_size is None:
+            batch_size = self.batch_size
         
         # Validate training data
         self.validate_training_data(scaled_train_data, scaled_validation_data)
@@ -258,3 +281,18 @@ class AutoencoderAnomalyDetector(BaseAnomalyDetector, ModelValidationMixin, Thre
         logger.info("Feature importance analysis completed")
         
         return feature_errors, importance_indices
+    
+    def get_model_config(self) -> Dict[str, Any]:
+        """
+        Get model configuration for serialization.
+        
+        Returns:
+            Dictionary containing model configuration
+        """
+        return {
+            'latent_dim': self.latent_dim,
+            'hidden_layers': self.hidden_layers,
+            'batch_size': self.batch_size,
+            'learning_rate': self.learning_rate,
+            'input_dim': getattr(self, '_input_dim', None)
+        }

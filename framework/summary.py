@@ -10,7 +10,8 @@ import pandas as pd
 from pathlib import Path
 from typing import List, Optional, Dict
 from tabulate import tabulate
-from framework.evaluation_cache import EvaluationCache
+from framework.stats import EvaluationCache
+from termcolor import colored
 
 
 class ResultsSummary:
@@ -71,9 +72,15 @@ class ResultsSummary:
                         if row:
                             all_metrics.append(row)
         
-        # Also collect from analysis.json files
         print("Scanning analysis files...")
-        analysis_files = list(self.results_base_dir.rglob("**/artifacts/analysis.json"))
+        
+        # Exclude versions and comparisons directories
+        analysis_files = []
+        for file_path in self.results_base_dir.rglob("**/artifacts/analysis.json"):
+            # Skip if path contains 'versions' or 'comparisons'
+            if 'versions' in file_path.parts or 'comparisons' in file_path.parts:
+                continue
+            analysis_files.append(file_path)
         
         for file_path in analysis_files:
             try:
@@ -91,7 +98,10 @@ class ResultsSummary:
                 model = parts[models_idx + 1]
                 
                 # Extract time span from window string (e.g., "300seconds" -> 300)
-                time_span = int(window_str.replace('seconds', ''))
+                try:
+                    time_span = int(window_str.replace('seconds', ''))
+                except ValueError:
+                    continue
                 
                 # Apply filters
                 if datasets and dataset not in datasets:
@@ -108,7 +118,6 @@ class ResultsSummary:
                       for m in all_metrics):
                     continue
                 
-                # Read the analysis file
                 with open(file_path, 'r') as f:
                     analysis_data = json.load(f)
                 
@@ -124,7 +133,6 @@ class ResultsSummary:
             print("No metrics found!")
             return pd.DataFrame()
         
-        # Create DataFrame and sort
         df = pd.DataFrame(all_metrics)
         df = df.sort_values(['dataset', 'time_span', 'model'])
         
@@ -247,17 +255,14 @@ class ResultsSummary:
             print("No data to display")
             return
         
-        # Default key metrics
         if metrics is None:
             metrics = ['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'fpr', 'mcc']
         
-        # Select columns for display
         display_cols = ['dataset', 'model', 'time_span'] + metrics
         display_cols = [col for col in display_cols if col in df.columns]
         
         display_df = df[display_cols].copy()
         
-        # Round numeric columns for better display
         for col in metrics:
             if col in display_df.columns and pd.api.types.is_numeric_dtype(display_df[col]):
                 display_df[col] = display_df[col].round(4)
@@ -289,11 +294,9 @@ class ResultsSummary:
             'threshold', 'threshold_strategy'
         ]
         
-        # Filter to existing columns
         display_cols = [col for col in display_cols if col in df.columns]
         display_df = df[display_cols].copy()
         
-        # Round numeric columns
         numeric_cols = ['accuracy', 'precision', 'recall', 'f1_score', 'f2_score',
                        'roc_auc', 'mcc', 'fpr', 'fnr', 'threshold']
         for col in numeric_cols:
@@ -329,7 +332,6 @@ class ResultsSummary:
             
             display_df = dataset_df[display_cols].copy()
             
-            # Round numeric columns
             for col in ['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'fpr', 'mcc']:
                 if col in display_df.columns:
                     display_df[col] = display_df[col].round(4)
@@ -363,7 +365,6 @@ class ResultsSummary:
             
             display_df = model_df[display_cols].copy()
             
-            # Round numeric columns
             for col in ['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'fpr', 'mcc']:
                 if col in display_df.columns:
                     display_df[col] = display_df[col].round(4)
@@ -424,24 +425,20 @@ class ResultsSummary:
             print("Training time data not available")
             return
         
-        # Filter out entries with 0 or None training time (loaded from artifacts)
         training_df = df[df['training_time_seconds'] > 0].copy()
         
         if training_df.empty:
             print("No training time data available (all models loaded from artifacts)")
             return
         
-        # Add training time in minutes for readability
         training_df['training_time_minutes'] = training_df['training_time_seconds'] / 60
         
         display_cols = ['dataset', 'model', 'time_span', 'training_time_seconds', 'training_time_minutes']
         display_df = training_df[display_cols].copy()
         
-        # Round time columns
         display_df['training_time_seconds'] = display_df['training_time_seconds'].round(2)
         display_df['training_time_minutes'] = display_df['training_time_minutes'].round(2)
         
-        # Sort by training time
         display_df = display_df.sort_values('training_time_seconds', ascending=False)
         
         print("\n" + "="*100)
@@ -450,7 +447,6 @@ class ResultsSummary:
         print(tabulate(display_df, headers='keys', tablefmt=format, showindex=False))
         print("="*100)
         
-        # Print summary statistics
         print("\nTraining Time Summary:")
         print(f"  Total models trained: {len(training_df)}")
         print(f"  Average training time: {training_df['training_time_minutes'].mean():.2f} minutes ({training_df['training_time_seconds'].mean():.2f} seconds)")
@@ -556,6 +552,158 @@ class ResultsSummary:
         
         return stats
     
+    def check_optimal_params_status(self, 
+                                    datasets: Optional[List[str]] = None,
+                                    models: Optional[List[str]] = None,
+                                    time_spans: Optional[List[int]] = None) -> pd.DataFrame:
+        """
+        Check which combinations have optimal parameters already run
+        
+        Args:
+            datasets: List of dataset names to check (None = all in results dir)
+            models: List of model names to check (None = all available)
+            time_spans: List of time spans to check (None = all supported)
+            
+        Returns:
+            DataFrame with status of optimal parameters for each combination
+        """
+        from framework.models import list_available_models
+        from framework.constants import SUPPORTED_TIME_SPANS
+        from config import DATASETS
+        
+        # Get defaults
+        if datasets is None:
+            datasets = list(DATASETS.keys())
+        if models is None:
+            models = list_available_models()
+        if time_spans is None:
+            time_spans = SUPPORTED_TIME_SPANS
+        
+        status_data = []
+        
+        for dataset in datasets:
+            for time_span in time_spans:
+                for model in models:
+                    # Build path to optimal params
+                    params_file = self.results_base_dir / dataset / f"{time_span}seconds" / "models" / model / "optimization" / "parameters" / "optimal_params.py"
+                    optimization_results = self.results_base_dir / dataset / f"{time_span}seconds" / "models" / model / "optimization" / "optimization_results.json"
+                    
+                    status = "MISSING"
+                    n_iterations = 0
+                    best_score = None
+                    
+                    if params_file.exists():
+                        status = "OK"
+                        
+                        # Try to read number of iterations from optimization_results.json
+                        if optimization_results.exists():
+                            try:
+                                with open(optimization_results, 'r') as f:
+                                    opt_data = json.load(f)
+                                    if 'all_iterations' in opt_data:
+                                        n_iterations = len(opt_data['all_iterations'])
+                                    if 'best_parameters' in opt_data:
+                                        best_score = opt_data['best_parameters'].get('score')
+                            except Exception as e:
+                                pass
+                    
+                    status_data.append({
+                        'dataset': dataset,
+                        'model': model,
+                        'time_span': time_span,
+                        'status': status,
+                        'iterations': n_iterations,
+                        'best_score': best_score if best_score else 0.0
+                    })
+        
+        df = pd.DataFrame(status_data)
+        df = df.sort_values(['dataset', 'time_span', 'model'])
+        
+        return df
+    
+    def display_optimal_params_status(self,
+                                     datasets: Optional[List[str]] = None,
+                                     models: Optional[List[str]] = None,
+                                     time_spans: Optional[List[int]] = None,
+                                     format: str = 'grid'):
+        """
+        Display status of optimal parameters with colors
+        
+        Args:
+            datasets: List of dataset names to check (None = all)
+            models: List of model names to check (None = all)
+            time_spans: List of time spans to check (None = all)
+            format: Table format
+        """
+        df = self.check_optimal_params_status(datasets, models, time_spans)
+        
+        if df.empty:
+            print("No combinations to check!")
+            return
+        
+        total = len(df)
+        completed = len(df[df['status'] == 'OK'])
+        missing = len(df[df['status'] == 'MISSING'])
+        total_iterations = df[df['status'] == 'OK']['iterations'].sum()
+        
+        print("\n" + "="*100)
+        print("OPTIMAL PARAMETERS STATUS")
+        print("="*100)
+        print(f"Total combinations: {total}")
+        print(f"Completed: {colored(str(completed), 'green')} ({completed/total*100:.1f}%)")
+        print(f"Missing: {colored(str(missing), 'red')} ({missing/total*100:.1f}%)")
+        if completed > 0:
+            print(f"Total optimization iterations: {total_iterations}")
+            print(f"Average iterations per combination: {total_iterations/completed:.1f}")
+        print("="*100)
+        
+        display_df = df.copy()
+        
+        # Create display version with non-colored strings first
+        display_df['iterations_display'] = display_df.apply(
+            lambda row: str(row['iterations']) if row['status'] == 'OK' else '-',
+            axis=1
+        )
+        display_df['best_score_display'] = display_df.apply(
+            lambda row: f"{row['best_score']:.4f}" if row['status'] == 'OK' and row['best_score'] != 0.0 else '-',
+            axis=1
+        )
+        
+        output_df = display_df[['dataset', 'model', 'time_span', 'status', 'iterations_display', 'best_score_display']].copy()
+        output_df.columns = ['Dataset', 'Model', 'Time Span', 'Status', 'Iterations', 'Best Score']
+        
+        table_str = tabulate(output_df, headers='keys', tablefmt=format, showindex=False)
+        
+        # Now replace the status strings with colored versions in the output
+        # Split into lines and process each line
+        lines = table_str.split('\n')
+        colored_lines = []
+        for line in lines:
+            # Replace OK with colored OK
+            line = line.replace('OK      ', colored('OK', 'green', attrs=['bold']) + '      ')
+            line = line.replace('OK     ', colored('OK', 'green', attrs=['bold']) + '     ')
+            line = line.replace('OK    ', colored('OK', 'green', attrs=['bold']) + '    ')
+            line = line.replace('OK   ', colored('OK', 'green', attrs=['bold']) + '   ')
+            line = line.replace('OK  ', colored('OK', 'green', attrs=['bold']) + '  ')
+            line = line.replace('OK ', colored('OK', 'green', attrs=['bold']) + ' ')
+            line = line.replace(' OK|', ' ' + colored('OK', 'green', attrs=['bold']) + '|')
+            
+            # Replace MISSING with colored MISSING
+            line = line.replace('MISSING', colored('MISSING', 'red', attrs=['bold']))
+            colored_lines.append(line)
+        
+        colored_table = '\n'.join(colored_lines)
+        
+        print("\n" + colored_table)
+        print("="*100 + "\n")
+        
+        # Show missing combinations if any
+        if missing > 0:
+            print(f"\n{colored('Missing Combinations:', 'red', attrs=['bold'])}")
+            missing_df = df[df['status'] == 'MISSING'][['dataset', 'model', 'time_span']]
+            for idx, row in missing_df.iterrows():
+                print(f"  - Dataset: {row['dataset']}, Model: {row['model']}, Time Span: {row['time_span']}s")
+    
     def display_statistics(self, df: pd.DataFrame):
         """
         Display summary statistics
@@ -603,6 +751,7 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
                                 export_csv: bool = False,
                                 show_stats: bool = True,
                                 show_training_times: bool = True,
+                                show_optimal_params_status: bool = True,
                                 top_n: Optional[int] = None):
     """
     Convenience function to display comprehensive results summary
@@ -617,11 +766,14 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
         export_csv: If True, export results to CSV
         show_stats: If True, display summary statistics
         show_training_times: If True, display training time statistics
+        show_optimal_params_status: If True, display optimal parameters status
         top_n: If specified, show top N performers by F1 score
     """
     summary = ResultsSummary()
     
-    # Collect all metrics
+    if show_optimal_params_status:
+        summary.display_optimal_params_status(datasets=datasets, models=models, time_spans=time_spans, format=format)
+    
     df = summary.collect_all_metrics(datasets=datasets, models=models, time_spans=time_spans)
     
     if df.empty:
@@ -641,7 +793,6 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
         else:
             summary.display_summary_table(df, format=format)
     
-    # Show top performers
     if top_n and top_n > 0:
         print("\n" + "="*100)
         print(f"TOP {top_n} PERFORMERS (by F1 Score)")
@@ -649,15 +800,12 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
         top_df = summary.get_best_performers(df, metric='f1_score', top_n=top_n)
         summary.display_summary_table(top_df, format=format)
     
-    # Show training times
     if show_training_times:
         summary.display_training_times(df, format=format)
     
-    # Show statistics
     if show_stats:
         summary.display_statistics(df)
     
-    # Export to CSV
     if export_csv:
         summary.export_to_csv(df)
     

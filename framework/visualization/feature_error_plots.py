@@ -1,15 +1,20 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
 import pandas as pd
 import numpy as np
 import os
+import gc
 from pathlib import Path
 from scipy import stats
 from multiprocessing import Pool, cpu_count, Manager
 import sys
 import time
 from ..utils import get_results_path
+
+plt.ioff()  # Disable interactive mode
 
 
 # Global function for multiprocessing (needs to be at module level for pickling)
@@ -26,6 +31,12 @@ def _plot_feature_error_worker(task_info):
         Tuple: (success: bool, filepath: str, feature_name: str, dataset_type: str)
     """
     try:
+        # Configure matplotlib for this worker process
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff()
+        
         feature_idx = task_info[0]
         feature_name = task_info[1]
         original_col = task_info[2]
@@ -59,6 +70,10 @@ def _plot_feature_error_worker(task_info):
         import traceback
         traceback.print_exc()
         return (False, None, task_info[1], task_info[4])
+    finally:
+        # Clean up memory in worker process
+        plt.close('all')
+        gc.collect()
 
 
 def _create_individual_feature_error_plot(original_data, reconstructed_data, feature_name, 
@@ -220,6 +235,8 @@ def _create_individual_feature_error_plot(original_data, reconstructed_data, fea
                            f"{feature_name}_{dataset_type}_error_analysis.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
+    plt.clf()
+    gc.collect()
     
     return filename
 
@@ -380,6 +397,8 @@ class FeatureErrorVisualizer:
                                f"feature_error_summary_{dataset_type}.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Feature error summary plot saved to: {filename}")
         return filename
@@ -483,6 +502,8 @@ class FeatureErrorVisualizer:
                                f"temporal_error_heatmap_{dataset_type}.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         print(f"Temporal error heatmap saved to: {filename}")
         return filename
@@ -565,6 +586,8 @@ class FeatureErrorVisualizer:
                                f"feature_distributions_{dataset_type}.png")
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         saved_plots.append(filename)
         print(f"Feature distributions plot saved to: {filename}")
@@ -649,6 +672,8 @@ class FeatureErrorVisualizer:
                                 f"error_analysis_{dataset_type}.png")
         plt.savefig(filename2, dpi=300, bbox_inches='tight')
         plt.close()
+        plt.clf()
+        gc.collect()
         
         saved_plots.append(filename2)
         print(f"Error analysis plot saved to: {filename2}")

@@ -37,7 +37,7 @@ class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixi
     def __init__(self, n_neighbors: int = 20, contamination: float = 0.1, 
                  novelty: bool = True, random_state: int = 42,
                  algorithm: str = 'auto', leaf_size: int = 30,
-                 metric: str = 'minkowski', p: int = 2):
+                 metric: str = 'minkowski', p: int = 2, n_jobs: int = -1, **kwargs):
         """
         Initialize the Local Outlier Factor anomaly detector.
         
@@ -50,6 +50,8 @@ class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixi
             leaf_size: Leaf size passed to BallTree or KDTree (affects build and query time)
             metric: Distance metric to use ('minkowski', 'euclidean', 'manhattan', 'chebyshev', etc.)
             p: Power parameter for the Minkowski metric (1=Manhattan, 2=Euclidean)
+            n_jobs: Number of parallel jobs to run (-1 means using all processors)
+            **kwargs: Additional parameters (ignored, for compatibility)
         """
         super().__init__(model_name="local_outlier_factor")
         self.n_neighbors = n_neighbors
@@ -60,6 +62,7 @@ class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixi
         self.leaf_size = leaf_size
         self.metric = metric
         self.p = p
+        self.n_jobs = n_jobs
         self.model = None
         self.scaler = StandardScaler()
         
@@ -78,7 +81,7 @@ class LocalOutlierFactorAnomalyDetector(BaseAnomalyDetector, ModelValidationMixi
             leaf_size=self.leaf_size,
             metric=self.metric,
             p=self.p,
-            n_jobs=-1  # Use all available cores
+            n_jobs=self.n_jobs  # Use configured n_jobs value
         )
         
         print(f"Local Outlier Factor parameters:")

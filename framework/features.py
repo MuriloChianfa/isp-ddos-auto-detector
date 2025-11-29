@@ -10,7 +10,7 @@ import functools
 
 
 class NetworkFeatureExtractor:
-    def __init__(self, time_span=300, use_cache=True, dataset_name=None, max_processes=None, feature_config=None):
+    def __init__(self, time_span=300, use_cache=True, dataset_name=None, max_processes=None, feature_config=None, skip_ema=False):
         """
         Initialize NetworkFeatureExtractor
         
@@ -22,6 +22,7 @@ class NetworkFeatureExtractor:
             dataset_name (str): Name of the dataset being processed (for result organization)
             max_processes (int): Maximum number of processes to use for parallel processing.
             feature_config (dict): Configuration for feature selection and customization
+            skip_ema (bool): If True, skip EMA smoothing (used during chunk processing in parallel mode)
         """
         self.time_span = time_span
         self.use_cache = use_cache
@@ -29,6 +30,7 @@ class NetworkFeatureExtractor:
         self.max_processes = max_processes
         self.feature_config = feature_config or {}
         self.cache = DataCache() if use_cache else None
+        self.skip_ema = skip_ema
         
         # Get EMA alpha from config (can be overridden by window config)
         # Handle both dict and wrapped format
@@ -169,7 +171,12 @@ class NetworkFeatureExtractor:
         Returns:
             pd.DataFrame: DataFrame with EMA features added (if configured)
         """
+        # Skip EMA if flag is set (used during parallel chunk processing)
+        if self.skip_ema:
+            return features_df
+        
         from config import DEFAULT_EMA_CONFIG
+        from .constants import FEATURE_GROUPS
         
         # Determine which EMA features are requested in feature_config
         requested_ema_features = []
@@ -181,10 +188,16 @@ class NetworkFeatureExtractor:
         elif isinstance(self.feature_config, list):
             feature_list = self.feature_config
         
-        # Only generate EMA features that are explicitly requested
+        # Check if new format (explicit list of features)
         if feature_list:
             # Find all features ending with '_ema' in the feature config
             requested_ema_features = [f for f in feature_list if f.endswith('_ema')]
+        # Check if old format with include_groups
+        elif isinstance(self.feature_config, dict) and 'include_groups' in self.feature_config:
+            include_groups = self.feature_config.get('include_groups', [])
+            if 'ema_smoothed' in include_groups:
+                # Get all EMA features from the FEATURE_GROUPS constant
+                requested_ema_features = FEATURE_GROUPS.get('ema_smoothed', [])
         
         # If no EMA features are requested, return unchanged
         if not requested_ema_features:
@@ -360,6 +373,9 @@ class NetworkFeatureExtractor:
                 # Sort by timestamp to ensure proper chronological order
                 combined_features = combined_features.sort_values('timestamp').reset_index(drop=True)
                 
+                # Apply EMA smoothing AFTER combining all chunks (EMA requires sequential processing)
+                combined_features = self._apply_ema_if_configured(combined_features)
+                
                 print(f"Saving {len(combined_features)} feature records to {csv_path}")
                 combined_features.to_csv(csv_path, index=False)
                 
@@ -375,7 +391,8 @@ class NetworkFeatureExtractor:
         """Static method to extract features from a data chunk - used for parallel processing"""
         try:
             # Create a temporary feature extractor for this chunk
-            temp_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=False, feature_config=feature_config)
+            # Skip EMA during chunk processing - it will be applied after combining all chunks
+            temp_extractor = NetworkFeatureExtractor(time_span=time_span, use_cache=False, feature_config=feature_config, skip_ema=True)
             return temp_extractor.prepare_advanced_features(data_chunk)
         except Exception as e:
             print(f"    Error extracting features from chunk: {str(e)}")
