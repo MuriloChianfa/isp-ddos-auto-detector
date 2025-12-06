@@ -1,6 +1,6 @@
 {
   "best_parameters": {
-    "score": 1.275989277263805,
+    "score": 1.274599261745799,
     "params": {
       "p": 3,
       "n_neighbors": 183,
@@ -15,7 +15,7 @@
   "all_iterations": [
     {
       "iteration": 1,
-      "score": 1.1732227360099812,
+      "score": 1.1740634816618025,
       "params": {
         "p": 1,
         "n_neighbors": 167,
@@ -29,7 +29,7 @@
     },
     {
       "iteration": 2,
-      "score": 1.275989277263805,
+      "score": 1.274599261745799,
       "params": {
         "p": 3,
         "n_neighbors": 183,
@@ -43,7 +43,7 @@
     },
     {
       "iteration": 3,
-      "score": 1.1743411817553642,
+      "score": 1.1746896321330444,
       "params": {
         "p": 2,
         "n_neighbors": 134,
@@ -57,7 +57,7 @@
     },
     {
       "iteration": 4,
-      "score": 1.127135979109043,
+      "score": 1.1280423646235016,
       "params": {
         "p": 2,
         "n_neighbors": 20,
@@ -71,7 +71,7 @@
     },
     {
       "iteration": 5,
-      "score": 1.1401238290943034,
+      "score": 1.1414414484329531,
       "params": {
         "p": 1,
         "n_neighbors": 52,

@@ -109,23 +109,23 @@
     },
     "one_class_svm": {
       "display_name": "OCSVM",
-      "overall_mean": 0.6164128229583663,
-      "overall_std": 0.3306611327287259,
-      "overall_min": 0.0011478500344327,
+      "overall_mean": 0.7937865584096403,
+      "overall_std": 0.03650360722218622,
+      "overall_min": 0.708627049549259,
       "overall_max": 0.8333753271842305,
-      "overall_range": 0.8322274771497977,
-      "coefficient_of_variation": 0.5364280566743813,
+      "overall_range": 0.12474827763497143,
+      "coefficient_of_variation": 0.04598667845336356,
       "dataset_breakdown": {
         "itp-downstream-http-flood": {
           "pcc_0.50": 0.708627049549259,
-          "pcc_0.70": 0.0015899783057389,
-          "pcc_0.90": 0.0011478500344327,
-          "mean": 0.23712162596314357,
-          "std": 0.3334047312428681,
-          "min": 0.0011478500344327,
-          "max": 0.708627049549259,
-          "range": 0.7074791995148263,
-          "coefficient_of_variation": 1.4060494477829284
+          "pcc_0.70": 0.8167796510276649,
+          "pcc_0.90": 0.7823217963739726,
+          "mean": 0.7692428323169654,
+          "std": 0.04511127558412333,
+          "min": 0.708627049549259,
+          "max": 0.8167796510276649,
+          "range": 0.10815260147840589,
+          "coefficient_of_variation": 0.058643738607544536
         },
         "itp-synack-customer-outage": {
           "pcc_0.50": 0.8062396336686095,
@@ -199,12 +199,12 @@
   "variability_by_dataset": {
     "itp-downstream-http-flood": {
       "display_name": "DS1",
-      "overall_mean": 0.5702012596258921,
-      "overall_std": 0.3627268440433947,
-      "overall_min": 0.0011478500344327,
+      "overall_mean": 0.7032315612143476,
+      "overall_std": 0.2622244394902894,
+      "overall_min": 0.1268266651393393,
       "overall_max": 0.9502642811371408,
-      "overall_range": 0.949116431102708,
-      "coefficient_of_variation": 0.6361382720925224,
+      "overall_range": 0.8234376159978015,
+      "coefficient_of_variation": 0.3728849129545288,
       "model_breakdown": {
         "autoencoder": {
           "pcc_0.50": 0.9502642811371408,
@@ -230,14 +230,14 @@
         },
         "one_class_svm": {
           "pcc_0.50": 0.708627049549259,
-          "pcc_0.70": 0.0015899783057389,
-          "pcc_0.90": 0.0011478500344327,
-          "mean": 0.23712162596314357,
-          "std": 0.3334047312428681,
-          "min": 0.0011478500344327,
-          "max": 0.708627049549259,
-          "range": 0.7074791995148263,
-          "coefficient_of_variation": 1.4060494477829284
+          "pcc_0.70": 0.8167796510276649,
+          "pcc_0.90": 0.7823217963739726,
+          "mean": 0.7692428323169654,
+          "std": 0.04511127558412333,
+          "min": 0.708627049549259,
+          "max": 0.8167796510276649,
+          "range": 0.10815260147840589,
+          "coefficient_of_variation": 0.058643738607544536
         },
         "local_outlier_factor": {
           "pcc_0.50": 0.1343646188656455,
@@ -365,41 +365,41 @@
   },
   "overall_statistics": {
     "total_configurations": 36,
-    "global_mean": 0.69612277698557,
-    "global_std": 0.24938182958179353,
-    "global_min": 0.0011478500344327,
+    "global_mean": 0.7404662108483885,
+    "global_std": 0.18444517699650173,
+    "global_min": 0.1268266651393393,
     "global_max": 0.9502642811371408,
-    "global_range": 0.949116431102708,
-    "coefficient_of_variation": 0.3582440308327434
+    "global_range": 0.8234376159978015,
+    "coefficient_of_variation": 0.2490933067495056
   },
   "ranking": {
     "most_stable_models": [
       {
         "rank": 1,
+        "model": "one_class_svm",
+        "display_name": "OCSVM",
+        "coefficient_of_variation": 0.04598667845336356,
+        "interpretation": "Lower is more stable across PCC thresholds"
+      },
+      {
+        "rank": 2,
         "model": "autoencoder",
         "display_name": "AE",
         "coefficient_of_variation": 0.05189004369351162,
         "interpretation": "Lower is more stable across PCC thresholds"
       },
       {
-        "rank": 2,
+        "rank": 3,
         "model": "isolation_forest",
         "display_name": "IF",
         "coefficient_of_variation": 0.30047764646710085,
         "interpretation": "Lower is more stable across PCC thresholds"
       },
       {
-        "rank": 3,
+        "rank": 4,
         "model": "local_outlier_factor",
         "display_name": "LOF",
         "coefficient_of_variation": 0.38057319918197124,
-        "interpretation": "Lower is more stable across PCC thresholds"
-      },
-      {
-        "rank": 4,
-        "model": "one_class_svm",
-        "display_name": "OCSVM",
-        "coefficient_of_variation": 0.5364280566743813,
         "interpretation": "Lower is more stable across PCC thresholds"
       }
     ],
@@ -413,23 +413,23 @@
       },
       {
         "rank": 2,
+        "model": "one_class_svm",
+        "display_name": "OCSVM",
+        "mean_ap": 0.7937865584096403,
+        "interpretation": "Higher mean AP across all configurations"
+      },
+      {
+        "rank": 3,
         "model": "isolation_forest",
         "display_name": "IF",
         "mean_ap": 0.6725610791059127,
         "interpretation": "Higher mean AP across all configurations"
       },
       {
-        "rank": 3,
+        "rank": 4,
         "model": "local_outlier_factor",
         "display_name": "LOF",
         "mean_ap": 0.6331052984962418,
-        "interpretation": "Higher mean AP across all configurations"
-      },
-      {
-        "rank": 4,
-        "model": "one_class_svm",
-        "display_name": "OCSVM",
-        "mean_ap": 0.6164128229583663,
         "interpretation": "Higher mean AP across all configurations"
       }
     ]

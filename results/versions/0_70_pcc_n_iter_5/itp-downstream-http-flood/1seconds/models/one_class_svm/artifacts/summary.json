@@ -1,10 +1,10 @@
 {
   "artifacts_saved": true,
-  "saved_at": "2025-11-16T21:30:16.394029",
+  "saved_at": "2025-12-06T04:21:17.563783",
   "model_name": "one_class_svm",
   "dataset_name": "itp-downstream-http-flood",
   "time_span": 1,
-  "threshold": 0.01749626014010624,
+  "threshold": 7.230038401663114,
   "files": {
     "model": "model.pkl",
     "scaler": "scaler.pkl",

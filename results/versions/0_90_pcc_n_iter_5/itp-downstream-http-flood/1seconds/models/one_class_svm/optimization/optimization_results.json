@@ -1,6 +1,6 @@
 {
   "best_parameters": {
-    "score": 380.22276523274206,
+    "score": 380.63230506009114,
     "params": {
       "nu": 0.01,
       "kernel": "sigmoid",
@@ -16,7 +16,7 @@
   "all_iterations": [
     {
       "iteration": 1,
-      "score": -4139.936383685367,
+      "score": -4139.9882883966575,
       "params": {
         "nu": 0.163,
         "kernel": "sigmoid",
@@ -31,7 +31,7 @@
     },
     {
       "iteration": 2,
-      "score": 380.22276523274206,
+      "score": 380.63230506009114,
       "params": {
         "nu": 0.01,
         "kernel": "sigmoid",
@@ -46,7 +46,7 @@
     },
     {
       "iteration": 3,
-      "score": -892.0555476972226,
+      "score": -892.6196036159319,
       "params": {
         "nu": 0.163,
         "kernel": "sigmoid",
@@ -61,7 +61,7 @@
     },
     {
       "iteration": 4,
-      "score": -947.5931908259485,
+      "score": -967.5458449998723,
       "params": {
         "nu": 0.178,
         "kernel": "sigmoid",
@@ -76,7 +76,7 @@
     },
     {
       "iteration": 5,
-      "score": 176.83954147392987,
+      "score": -471.12359690177226,
       "params": {
         "nu": 0.224,
         "kernel": "sigmoid",

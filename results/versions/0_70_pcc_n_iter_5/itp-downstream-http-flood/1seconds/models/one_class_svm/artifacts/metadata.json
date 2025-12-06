@@ -3,14 +3,14 @@
   "dataset_name": "itp-downstream-http-flood",
   "time_span": 1,
   "model_type": "OneClassSVMAnomalyDetector",
-  "save_timestamp": "2025-11-16T21:30:16.393828",
+  "save_timestamp": "2025-12-06T04:21:17.563447",
   "model_info": {
     "model_name": "one_class_svm",
     "is_trained": true,
     "has_threshold": false,
     "threshold_value": null
   },
-  "training_time_seconds": 11.505633354187012,
+  "training_time_seconds": 2.754659414291382,
   "training_history": {
     "loss": [
       0.1

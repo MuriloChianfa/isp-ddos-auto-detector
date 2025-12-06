@@ -1,6 +1,6 @@
 {
-  "selected_threshold": 61.23334441126258,
-  "selected_strategy": "mse_plus_38std",
+  "selected_threshold": 4.102935529724219,
+  "selected_strategy": "mean_plus_3std",
   "is_trained": true,
   "all_strategies": {
     "normal_mse_mean": -0.7939566601219263,
@@ -27,5 +27,5 @@
     "percentile_99_5": 0.6884423567042764,
     "percentile_99_9": 20.965535757461875
   },
-  "threshold": 61.23334441126258
+  "threshold": 4.102935529724219
 }
