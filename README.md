@@ -234,7 +234,7 @@ The following visualizations show key features extracted from each dataset durin
     <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/avg_duration.png" width="100%" /></td>
   </tr>
   <tr>
-    <td colspan="3" align="center"><p><i>Average Flow Duration (mean connection lifetime)</i></p></td>
+    <td colspan="3" align="center"><p><i>Average Flow Duration</i></p></td>
   </tr>
   <tr>
     <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/size_uniformity.png" width="100%" /></td>
@@ -242,7 +242,7 @@ The following visualizations show key features extracted from each dataset durin
     <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/size_uniformity.png" width="100%" /></td>
   </tr>
   <tr>
-    <td colspan="3" align="center"><p><i>Size Uniformity (packet size consistency)</i></p></td>
+    <td colspan="3" align="center"><p><i>Size Uniformity</i></p></td>
   </tr>
   <tr>
     <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/packets_kurtosis.png" width="100%" /></td>
@@ -250,7 +250,7 @@ The following visualizations show key features extracted from each dataset durin
     <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/packets_kurtosis.png" width="100%" /></td>
   </tr>
   <tr>
-    <td colspan="3" align="center"><p><i>Packets Kurtosis (tailedness of packet distribution)</i></p></td>
+    <td colspan="3" align="center"><p><i>Packets Kurtosis</i></p></td>
   </tr>
   <tr>
     <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/cross_border_ratio.png" width="100%" /></td>
@@ -315,13 +315,8 @@ This comprehensive evaluation strategy ensures robust assessment across diverse 
 </table>
 
 <div align="center">
-  <img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/heatmap_models_vs_windows.png" alt="Models vs Time Windows Performance" width="80%" />
-  <p><i>Cross-evaluation heatmap showing F₁-scores across model-timespan combinations</i></p>
-</div>
-
-<div align="center">
   <img src="./results/pcc_comparison/avg_ap_comparison_1seconds.png" alt="Autoencoder showing the average precision for the three datasets" width="80%" />
-  <p><i>Cross-evaluation bars showing average Average-Precision (AP) across each of dataset</i></p>
+  <p><i>Cross-evaluation bars showing average Average Precision (AP) across each dataset</i></p>
 </div>
 
 
