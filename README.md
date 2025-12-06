@@ -14,7 +14,7 @@
 
 ## Abstract
 
-This research presents a comprehensive machine learning framework for unsupervised anomaly detection in Internet Transit Provider (ITP) network traffic, specifically targeting Distributed Denial of Service (DDoS) attacks. The framework implements and evaluates distinct anomaly detection algorithms (Isolation Forest, One-Class Support Vector Machine (OC-SVM), Local Outlier Factor (LOF) and Autoencoder) using NetFlow v9 data across multiple temporal resolutions (1s, 10s, 60s, 300s) and attack vectors. The system incorporates automated feature engineering with 150+ derived features including information-theoretic metrics (Shannon entropy), statistical moments, spectral analysis, and protocol-specific indicators. Our approach addresses the fundamental challenge of DDoS detection in operational ITP environments where labeled attack data is scarce and attack patterns evolve continuously.
+This research presents a comprehensive machine learning framework for unsupervised anomaly detection in Internet Transit Provider (ITP) network traffic, specifically targeting Distributed Denial of Service (DDoS) attacks. The framework implements and evaluates distinct anomaly detection algorithms (Isolation Forest, One-Class Support Vector Machine (OCSVM), Local Outlier Factor (LOF) and Autoencoder) using NetFlow v9 data across multiple temporal resolutions (1s, 10s, 60s, 300s) and attack vectors. The system incorporates automated feature engineering with 150+ derived features including information-theoretic metrics (Shannon entropy), statistical moments, spectral analysis, and protocol-specific indicators. Our approach addresses the fundamental challenge of DDoS detection in operational ITP environments where labeled attack data is scarce and attack patterns evolve continuously.
 
 ## Getting Started
 
@@ -139,8 +139,140 @@ isp-ddos-auto-detector/
     └── runs_index.json          # Index of all saved runs
 ```
 
+## Datasets
+
+The framework was evaluated using three real-world DDoS attack datasets collected from operational Internet Transit Provider (ITP) networks. All datasets consist of NetFlow v9 telemetry data captured during confirmed DDoS attack incidents:
+
+### Dataset Characteristics
+
+| Dataset | Attack Type | Attack Traffic |
+|---------|-------------|----------------|
+| **itp-downstream-http-flood** | HTTP Flood | Layer 7 application flood targeting downstream customer |
+| **itp-multivector-udp-100gbps-peak** | Multi-vector UDP | Volumetric attack reaching 100+ Gbps peak bandwidth |
+| **itp-synack-customer-outage** | SYN-ACK Reflection | Attack causing customer service degradation for two hours |
+
+### Feature Engineering
+
+Each dataset undergoes comprehensive feature extraction, generating **150+ derived features** from raw NetFlow records:
+
+- **Information-Theoretic Metrics**: Shannon entropy for IPs, ports, ASNs, GEO Codes
+- **Statistical Moments**: Mean, variance, skewness, kurtosis of packet sizes
+- **Protocol-Specific Indicators**: TCP flags distribution, TCP/UDP/ICMP ratios
+- **Temporal Features**: Traffic rate variations, flow duration statistics
+- **Volumetric Features**: Bytes/packets per flow, packet size distributions
+
+The feature engineering pipeline automatically adapts to different temporal aggregation windows (Δt), allowing analysis at multiple time scales from near-real-time (1s) to longer-term trends (300s).
+
+
+### Performance Metrics
+
+> **Experimental Setup:** All experiments were carried out on a dedicated machine equipped with an Intel Xeon E5-2683 v4 CPU running at 2.10 GHz, 128 GB of RAM and an NVIDIA GeForce GTX 1050 Ti GPU. The table below presents detection performance for **Δt = 1s** and **θ = 0.50** regarding basic metrics:
+
+| Dataset | Model | Accuracy | Precision | Recall | F₁ | FPR | MCC |
+|---------|-------|----------|-----------|--------|-------|--------|--------|
+| **itp-downstream-http-flood** | Autoencoder | **0.9992** | **0.7772** | 0.9404 | **0.8511** | **0.0006** | **0.8546** |
+| | Isolation Forest | 0.9875 | 0.1440 | 0.9060 | 0.2485 | 0.0123 | 0.3584 |
+| | Local Outlier Factor | 0.9889 | 0.1702 | **0.9906** | 0.2904 | 0.0111 | 0.4082 |
+| | One-Class SVM | 0.9975 | 0.4738 | 0.9342 | 0.6287 | 0.0024 | 0.6643 |
+| **itp-multivector-udp-100gbps-peak** | Autoencoder | **0.9969** | **0.9138** | 0.6628 | **0.7683** | **0.0005** | **0.7768** |
+| | Isolation Forest | 0.9897 | 0.4012 | 0.6672 | 0.5011 | 0.0078 | 0.5127 |
+| | Local Outlier Factor | 0.9961 | 0.8718 | 0.5768 | 0.6943 | 0.0007 | 0.7074 |
+| | One-Class SVM | 0.9796 | 0.2679 | **0.9444** | 0.4174 | 0.0202 | 0.4972 |
+| **itp-synack-customer-outage** | Autoencoder | **0.9901** | **0.9177** | 0.7063 | 0.7983 | 0.0018 | 0.8004 |
+| | Isolation Forest | 0.9750 | 0.8029 | 0.1348 | 0.2309 | **0.0009** | 0.3229 |
+| | Local Outlier Factor | 0.9792 | 0.5888 | 0.8360 | 0.6910 | 0.0167 | 0.6918 |
+| | One-Class SVM | 0.9893 | 0.7897 | **0.8377** | **0.8130** | 0.0064 | **0.8079** |
+
+*Where bold values indicate the best performance for each metric within each dataset. θ represents the PCC threshold.*
+
+
+### Feature Analysis
+
+The following visualizations show key features extracted from each dataset during the test phase (**Δt = 300s**). These features demonstrate the distinct behavioral patterns of different attack types:
+
+<table>
+  <tr>
+    <th style="text-align: center;" width="33%">itp-downstream-http-flood</th>
+    <th style="text-align: center;" width="33%">itp-multivector-udp-100gbps-peak</th>
+    <th style="text-align: center;" width="33%">itp-synack-customer-outage</th>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/src_ip_entropy.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/src_ip_entropy.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/src_ip_entropy.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Source IP Entropy</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/dst_port_entropy.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/dst_port_entropy.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/dst_port_entropy.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Destination Port Entropy</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/bit_rate.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/bit_rate.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/bit_rate.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Bit Rate over Time</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/syn_flag_ratio.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/syn_flag_ratio.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/syn_flag_ratio.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>SYN Flag Ratio</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/avg_duration.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/avg_duration.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/avg_duration.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Average Flow Duration (mean connection lifetime)</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/size_uniformity.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/size_uniformity.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/size_uniformity.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Size Uniformity (packet size consistency)</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/packets_kurtosis.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/packets_kurtosis.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/packets_kurtosis.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Packets Kurtosis (tailedness of packet distribution)</i></p></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/300seconds/features/test/cross_border_ratio.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/300seconds/features/test/cross_border_ratio.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/300seconds/features/test/cross_border_ratio.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Cross-Border Ratio (international traffic proportion)</i></p></td>
+  </tr>
+</table>
+
 
 ## Results
+
+The experimental validation encompassed **144 distinct scenarios**, systematically combining:
+
+- **3 datasets**: Real-world DDoS attacks captured from ITP border routers (itp-downstream-http-flood, itp-multivector-udp-100gbps-peak, itp-synack-customer-outage)
+- **4 anomaly detection models**: Autoencoder (AE), Isolation Forest (IF), One-Class SVM (OCSVM), and Local Outlier Factor (LOF)
+- **4 temporal aggregation windows** (Δt): 1s, 10s, 60s, and 300s for feature extraction
+- **3 PCC thresholds** (θ): 0.50, 0.70, and 0.90 for correlation-based feature selection
+
+This comprehensive evaluation strategy ensures robust assessment across diverse attack patterns, model architectures, temporal resolutions, and feature dimensionality reduction approaches. Some results:
 
 <table>
   <tr>
@@ -193,29 +325,9 @@ isp-ddos-auto-detector/
 </div>
 
 
-<!-- ### Performance Metrics
+## Acknowledgments
 
-> Environment: Intel Xeon E5-2683 v4 @ 2.10GHz, 128GB RAM, Debian 12
-
-| dataset                          | model                |   accuracy |   precision |   recall |   f1_score |   roc_auc |    fpr |    mcc |
-|----------------------------------|----------------------|------------|-------------|----------|------------|-----------|--------|--------|
-| itp-downstream-http-flood        | autoencoder          |     0.9993 |      0.8032 |   0.9467 |     0.8691 |    0.9731 | 0.0005 | 0.8717 |
-| itp-downstream-http-flood        | isolation_forest     |     0.9989 |      0.7023 |   0.8652 |     0.7753 |    0.9322 | 0.0008 | 0.779  |
-| itp-downstream-http-flood        | local_outlier_factor |     0.9945 |      0.2929 |   1      |     0.4531 |    0.9972 | 0.0055 | 0.5397 |
-| itp-downstream-http-flood        | one_class_svm        |     0.9978 |      0.7308 |   0.0596 |     0.1101 |    0.5298 | 0.0001 | 0.2082 |
-| itp-multivector-udp-100gbps-peak | autoencoder          |     0.9986 |      0.9268 |   0.8895 |     0.9078 |    0.9445 | 0.0005 | 0.9073 |
-| itp-multivector-udp-100gbps-peak | isolation_forest     |     0.9943 |      0.7363 |   0.4166 |     0.5321 |    0.7077 | 0.0012 | 0.5514 |
-| itp-multivector-udp-100gbps-peak | local_outlier_factor |     0.997  |      0.8155 |   0.7857 |     0.8003 |    0.8921 | 0.0014 | 0.7989 |
-| itp-multivector-udp-100gbps-peak | one_class_svm        |     0.9951 |      0.9368 |   0.4009 |     0.5615 |    0.7003 | 0.0002 | 0.6111 |
-| itp-synack-customer-outage       | autoencoder          |     0.9946 |      0.9173 |   0.8838 |     0.9002 |    0.9408 | 0.0023 | 0.8976 |
-| itp-synack-customer-outage       | isolation_forest     |     0.9931 |      0.9036 |   0.8395 |     0.8704 |    0.9185 | 0.0026 | 0.8674 |
-| itp-synack-customer-outage       | local_outlier_factor |     0.9738 |      0.8187 |   0.072  |     0.1323 |    0.5358 | 0.0005 | 0.2381 |
-| itp-synack-customer-outage       | one_class_svm        |     0.9783 |      0.7817 |   0.3056 |     0.4395 |    0.6516 | 0.0024 | 0.4807 | -->
-
-
-<!-- ## Acknowledgments
-
-A special thanks to ... -->
+A special thanks to the ITPs for granting access to operational telemetry and for their support in the collection used in this study. Without this collaboration, it would not have been possible to evaluate the proposed methods under realistic ITP traffic conditions.
 
 
 <!-- ## Citation
