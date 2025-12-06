@@ -17,16 +17,26 @@ from termcolor import colored
 class ResultsSummary:
     """Collects and displays comprehensive summary of all evaluation results"""
     
-    def __init__(self, results_base_dir: str = './results', cache_dir: str = './cache'):
+    def __init__(self, results_base_dir: str = './results', cache_dir: str = './cache', version_path: Optional[str] = None):
         """
         Initialize ResultsSummary
         
         Args:
             results_base_dir: Base directory containing all evaluation results
             cache_dir: Directory containing evaluation cache
+            version_path: Optional path to a specific version directory to use instead of results_base_dir
         """
-        self.results_base_dir = Path(results_base_dir)
-        self.cache = EvaluationCache(cache_dir=cache_dir)
+        if version_path:
+            self.results_base_dir = Path(version_path)
+            # Use cache from the version directory if it exists, otherwise use main cache
+            version_cache_dir = Path(version_path) / 'cache'
+            if version_cache_dir.exists():
+                self.cache = EvaluationCache(cache_dir=str(version_cache_dir))
+            else:
+                self.cache = EvaluationCache(cache_dir=cache_dir)
+        else:
+            self.results_base_dir = Path(results_base_dir)
+            self.cache = EvaluationCache(cache_dir=cache_dir)
         
     def collect_all_metrics(self, 
                            datasets: Optional[List[str]] = None,
@@ -74,27 +84,43 @@ class ResultsSummary:
         
         print("Scanning analysis files...")
         
-        # Exclude versions and comparisons directories
+        # Exclude versions and comparisons directories (only when not viewing a specific version)
         analysis_files = []
+        is_version_view = 'versions' in self.results_base_dir.parts
         for file_path in self.results_base_dir.rglob("**/artifacts/analysis.json"):
-            # Skip if path contains 'versions' or 'comparisons'
-            if 'versions' in file_path.parts or 'comparisons' in file_path.parts:
+            # Skip if path contains 'versions' or 'comparisons' (unless we're already in a version view)
+            if not is_version_view and ('versions' in file_path.parts or 'comparisons' in file_path.parts):
+                continue
+            if 'comparisons' in file_path.parts:
                 continue
             analysis_files.append(file_path)
         
         for file_path in analysis_files:
             try:
                 # Parse path structure: results/dataset/timespan/models/model/artifacts/analysis.json
+                # or when in version: version_path/dataset/timespan/models/model/artifacts/analysis.json
                 parts = file_path.parts
                 
-                if 'results' not in parts or 'models' not in parts:
+                if 'models' not in parts:
                     continue
-                    
-                results_idx = parts.index('results')
+
                 models_idx = parts.index('models')
+
+                # Find the base directory index (either 'results' or the version directory name)
+                base_idx = -1
+                if 'results' in parts and not is_version_view:
+                    # Normal case: results/dataset/timespan/models/model/artifacts/analysis.json
+                    base_idx = parts.index('results')
+                    dataset = parts[base_idx + 1]
+                    window_str = parts[base_idx + 2]
+                elif is_version_view:
+                    # Version case: results/versions/version_name/dataset/timespan/models/model/artifacts/analysis.json
+                    # Dataset is 2 positions before models, window is 1 position before models
+                    dataset = parts[models_idx - 2]
+                    window_str = parts[models_idx - 1]
+                else:
+                    continue
                 
-                dataset = parts[results_idx + 1]
-                window_str = parts[results_idx + 2]
                 model = parts[models_idx + 1]
                 
                 # Extract time span from window string (e.g., "300seconds" -> 300)
@@ -752,7 +778,9 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
                                 show_stats: bool = True,
                                 show_training_times: bool = True,
                                 show_optimal_params_status: bool = True,
-                                top_n: Optional[int] = None):
+                                top_n: Optional[int] = None,
+                                version_path: Optional[str] = None,
+                                version_name: Optional[str] = None):
     """
     Convenience function to display comprehensive results summary
     
@@ -768,8 +796,10 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
         show_training_times: If True, display training time statistics
         show_optimal_params_status: If True, display optimal parameters status
         top_n: If specified, show top N performers by F1 score
+        version_path: Optional path to a specific version directory
+        version_name: Optional name of the version being displayed
     """
-    summary = ResultsSummary()
+    summary = ResultsSummary(version_path=version_path)
     
     if show_optimal_params_status:
         summary.display_optimal_params_status(datasets=datasets, models=models, time_spans=time_spans, format=format)
@@ -807,7 +837,12 @@ def display_all_results_summary(datasets: Optional[List[str]] = None,
         summary.display_statistics(df)
     
     if export_csv:
-        summary.export_to_csv(df)
+        # Include version name in CSV filename if displaying a version
+        if version_name:
+            output_path = f'./results/summary_{version_name}.csv'
+            summary.export_to_csv(df, output_path=output_path)
+        else:
+            summary.export_to_csv(df)
     
     return df
 

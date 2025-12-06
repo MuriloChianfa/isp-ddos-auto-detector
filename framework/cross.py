@@ -73,7 +73,7 @@ class CrossEvaluator:
                 if 'results' in parts and 'models' in parts:
                     results_idx = parts.index('results')
                     models_idx = parts.index('models')
-                    
+
                     dataset = parts[results_idx + 1]
                     window = parts[results_idx + 2]
                     model = parts[models_idx + 1]
@@ -169,7 +169,7 @@ class CrossEvaluator:
                 if 'results' in parts and 'models' in parts:
                     results_idx = parts.index('results')
                     models_idx = parts.index('models')
-                    
+
                     dataset = parts[results_idx + 1]
                     window = parts[results_idx + 2]
                     model = parts[models_idx + 1]
@@ -278,7 +278,7 @@ class CrossEvaluator:
                 if 'results' in parts and 'models' in parts:
                     results_idx = parts.index('results')
                     models_idx = parts.index('models')
-                    
+
                     dataset = parts[results_idx + 1]
                     window = parts[results_idx + 2]
                     model = parts[models_idx + 1]
@@ -319,7 +319,7 @@ class CrossEvaluator:
                 if 'results' in parts and 'models' in parts:
                     results_idx = parts.index('results')
                     models_idx = parts.index('models')
-                    
+
                     dataset = parts[results_idx + 1]
                     window = parts[results_idx + 2]
                     model = parts[models_idx + 1]

@@ -392,6 +392,12 @@ Examples:
         help='Disable optimal parameters status display'
     )
     parser.add_argument(
+        '--summary-version',
+        type=str,
+        metavar='VERSION_NAME',
+        help='Display summary from a specific registered version instead of current results'
+    )
+    parser.add_argument(
         '--optimal-params-status',
         action='store_true',
         help='Display optimal parameters status and exit'
@@ -514,16 +520,16 @@ Examples:
                 print(f"Timestamp: {run['timestamp']}")
                 
                 metadata = run.get('metadata', {})
-                if metadata:
-                    print(f"Configuration:")
-                    if 'datasets' in metadata:
-                        print(f"  Datasets: {', '.join(metadata['datasets'])}")
-                    if 'models' in metadata:
-                        print(f"  Models: {', '.join(metadata['models'])}")
-                    if 'time_spans' in metadata:
-                        print(f"  Time spans: {', '.join(map(str, metadata['time_spans']))}")
-                    if 'total_analyses' in metadata:
-                        print(f"  Total analyses: {metadata['total_analyses']}")
+                # if metadata:
+                #     print(f"Configuration:")
+                #     if 'datasets' in metadata:
+                #         print(f"  Datasets: {', '.join(metadata['datasets'])}")
+                #     if 'models' in metadata:
+                #         print(f"  Models: {', '.join(metadata['models'])}")
+                #     if 'time_spans' in metadata:
+                #         print(f"  Time spans: {', '.join(map(str, metadata['time_spans']))}")
+                #     if 'total_analyses' in metadata:
+                #         print(f"  Total analyses: {metadata['total_analyses']}")
                 
                 print()
         exit(0)
@@ -662,6 +668,33 @@ Examples:
     
     if args.summary:
         from framework.summary import display_all_results_summary
+        from framework.versioning import RunVersionManager
+
+        version_path = None
+        version_name = None
+
+        # Validate version if specified
+        if args.summary_version:
+            manager = RunVersionManager()
+            run_info = manager.get_run(args.summary_version)
+
+            if not run_info:
+                print(f"\nError: Version '{args.summary_version}' not found.\n")
+                print("Available registered versions:")
+                runs = manager.list_runs()
+                if runs:
+                    for run in runs:
+                        print(f"  - {run['run_name']}")
+                else:
+                    print("  (No versions registered yet)")
+                print("\nUse --list-runs for detailed information about saved versions.")
+                exit(1)
+
+            version_path = manager.get_run_path(args.summary_version)
+            version_name = args.summary_version
+            print(f"\n{'='*100}")
+            print(f"SUMMARY FOR VERSION: {version_name}")
+            print(f"{'='*100}\n")
         
         display_all_results_summary(
             datasets=args.summary_datasets,
@@ -672,8 +705,11 @@ Examples:
             group_by=args.summary_group_by,
             export_csv=args.summary_export_csv,
             show_stats=not args.summary_no_stats,
+            show_training_times=not args.summary_no_stats,
             show_optimal_params_status=not args.summary_no_optimal_params,
-            top_n=args.summary_top_n
+            top_n=args.summary_top_n,
+            version_path=version_path,
+            version_name=version_name
         )
         exit(0)
     
