@@ -121,9 +121,9 @@ DATASETS = {
                 ],
                 'threshold_strategies': {
                     'autoencoder': 'mse_plus_40std',
-                    'isolation_forest': 'mse_plus_4_5std',
+                    'isolation_forest': 'percentile_99_5',
                     'one_class_svm': 'percentile_99_9',
-                    'local_outlier_factor': 'mse_plus_38std'
+                    'local_outlier_factor': 'mse_plus_3std'
                 }
             },
             '10': {

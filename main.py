@@ -203,6 +203,26 @@ Examples:
   
   # Analyze correlations with custom threshold
   python main.py --analyze-correlation --correlation-threshold 0.90
+  
+  # Compare AUPRC performance across different PCC threshold versions
+  python main.py --compare-pcc-versions
+  
+  # Compare PCC versions for specific configuration
+  python main.py --compare-pcc-versions \\
+    --pcc-datasets itp-multivector-udp-100gbps-peak \\
+    --pcc-models autoencoder \\
+    --pcc-windows 1seconds
+  
+  # Compare specific PCC versions only
+  python main.py --compare-pcc-versions \\
+    --pcc-versions 0_50_pcc_n_iter_5 \\
+    --pcc-versions 0_90_pcc_n_iter_5
+  
+  # Generate only summary table (no plots)
+  python main.py --compare-pcc-versions --pcc-no-plots
+  
+  # Generate only plots (no summary)
+  python main.py --compare-pcc-versions --pcc-no-summary
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -499,6 +519,52 @@ Examples:
         default='./results/comparisons',
         help='Output directory for comparison reports (default: ./results/comparisons)'
     )
+    parser.add_argument(
+        '--compare-pcc-versions',
+        action='store_true',
+        help='Generate AUPRC comparison charts across PCC threshold versions'
+    )
+    parser.add_argument(
+        '--pcc-versions',
+        type=str,
+        action='append',
+        help='Specific PCC versions to compare (e.g., 0_90_pcc_n_iter_5). If not specified, all available versions are used.'
+    )
+    parser.add_argument(
+        '--pcc-datasets',
+        type=str,
+        action='append',
+        help='Datasets for PCC comparison (can be specified multiple times). If not specified, all datasets are used.'
+    )
+    parser.add_argument(
+        '--pcc-models',
+        type=str,
+        action='append',
+        help='Models for PCC comparison (can be specified multiple times). If not specified, all models are used.'
+    )
+    parser.add_argument(
+        '--pcc-windows',
+        type=str,
+        action='append',
+        help='Time windows for PCC comparison (e.g., 1seconds, 60seconds). If not specified, all windows are used.'
+    )
+    parser.add_argument(
+        '--pcc-no-plots',
+        action='store_true',
+        help='Skip generating comparison plots (only generate summary table)'
+    )
+    parser.add_argument(
+        '--pcc-no-summary',
+        action='store_true',
+        help='Skip generating summary table (only generate plots)'
+    )
+    parser.add_argument(
+        '--pcc-summary-format',
+        type=str,
+        choices=['grid', 'simple', 'fancy_grid', 'pipe', 'html', 'latex', 'github'],
+        default='github',
+        help='Table format for PCC summary display (default: github)'
+    )
     
     args = parser.parse_args()
     
@@ -543,6 +609,46 @@ Examples:
             output_dir=args.compare_output,
             baseline_run_id=args.compare_baseline
         )
+        exit(0)
+    
+    if args.compare_pcc_versions:
+        from framework.visualization.pcc_comparison_plots import run_pcc_comparison
+        
+        print(f"\nRunning PCC Threshold Comparison Analysis...")
+        results = run_pcc_comparison(
+            datasets=args.pcc_datasets,
+            models=args.pcc_models,
+            windows=args.pcc_windows,
+            pcc_versions=args.pcc_versions,
+            generate_plots=not args.pcc_no_plots,
+            generate_summary=not args.pcc_no_summary,
+            export_csv=True,
+            summary_format=args.pcc_summary_format
+        )
+        
+        # Save run if requested
+        if args.save_run:
+            from framework.versioning import RunVersionManager
+            manager = RunVersionManager()
+            run_name = manager.get_unique_run_name(args.save_run)
+            
+            print(f"\nSaving PCC comparison run as: {run_name}")
+            
+            metadata = {
+                'operation': 'pcc_comparison',
+                'datasets': args.pcc_datasets,
+                'models': args.pcc_models,
+                'windows': args.pcc_windows,
+                'pcc_versions': args.pcc_versions
+            }
+            
+            # Copy PCC comparison results
+            if os.path.exists("./results/pcc_comparison"):
+                manager.copy_results_to_version(run_name, "./results/pcc_comparison")
+            
+            manager.register_run(run_name, metadata)
+            print(f"Run saved successfully! Version path: {manager.get_run_path(run_name)}")
+        
         exit(0)
     
     if args.cross_evaluation:

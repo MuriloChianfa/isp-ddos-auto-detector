@@ -1,0 +1,437 @@
+{
+  "metadata": {
+    "window": "1seconds",
+    "pcc_thresholds": [
+      0.5,
+      0.7,
+      0.9
+    ],
+    "datasets": [
+      "itp-downstream-http-flood",
+      "itp-multivector-udp-100gbps-peak",
+      "itp-synack-customer-outage"
+    ],
+    "models": [
+      "autoencoder",
+      "isolation_forest",
+      "one_class_svm",
+      "local_outlier_factor"
+    ]
+  },
+  "variability_by_model": {
+    "autoencoder": {
+      "display_name": "AE",
+      "overall_mean": 0.8624119073817594,
+      "overall_std": 0.044750591555844196,
+      "overall_min": 0.8021602987343301,
+      "overall_max": 0.9502642811371408,
+      "overall_range": 0.14810398240281064,
+      "coefficient_of_variation": 0.05189004369351162,
+      "dataset_breakdown": {
+        "itp-downstream-http-flood": {
+          "pcc_0.50": 0.9502642811371408,
+          "pcc_0.70": 0.8021602987343301,
+          "pcc_0.90": 0.8672912783203077,
+          "mean": 0.8732386193972594,
+          "std": 0.06060927074470379,
+          "min": 0.8021602987343301,
+          "max": 0.9502642811371408,
+          "range": 0.14810398240281064,
+          "coefficient_of_variation": 0.06940745564658887
+        },
+        "itp-synack-customer-outage": {
+          "pcc_0.50": 0.8266214092784092,
+          "pcc_0.70": 0.836541111591336,
+          "pcc_0.90": 0.8387998927723783,
+          "mean": 0.8339874712140413,
+          "std": 0.005289591946179618,
+          "min": 0.8266214092784092,
+          "max": 0.8387998927723783,
+          "range": 0.012178483493969106,
+          "coefficient_of_variation": 0.006342531667147856
+        },
+        "itp-multivector-udp-100gbps-peak": {
+          "pcc_0.50": 0.8340204595333438,
+          "pcc_0.70": 0.898415962944042,
+          "pcc_0.90": 0.9075924721245472,
+          "mean": 0.8800096315339777,
+          "std": 0.03273433504403685,
+          "min": 0.8340204595333438,
+          "max": 0.9075924721245472,
+          "range": 0.07357201259120338,
+          "coefficient_of_variation": 0.03719770087854198
+        }
+      }
+    },
+    "isolation_forest": {
+      "display_name": "IF",
+      "overall_mean": 0.6725610791059127,
+      "overall_std": 0.20208957015511828,
+      "overall_min": 0.1268266651393393,
+      "overall_max": 0.8185722858225647,
+      "overall_range": 0.6917456206832254,
+      "coefficient_of_variation": 0.30047764646710085,
+      "dataset_breakdown": {
+        "itp-downstream-http-flood": {
+          "pcc_0.50": 0.1268266651393393,
+          "pcc_0.70": 0.755908132744387,
+          "pcc_0.90": 0.8185722858225647,
+          "mean": 0.5671023612354303,
+          "std": 0.3123712699656446,
+          "min": 0.1268266651393393,
+          "max": 0.8185722858225647,
+          "range": 0.6917456206832254,
+          "coefficient_of_variation": 0.5508199071595206
+        },
+        "itp-synack-customer-outage": {
+          "pcc_0.50": 0.742338915590641,
+          "pcc_0.70": 0.7350090904819576,
+          "pcc_0.90": 0.7731479756065163,
+          "mean": 0.7501653272263716,
+          "std": 0.016524389629776443,
+          "min": 0.7350090904819576,
+          "max": 0.7731479756065163,
+          "range": 0.03813888512455865,
+          "coefficient_of_variation": 0.02202766380962047
+        },
+        "itp-multivector-udp-100gbps-peak": {
+          "pcc_0.50": 0.6516263007183645,
+          "pcc_0.70": 0.6334726943850424,
+          "pcc_0.90": 0.8161476514644014,
+          "mean": 0.7004155488559362,
+          "std": 0.082169856745478,
+          "min": 0.6334726943850424,
+          "max": 0.8161476514644014,
+          "range": 0.182674957079359,
+          "coefficient_of_variation": 0.11731586610219438
+        }
+      }
+    },
+    "one_class_svm": {
+      "display_name": "OCSVM",
+      "overall_mean": 0.7937865584096403,
+      "overall_std": 0.03650360722218622,
+      "overall_min": 0.708627049549259,
+      "overall_max": 0.8333753271842305,
+      "overall_range": 0.12474827763497143,
+      "coefficient_of_variation": 0.04598667845336356,
+      "dataset_breakdown": {
+        "itp-downstream-http-flood": {
+          "pcc_0.50": 0.708627049549259,
+          "pcc_0.70": 0.8167796510276649,
+          "pcc_0.90": 0.7823217963739726,
+          "mean": 0.7692428323169654,
+          "std": 0.04511127558412333,
+          "min": 0.708627049549259,
+          "max": 0.8167796510276649,
+          "range": 0.10815260147840589,
+          "coefficient_of_variation": 0.058643738607544536
+        },
+        "itp-synack-customer-outage": {
+          "pcc_0.50": 0.8062396336686095,
+          "pcc_0.70": 0.8099891892645337,
+          "pcc_0.90": 0.8293173953474661,
+          "mean": 0.8151820727602032,
+          "std": 0.010111719282635103,
+          "min": 0.8062396336686095,
+          "max": 0.8293173953474661,
+          "range": 0.023077761678856556,
+          "coefficient_of_variation": 0.012404246389272108
+        },
+        "itp-multivector-udp-100gbps-peak": {
+          "pcc_0.50": 0.7924750389677343,
+          "pcc_0.70": 0.764953944303292,
+          "pcc_0.90": 0.8333753271842305,
+          "mean": 0.7969347701517523,
+          "std": 0.028110357646370272,
+          "min": 0.764953944303292,
+          "max": 0.8333753271842305,
+          "range": 0.06842138288093846,
+          "coefficient_of_variation": 0.035273097246111496
+        }
+      }
+    },
+    "local_outlier_factor": {
+      "display_name": "LOF",
+      "overall_mean": 0.6331052984962418,
+      "overall_std": 0.2409429088677716,
+      "overall_min": 0.1343646188656455,
+      "overall_max": 0.8664096571463471,
+      "overall_range": 0.7320450382807016,
+      "coefficient_of_variation": 0.38057319918197124,
+      "dataset_breakdown": {
+        "itp-downstream-http-flood": {
+          "pcc_0.50": 0.1343646188656455,
+          "pcc_0.70": 0.8437464797216244,
+          "pcc_0.90": 0.8319161971359348,
+          "mean": 0.6033424319077348,
+          "std": 0.3316525599085284,
+          "min": 0.1343646188656455,
+          "max": 0.8437464797216244,
+          "range": 0.709381860855979,
+          "coefficient_of_variation": 0.5496920859019672
+        },
+        "itp-synack-customer-outage": {
+          "pcc_0.50": 0.5183463601834722,
+          "pcc_0.70": 0.4738450483897879,
+          "pcc_0.90": 0.4344542429070268,
+          "mean": 0.475548550493429,
+          "std": 0.03426998954230025,
+          "min": 0.4344542429070268,
+          "max": 0.5183463601834722,
+          "range": 0.08389211727644547,
+          "coefficient_of_variation": 0.0720641236457176
+        },
+        "itp-multivector-udp-100gbps-peak": {
+          "pcc_0.50": 0.7561401101286986,
+          "pcc_0.70": 0.8387249719876392,
+          "pcc_0.90": 0.8664096571463471,
+          "mean": 0.8204249130875616,
+          "std": 0.046840241720690526,
+          "min": 0.7561401101286986,
+          "max": 0.8664096571463471,
+          "range": 0.11026954701764846,
+          "coefficient_of_variation": 0.05709266134351457
+        }
+      }
+    }
+  },
+  "variability_by_dataset": {
+    "itp-downstream-http-flood": {
+      "display_name": "DS1",
+      "overall_mean": 0.7032315612143476,
+      "overall_std": 0.2622244394902894,
+      "overall_min": 0.1268266651393393,
+      "overall_max": 0.9502642811371408,
+      "overall_range": 0.8234376159978015,
+      "coefficient_of_variation": 0.3728849129545288,
+      "model_breakdown": {
+        "autoencoder": {
+          "pcc_0.50": 0.9502642811371408,
+          "pcc_0.70": 0.8021602987343301,
+          "pcc_0.90": 0.8672912783203077,
+          "mean": 0.8732386193972594,
+          "std": 0.06060927074470379,
+          "min": 0.8021602987343301,
+          "max": 0.9502642811371408,
+          "range": 0.14810398240281064,
+          "coefficient_of_variation": 0.06940745564658887
+        },
+        "isolation_forest": {
+          "pcc_0.50": 0.1268266651393393,
+          "pcc_0.70": 0.755908132744387,
+          "pcc_0.90": 0.8185722858225647,
+          "mean": 0.5671023612354303,
+          "std": 0.3123712699656446,
+          "min": 0.1268266651393393,
+          "max": 0.8185722858225647,
+          "range": 0.6917456206832254,
+          "coefficient_of_variation": 0.5508199071595206
+        },
+        "one_class_svm": {
+          "pcc_0.50": 0.708627049549259,
+          "pcc_0.70": 0.8167796510276649,
+          "pcc_0.90": 0.7823217963739726,
+          "mean": 0.7692428323169654,
+          "std": 0.04511127558412333,
+          "min": 0.708627049549259,
+          "max": 0.8167796510276649,
+          "range": 0.10815260147840589,
+          "coefficient_of_variation": 0.058643738607544536
+        },
+        "local_outlier_factor": {
+          "pcc_0.50": 0.1343646188656455,
+          "pcc_0.70": 0.8437464797216244,
+          "pcc_0.90": 0.8319161971359348,
+          "mean": 0.6033424319077348,
+          "std": 0.3316525599085284,
+          "min": 0.1343646188656455,
+          "max": 0.8437464797216244,
+          "range": 0.709381860855979,
+          "coefficient_of_variation": 0.5496920859019672
+        }
+      }
+    },
+    "itp-multivector-udp-100gbps-peak": {
+      "display_name": "DS2",
+      "overall_mean": 0.7994462159073068,
+      "overall_std": 0.08299333188432413,
+      "overall_min": 0.6334726943850424,
+      "overall_max": 0.9075924721245472,
+      "overall_range": 0.2741197777395048,
+      "coefficient_of_variation": 0.1038135277057174,
+      "model_breakdown": {
+        "autoencoder": {
+          "pcc_0.50": 0.8340204595333438,
+          "pcc_0.70": 0.898415962944042,
+          "pcc_0.90": 0.9075924721245472,
+          "mean": 0.8800096315339777,
+          "std": 0.03273433504403685,
+          "min": 0.8340204595333438,
+          "max": 0.9075924721245472,
+          "range": 0.07357201259120338,
+          "coefficient_of_variation": 0.03719770087854198
+        },
+        "isolation_forest": {
+          "pcc_0.50": 0.6516263007183645,
+          "pcc_0.70": 0.6334726943850424,
+          "pcc_0.90": 0.8161476514644014,
+          "mean": 0.7004155488559362,
+          "std": 0.082169856745478,
+          "min": 0.6334726943850424,
+          "max": 0.8161476514644014,
+          "range": 0.182674957079359,
+          "coefficient_of_variation": 0.11731586610219438
+        },
+        "one_class_svm": {
+          "pcc_0.50": 0.7924750389677343,
+          "pcc_0.70": 0.764953944303292,
+          "pcc_0.90": 0.8333753271842305,
+          "mean": 0.7969347701517523,
+          "std": 0.028110357646370272,
+          "min": 0.764953944303292,
+          "max": 0.8333753271842305,
+          "range": 0.06842138288093846,
+          "coefficient_of_variation": 0.035273097246111496
+        },
+        "local_outlier_factor": {
+          "pcc_0.50": 0.7561401101286986,
+          "pcc_0.70": 0.8387249719876392,
+          "pcc_0.90": 0.8664096571463471,
+          "mean": 0.8204249130875616,
+          "std": 0.046840241720690526,
+          "min": 0.7561401101286986,
+          "max": 0.8664096571463471,
+          "range": 0.11026954701764846,
+          "coefficient_of_variation": 0.05709266134351457
+        }
+      }
+    },
+    "itp-synack-customer-outage": {
+      "display_name": "DS3",
+      "overall_mean": 0.7187208554235113,
+      "overall_std": 0.14516404353654683,
+      "overall_min": 0.4344542429070268,
+      "overall_max": 0.8387998927723783,
+      "overall_range": 0.40434564986535154,
+      "coefficient_of_variation": 0.2019755548223349,
+      "model_breakdown": {
+        "autoencoder": {
+          "pcc_0.50": 0.8266214092784092,
+          "pcc_0.70": 0.836541111591336,
+          "pcc_0.90": 0.8387998927723783,
+          "mean": 0.8339874712140413,
+          "std": 0.005289591946179618,
+          "min": 0.8266214092784092,
+          "max": 0.8387998927723783,
+          "range": 0.012178483493969106,
+          "coefficient_of_variation": 0.006342531667147856
+        },
+        "isolation_forest": {
+          "pcc_0.50": 0.742338915590641,
+          "pcc_0.70": 0.7350090904819576,
+          "pcc_0.90": 0.7731479756065163,
+          "mean": 0.7501653272263716,
+          "std": 0.016524389629776443,
+          "min": 0.7350090904819576,
+          "max": 0.7731479756065163,
+          "range": 0.03813888512455865,
+          "coefficient_of_variation": 0.02202766380962047
+        },
+        "one_class_svm": {
+          "pcc_0.50": 0.8062396336686095,
+          "pcc_0.70": 0.8099891892645337,
+          "pcc_0.90": 0.8293173953474661,
+          "mean": 0.8151820727602032,
+          "std": 0.010111719282635103,
+          "min": 0.8062396336686095,
+          "max": 0.8293173953474661,
+          "range": 0.023077761678856556,
+          "coefficient_of_variation": 0.012404246389272108
+        },
+        "local_outlier_factor": {
+          "pcc_0.50": 0.5183463601834722,
+          "pcc_0.70": 0.4738450483897879,
+          "pcc_0.90": 0.4344542429070268,
+          "mean": 0.475548550493429,
+          "std": 0.03426998954230025,
+          "min": 0.4344542429070268,
+          "max": 0.5183463601834722,
+          "range": 0.08389211727644547,
+          "coefficient_of_variation": 0.0720641236457176
+        }
+      }
+    }
+  },
+  "overall_statistics": {
+    "total_configurations": 36,
+    "global_mean": 0.7404662108483885,
+    "global_std": 0.18444517699650173,
+    "global_min": 0.1268266651393393,
+    "global_max": 0.9502642811371408,
+    "global_range": 0.8234376159978015,
+    "coefficient_of_variation": 0.2490933067495056
+  },
+  "ranking": {
+    "most_stable_models": [
+      {
+        "rank": 1,
+        "model": "one_class_svm",
+        "display_name": "OCSVM",
+        "coefficient_of_variation": 0.04598667845336356,
+        "interpretation": "Lower is more stable across PCC thresholds"
+      },
+      {
+        "rank": 2,
+        "model": "autoencoder",
+        "display_name": "AE",
+        "coefficient_of_variation": 0.05189004369351162,
+        "interpretation": "Lower is more stable across PCC thresholds"
+      },
+      {
+        "rank": 3,
+        "model": "isolation_forest",
+        "display_name": "IF",
+        "coefficient_of_variation": 0.30047764646710085,
+        "interpretation": "Lower is more stable across PCC thresholds"
+      },
+      {
+        "rank": 4,
+        "model": "local_outlier_factor",
+        "display_name": "LOF",
+        "coefficient_of_variation": 0.38057319918197124,
+        "interpretation": "Lower is more stable across PCC thresholds"
+      }
+    ],
+    "best_performing_models": [
+      {
+        "rank": 1,
+        "model": "autoencoder",
+        "display_name": "AE",
+        "mean_ap": 0.8624119073817594,
+        "interpretation": "Higher mean AP across all configurations"
+      },
+      {
+        "rank": 2,
+        "model": "one_class_svm",
+        "display_name": "OCSVM",
+        "mean_ap": 0.7937865584096403,
+        "interpretation": "Higher mean AP across all configurations"
+      },
+      {
+        "rank": 3,
+        "model": "isolation_forest",
+        "display_name": "IF",
+        "mean_ap": 0.6725610791059127,
+        "interpretation": "Higher mean AP across all configurations"
+      },
+      {
+        "rank": 4,
+        "model": "local_outlier_factor",
+        "display_name": "LOF",
+        "mean_ap": 0.6331052984962418,
+        "interpretation": "Higher mean AP across all configurations"
+      }
+    ]
+  }
+}

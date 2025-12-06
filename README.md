@@ -149,20 +149,28 @@ isp-ddos-auto-detector/
     <th style="text-align: center;" width="33%">itp-synack-customer-outage</th>
   </tr>
   <tr>
-    <td><img src="./results/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Anomaly Detection Timeline (Autoencoder, 1s resolution)</p></i></td>
   </tr>
   <tr>
-    <td><img src="./results/cross_evaluation/pr_curve_itp-downstream-http-flood_1seconds.png" width="100%" /></td>
-    <td><img src="./results/cross_evaluation/pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png" width="100%" /></td>
-    <td><img src="./results/cross_evaluation/pr_curve_itp-synack-customer-outage_1seconds.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-downstream-http-flood_1seconds.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png" width="100%" /></td>
+    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-synack-customer-outage_1seconds.png" width="100%" /></td>
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Precision-Recall Curves (All Models, 1s resolution)</p></i></td>
+  </tr>
+  <tr>
+    <td><img src="./results/pcc_comparison/pr_curve_pcc_comparison_itp-downstream-http-flood_1seconds_autoencoder.png" width="100%" /></td>
+    <td><img src="./results/pcc_comparison/pr_curve_pcc_comparison_itp-multivector-udp-100gbps-peak_1seconds_autoencoder.png" width="100%" /></td>
+    <td><img src="./results/pcc_comparison/pr_curve_pcc_comparison_itp-synack-customer-outage_1seconds_autoencoder.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Average Precision (AP) for Autoencoder on each of the PCC thresholds tested</p></i></td>
   </tr>
   <tr>
     <td><img src="./results/itp-downstream-http-flood/1seconds/features/correlation/correlation_heatmap.png" width="100%" /></td>
@@ -175,8 +183,13 @@ isp-ddos-auto-detector/
 </table>
 
 <div align="center">
-  <img src="./results/cross_evaluation/heatmap_models_vs_windows.png" alt="Models vs Time Windows Performance" width="80%" />
+  <img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/heatmap_models_vs_windows.png" alt="Models vs Time Windows Performance" width="80%" />
   <p><i>Cross-evaluation heatmap showing F₁-scores across model-timespan combinations</i></p>
+</div>
+
+<div align="center">
+  <img src="./results/pcc_comparison/avg_ap_comparison_1seconds.png" alt="Autoencoder showing the average precision for the three datasets" width="80%" />
+  <p><i>Cross-evaluation bars showing average Average-Precision (AP) across each of dataset</i></p>
 </div>
 
 
