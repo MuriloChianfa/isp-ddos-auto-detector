@@ -79,6 +79,9 @@ def create_grouped_bar_chart(df, output_path):
     bar_width = 0.18
     x_pos = np.arange(len(datasets))
     
+    # Create a dummy error bar for legend
+    errorbar_legend = None
+    
     # Plot bars for each model
     for i, model in enumerate(models):
         means = []

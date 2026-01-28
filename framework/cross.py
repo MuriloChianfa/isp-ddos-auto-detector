@@ -64,21 +64,48 @@ class CrossEvaluator:
         
         for file_path in analysis_files:
             try:
-                # Skip files in the versions folder
-                if 'versions' in file_path.parts:
-                    continue
-                
                 parts = file_path.parts
                 
-                if 'results' in parts and 'models' in parts:
-                    results_idx = parts.index('results')
-                    models_idx = parts.index('models')
-
-                    dataset = parts[results_idx + 1]
-                    window = parts[results_idx + 2]
-                    model = parts[models_idx + 1]
-                else:
+                # Determine the structure based on path components
+                if 'models' not in parts:
                     continue
+                
+                models_idx = parts.index('models')
+                
+                # Try to find the base results directory
+                # Could be 'results' directly or after 'versions/{version_name}'
+                if 'results' in parts:
+                    results_idx = parts.index('results')
+                    # Check if this is a versioned result (has 'versions' in path)
+                    if 'versions' in parts:
+                        versions_idx = parts.index('versions')
+                        # Path structure: .../results/versions/{version_name}/{dataset}/{window}/models/{model}/...
+                        if versions_idx + 1 < len(parts):
+                            version_name = parts[versions_idx + 1]
+                            # Dataset and window come after version name
+                            if versions_idx + 2 < models_idx:
+                                dataset = parts[versions_idx + 2]
+                                window = parts[versions_idx + 3]
+                                model = parts[models_idx + 1]
+                            else:
+                                continue
+                        else:
+                            continue
+                    else:
+                        # Regular path structure: .../results/{dataset}/{window}/models/{model}/...
+                        dataset = parts[results_idx + 1]
+                        window = parts[results_idx + 2]
+                        model = parts[models_idx + 1]
+                else:
+                    # Handle case where results_base_dir points directly to a version
+                    # or other custom base directory
+                    # Try to extract dataset/window from positions before 'models'
+                    if models_idx >= 2:
+                        window = parts[models_idx - 1]
+                        dataset = parts[models_idx - 2]
+                        model = parts[models_idx + 1]
+                    else:
+                        continue
                 
                 # Apply filters
                 if datasets and dataset not in datasets:
@@ -438,8 +465,31 @@ class CrossEvaluator:
         # Group by dataset and window
         grouped = curves_df.groupby(['dataset', 'window'])
         
+        # Marker map for different models
+        model_markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', 'h', '*']
+        
         for (dataset, window), group in grouped:
             fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+            
+            # Draw F1 iso-curves in the background
+            f1_values = [0.2, 0.4, 0.6, 0.8]
+            for f1_val in f1_values:
+                # For a given F1, precision = F1 * recall / (2 * recall - F1)
+                # The curve starts at recall = F1/(2-F1) where precision = 1
+                recall_start = f1_val / (2 - f1_val)
+                recall_range = np.linspace(recall_start + 1e-6, 1.0, 100)
+                precision_iso = (f1_val * recall_range) / (2 * recall_range - f1_val)
+                valid_mask = (precision_iso >= 0) & (precision_iso <= 1.0) & np.isfinite(precision_iso)
+                ax.plot(recall_range[valid_mask], precision_iso[valid_mask], 
+                       color='gray', alpha=0.3, linestyle='-', linewidth=1, zorder=1)
+                # Add F1 label at the end of each curve
+                valid_indices = np.where(valid_mask)[0]
+                if len(valid_indices) > 0:
+                    label_idx = valid_indices[-1]
+                    ax.annotate(r'$F_1$' + f'={f1_val}', 
+                               xy=(recall_range[label_idx], precision_iso[label_idx]),
+                               fontsize=10, color='gray', alpha=0.7,
+                               xytext=(5, 0), textcoords='offset points')
             
             # Use a colormap for different models
             colors = plt.cm.tab10(np.linspace(0, 1, len(group)))
@@ -447,27 +497,58 @@ class CrossEvaluator:
             for idx, (_, row) in enumerate(group.iterrows()):
                 precision = np.array(row['precision'])
                 recall = np.array(row['recall'])
-                ap_score = row['average_precision']
                 model = row['model']
                 
-                label = f"{model} (AP={ap_score:.3f})"
+                # Calculate F1-scores on-the-fly
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    f1_scores = 2 * (precision * recall) / (precision + recall)
+                    f1_scores = np.nan_to_num(f1_scores)
+                
+                # Find best F1 and its corresponding precision/recall
+                best_f1_idx = np.argmax(f1_scores)
+                best_f1 = f1_scores[best_f1_idx]
+                best_precision = precision[best_f1_idx]
+                best_recall = recall[best_f1_idx]
+                
+                # Get marker for this model
+                marker = model_markers[idx % len(model_markers)]
+                
+                # Create label with F1 score (using LaTeX notation)
+                label = f"{model} (Best Achievable " + r"$F_1$" + f"={best_f1:.4f})"
                 ax.plot(recall, precision, label=label, linewidth=2.5, alpha=0.8, color=colors[idx])
+                
+                # Plot best F1 point as marker
+                ax.scatter(best_recall, best_precision,
+                          marker=marker,
+                          color=colors[idx],
+                          s=100,
+                          zorder=5,
+                          edgecolors='black',
+                          linewidths=1.5)
             
             # Styling
-            ax.set_xlabel('Recall (Sensitivity, True Positive Rate)', fontsize=12, fontweight='bold')
-            ax.set_ylabel('Precision (Positive Predictive Value)', fontsize=12, fontweight='bold')
+            ax.set_xlabel('Recall', fontsize=18, fontweight='bold')
+            ax.set_ylabel('Precision', fontsize=18, fontweight='bold')
             
-            # Clean up dataset name for title
-            dataset_clean = dataset.replace('-', ' ').title()
-            ax.set_title(f'Precision-Recall Curve - {dataset_clean}\nTime Window: {window}', 
-                         fontsize=14, fontweight='bold', pad=20)
+            # Map dataset to code (DS1, DS2, DS3)
+            dataset_mapping = {
+                'itp-downstream-http-flood': 'DS1',
+                'itp-multivector-udp-100gbps-peak': 'DS2',
+                'itp-synack-customer-outage': 'DS3'
+            }
+            dataset_code = dataset_mapping.get(dataset, 'DS')
+            ax.set_title(f'Area Under the Precision-Recall Curve', 
+                         fontsize=22, fontweight='bold', pad=20)
             ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
             ax.set_xlim([0.0, 1.0])
             ax.set_ylim([0.0, 1.05])
             
             # Legend
-            ax.legend(loc='best', fontsize=10, frameon=True, 
+            ax.legend(loc='lower left', fontsize=14, frameon=True, 
                      fancybox=True, shadow=True, framealpha=0.9)
+            
+            # Increase tick label font size
+            ax.tick_params(axis='both', which='major', labelsize=14)
             
             plt.tight_layout()
             
@@ -693,6 +774,145 @@ class CrossEvaluator:
             print(f"{row['dataset']:30} | {row['window']:12} | {row['model']:20} | Recall: {row['recall']:.4f}")
         print("="*70 + "\n")
     
+    def generate_f1_by_algorithm_and_window(self, metrics_df: pd.DataFrame):
+        """
+        Generate average F1-score for each algorithm in each time window
+        Shows how each model performs across different time windows (averaged across all datasets)
+        
+        Args:
+            metrics_df: DataFrame with metrics from all models
+            
+        Returns:
+            DataFrame with average F1-scores
+        """
+        print("\nGenerating F1-Score analysis by Algorithm and Time Window...")
+        
+        # Calculate average F1-score for each model in each time window (averaged across datasets)
+        f1_by_model_window = metrics_df.groupby(['model', 'window'])['f1_score'].agg(['mean', 'std', 'count']).reset_index()
+        f1_by_model_window.columns = ['model', 'window', 'f1_mean', 'f1_std', 'n_datasets']
+        
+        # Sort by model and then by window
+        window_order = ['1seconds', '10seconds', '60seconds', '300seconds']
+        f1_by_model_window['window_sort'] = f1_by_model_window['window'].apply(
+            lambda x: window_order.index(x) if x in window_order else 999
+        )
+        f1_by_model_window = f1_by_model_window.sort_values(['model', 'window_sort']).drop('window_sort', axis=1)
+        
+        # Save to CSV
+        output_path = self.output_dir / 'f1_score_by_algorithm_and_window.csv'
+        f1_by_model_window.to_csv(output_path, index=False)
+        print(f"  Saved F1-score analysis to {output_path}")
+        
+        # Print formatted table
+        print("\n" + "="*80)
+        print("AVERAGE F1-SCORE BY ALGORITHM AND TIME WINDOW")
+        print("="*80)
+        print(f"{'Algorithm':<25} {'Window':<15} {'F1-Mean':<12} {'F1-Std':<12} {'N_Datasets'}")
+        print("-"*80)
+        
+        for _, row in f1_by_model_window.iterrows():
+            print(f"{row['model']:<25} {row['window']:<15} {row['f1_mean']:>10.4f}  {row['f1_std']:>10.4f}  {int(row['n_datasets']):>10}")
+        
+        print("="*80 + "\n")
+        
+        # Generate visualization - Heatmap
+        pivot_f1 = f1_by_model_window.pivot(index='model', columns='window', values='f1_mean')
+        
+        # Reorder columns to match time progression
+        available_windows = [w for w in window_order if w in pivot_f1.columns]
+        pivot_f1 = pivot_f1[available_windows]
+        
+        # Rename models to abbreviations
+        model_name_map = {
+            'autoencoder': 'AE',
+            'isolation_forest': 'IF',
+            'local_outlier_factor': 'LOF',
+            'one_class_svm': 'OCSVM'
+        }
+        pivot_f1.index = pivot_f1.index.map(lambda x: model_name_map.get(x, x))
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(pivot_f1, annot=True, fmt='.4f', cmap='RdYlGn', 
+                   ax=ax, vmin=0, vmax=1, cbar_kws={'label': 'Average F1-Score'},
+                   linewidths=0.5, linecolor='gray')
+        
+        ax.set_title('Average F1-Score by Algorithm and Time Window', 
+                    fontsize=14, fontweight='bold', pad=20)
+        ax.set_xlabel('Time Window', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Algorithm', fontsize=12, fontweight='bold')
+        
+        plt.tight_layout()
+        output_path = self.output_dir / 'f1_score_heatmap_algorithm_vs_window.png'
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+        print(f"  Saved F1-score heatmap to {output_path}")
+        plt.close()
+        
+        # Generate visualization - Bar plot
+        # Prepare data for grouped bar chart
+        models = f1_by_model_window['model'].unique()
+        
+        # Map model names to abbreviations
+        model_name_map = {
+            'autoencoder': 'AE',
+            'isolation_forest': 'IF',
+            'local_outlier_factor': 'LOF',
+            'one_class_svm': 'OCSVM'
+        }
+        models_display = [model_name_map.get(m, m) for m in models]
+        
+        windows = available_windows
+        x = np.arange(len(models))
+        
+        # Adjust width and spacing based on number of windows for more compact display
+        if len(windows) == 2:
+            width = 0.35  # Wider bars for 2 windows
+            fig_width = 10  # Smaller figure for compact display
+        elif len(windows) == 3:
+            width = 0.25
+            fig_width = 12
+        else:
+            width = 0.2
+            fig_width = 14
+        
+        fig, ax = plt.subplots(figsize=(fig_width, 8))
+        
+        colors = plt.cm.Set3(np.linspace(0, 1, len(windows)))
+        
+        for i, window in enumerate(windows):
+            window_data = f1_by_model_window[f1_by_model_window['window'] == window]
+            # Ensure same order as models
+            f1_values = [window_data[window_data['model'] == model]['f1_mean'].values[0] 
+                        if len(window_data[window_data['model'] == model]) > 0 else 0 
+                        for model in models]
+            
+            offset = width * (i - len(windows)/2 + 0.5)
+            bars = ax.bar(x + offset, f1_values, width, label=window, color=colors[i], alpha=0.8)
+            
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0:
+                    ax.text(bar.get_x() + bar.get_width()/2., height,
+                           f'{height:.3f}',
+                           ha='center', va='bottom', fontsize=8)
+        
+        ax.set_ylabel('Average F1-Score', fontsize=12, fontweight='bold')
+        ax.set_title('Average F1-Score Comparison by Algorithm', 
+                    fontsize=14, fontweight='bold', pad=20)
+        ax.set_xticks(x)
+        ax.set_xticklabels(models_display, rotation=0)
+        ax.legend(title='∆t', loc='upper right', fontsize=10)
+        ax.grid(True, alpha=0.3, axis='y')
+        ax.set_ylim([0, 1.05])
+        
+        plt.tight_layout()
+        output_path = self.output_dir / 'f1_score_barplot_algorithm_vs_window.png'
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+        print(f"  Saved F1-score bar plot to {output_path}")
+        plt.close()
+        
+        return f1_by_model_window
+    
     def generate_heatmaps(self, summary_df: pd.DataFrame):
         """
         Generate heatmaps for ROC-AUC and other metrics across different dimensions
@@ -839,6 +1059,9 @@ class CrossEvaluator:
         
         # Step 9: Generate heatmaps
         self.generate_heatmaps(summary_df)
+        
+        # Step 10: Generate F1-score analysis by algorithm and time window
+        self.generate_f1_by_algorithm_and_window(metrics_df)
         
         print("\n" + "="*70)
         print(f"Cross-evaluation complete!")

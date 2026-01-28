@@ -1,112 +1,39 @@
-<h1 align="center">ISP DDoS Auto Detector</h1>
-<!-- <h3 align="center">A Machine Learning Framework for Unsupervised DDoS Attack Detection in ITP Networks</h3> -->
+<h1 align="center">Unsupervised DDoS Detection in High-Speed Networks:<br>An Evaluation Using Real Transit Provider Data</h1>
 
 <div align="center">
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: ODbL](https://img.shields.io/badge/License-ODbL-brightgreen.svg)](https://opendatacommons.org/licenses/odbl/)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
 [![Conda](https://img.shields.io/badge/conda-env-green.svg)](https://docs.conda.io/)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.18-orange.svg)](https://www.tensorflow.org/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange.svg)](https://www.tensorflow.org/)
 [![Scikit-learn](https://img.shields.io/badge/sklearn-1.6-blue.svg)](https://scikit-learn.org/)
 
 </div>
 
 ## Abstract
 
-This research presents a comprehensive machine learning framework for unsupervised anomaly detection in Internet Transit Provider (ITP) network traffic, specifically targeting Distributed Denial of Service (DDoS) attacks. The framework implements and evaluates distinct anomaly detection algorithms (Isolation Forest, One-Class Support Vector Machine (OCSVM), Local Outlier Factor (LOF) and Autoencoder) using NetFlow v9 data across multiple temporal resolutions (1s, 10s, 60s, 300s) and attack vectors. The system incorporates automated feature engineering with 150+ derived features including information-theoretic metrics (Shannon entropy), statistical moments, spectral analysis, and protocol-specific indicators. Our approach addresses the fundamental challenge of DDoS detection in operational ITP environments where labeled attack data is scarce and attack patterns evolve continuously.
+Distributed denial-of-service (DDoS) attack detection has been widely studied in the past decade by academia. Despite progress having been made, recent surveys show that detection in environments such as Internet Transit Providers (ITP) remains challenging due to high-speed constraints. This study evaluates four anomaly detection algorithms, namely Autoencoder, Isolation Forest, Local Outlier Factor, and One Class Support Vector Machine, using three datasets collected from operational ITPs during confirmed DDoS attacks. The evaluation considers four temporal aggregation windows and three feature selection configurations, with the objective of analyzing the predictive capacity of the algorithms under different temporal and feature selection settings. The results show that the Autoencoder detection achieved the best results when using the most aggressive feature selection configuration and the shortest temporal aggregation windows.
 
-## Getting Started
+## README.md Structure
 
-### Installation
+1. [**Title and Abstract**](#abstract): Research overview and objectives
+2. [**README.md Structure**](#agenda): Description of document organization
+3. [**Basic Information**](#basic-information): Hardware and execution environment requirements
+4. [**Badges Considered**](#badges-considered): Declaration of badges requested for evaluation
+5. [**Dependencies**](#dependencies): Complete list of required libraries and tools
+6. [**Security Concerns**](#security-concerns): Potential risks and security procedures
+7. [**Installation**](#installation): Step-by-step instructions for environment setup
+8. [**Minimal Test**](#minimal-test): Simple commands to validate installation
+9. [**Experiments**](#experiments): Reproduction of main results presented in the paper
+10. [**Datasets**](#datasets): Description of data used in the experiments
+11. [**Acknowledgments**](#acknowledgments): Thanks to collaborating institutions
+12. [**LICENSE**](#license): Dual licensing (MIT for code / ODbL for datasets)
 
-<details open>
-  <summary style="font-size: 16px;"><strong>Setup Environment</strong></summary>
+### Repository Structure
 
-  ```bash
-  # Firstly, install Git LFS
-  git lfs install
-
-  # Clone the repository
-  git clone https://github.com/MuriloChianfa/isp-ddos-auto-detector.git
-  cd isp-ddos-auto-detector
-
-  # Pull large files, like derived datasets
-  git lfs pull
-
-  # Create conda environment from specification
-  conda env create -f environment.yml
-
-  # Activate the environment
-  conda activate nf-ae
-  ```
-
-</details>
-<details>
-  <summary style="font-size: 16px;"><strong>Extract Features from Raw Datasets</strong></summary>
-
-  ```bash
-  # Set environment variables
-  # ASN65550 reserved for example purposes (RFC5398)
-  export FILTER="dst as 65550"
-  export DATASET_DIR=/media/dataset/itp-downstream-http-flood
-  export OUTPUT_DIR=./datasets/itp-downstream-http-flood
-
-  # Convert raw NetFlow data to CSV features
-  ./datasets/convert-to-csv.sh
-  ```
-
-</details>
-
-## Usage
-
-### Quick Start
-
-<details open>
-  <summary style="font-size: 16px;"><strong>Basic Examples</strong></summary>
-
-  ```bash
-  # List available models
-  python main.py --list-models
-
-  # List available datasets
-  python main.py --list-datasets
-
-  # Show all possible commands
-  python main.py --help
-  ```
-
-</details>
-<details open>
-  <summary style="font-size: 16px;"><strong>Complete Analysis Flow</strong></summary>
-
-  ```bash
-  # Generate all features and their respective plots
-  python main.py --generate-plots
-
-  # Analyze all generated features using Pearson's Correlation
-  python main.py --analyze-correlation --correlation-threshold 0.90
-
-  # Evaluate hyperparameters through random search
-  python main.py --batch --optimize --optimize-n-iter 10
-
-  # Generate final results using the best feature and hyperparameter set
-  python main.py --batch --force --force-retrain
-
-  # Generate figures for comparing results
-  python main.py --cross-evaluation
-
-  # Show a summary about all results
-  python main.py --summary
-
-  # Save the results for later analysis
-  python main.py --save-run "example_run"
-  ```
-
-</details>
-
-
-## Project Structure
+The organization of project files and directories:
 
 ```
 isp-ddos-auto-detector/
@@ -139,34 +66,190 @@ isp-ddos-auto-detector/
     └── runs_index.json          # Index of all saved runs
 ```
 
-## Datasets
+## Badges Considered
 
-The framework was evaluated using three real-world DDoS attack datasets collected from operational Internet Transit Provider (ITP) networks. All datasets consist of NetFlow v9 telemetry data captured during confirmed DDoS attack incidents:
+This artifact requests: **Available**, **Functional**, **Sustainable**, and **Reproducible** badges.
 
-### Dataset Characteristics
-
-| Dataset | Attack Type | Attack Traffic |
-|---------|-------------|----------------|
-| **itp-downstream-http-flood** | HTTP Flood | Layer 7 application flood targeting downstream customer |
-| **itp-multivector-udp-100gbps-peak** | Multi-vector UDP | Volumetric attack reaching 100+ Gbps peak bandwidth |
-| **itp-synack-customer-outage** | SYN-ACK Reflection | Attack causing customer service degradation for two hours |
-
-### Feature Engineering
-
-Each dataset undergoes comprehensive feature extraction, generating **150+ derived features** from raw NetFlow records:
-
-- **Information-Theoretic Metrics**: Shannon entropy for IPs, ports, ASNs, GEO Codes
-- **Statistical Moments**: Mean, variance, skewness, kurtosis of packet sizes
-- **Protocol-Specific Indicators**: TCP flags distribution, TCP/UDP/ICMP ratios
-- **Temporal Features**: Traffic rate variations, flow duration statistics
-- **Volumetric Features**: Bytes/packets per flow, packet size distributions
-
-The feature engineering pipeline automatically adapts to different temporal aggregation windows (Δt), allowing analysis at multiple time scales from near-real-time (1s) to longer-term trends (300s).
+| Badge | Justification |
+|-------|---------------|
+| **Available** | Complete source code, datasets, and results publicly available in this repository |
+| **Functional** | Fully executable with detailed setup, validation tests, and pinned dependencies |
+| **Sustainable** | Modular architecture with clear components and inline documentation |
+| **Reproducible** | Automated scripts and detailed instructions to reproduce all paper results |
 
 
-### Performance Metrics
+## Basic Information
 
-> **Experimental Setup:** All experiments were carried out on a dedicated machine equipped with an Intel Xeon E5-2683 v4 CPU running at 2.10 GHz, 128 GB of RAM and an NVIDIA GeForce GTX 1050 Ti GPU. The table below presents detection performance for **Δt = 1s** and **θ = 0.50** regarding basic metrics:
+### Hardware Requirements
+
+Experiments were executed on a machine with the following specifications:
+
+- **Processor**: Dual Intel Xeon E5-2683 v4 @ 2.10 GHz
+- **RAM Memory**: 128 GB DDR4 2133MHz RDIMM ECC
+- **GPU**: NVIDIA GeForce GTX 1050 Ti with 4 GB of VRAM
+- **Storage**: Recommended at least 20 GB free space for datasets and results
+- **Operating System**: Linux (tested on Debian 12 Kernel 6.1.0-26-amd64)
+
+### Software Requirements
+
+- **Python**: Latest available version 3.12.2
+- **Conda**: Miniconda or Anaconda (for environment management)
+- **Git and Git LFS** To clone the repository and download derived datasets
+
+## Dependencies
+
+The framework has well-defined dependencies, managed through Conda. All dependencies are automatically installed through the `environment.yml` file, which contains:
+
+- Packages with pinned versions to ensure reproducibility
+- Conda channel configuration (pytorch, nvidia, conda-forge, defaults)
+- Additional pip dependencies for packages not available in Conda
+
+## Security Concerns
+
+### Potential Risks
+
+1. **Computational Resource Consumption**:
+   - Model training can consume significant amounts of RAM during hyperparameter optimization
+   - Batch executions can take several hours (up to 48h for all 144 complete scenarios even without hyperparameter optimization)
+   - It is recommended to monitor CPU/GPU/RAM usage during execution using `htop` and `nvidia-smi`
+
+2. **Large File Downloads**:
+   - The `git lfs pull` command will download derived datasets that can total several GB
+   - Ensure you have a stable connection and sufficient disk space
+   - In bandwidth-restricted environments, consider downloading only specific datasets
+
+### Observations
+
+- The framework **DOES NOT** modify system files outside the project directory
+- The framework **DOES NOT** collect or transmit data to external servers
+- All results and trained models are saved locally in `results/` and `cache/`
+
+## Installation
+
+### Step 1: Install Git LFS
+
+Git LFS is required to download derived datasets (large files).
+
+```bash
+# Ubuntu/Debian
+sudo apt install git-lfs
+git lfs install
+
+# Verify installation
+git lfs version
+```
+
+### Step 2: Clone the Repository
+
+```bash
+git clone https://github.com/MuriloChianfa/isp-ddos-auto-detector.git
+cd isp-ddos-auto-detector
+```
+
+### Step 3: Download Derived Datasets
+
+```bash
+# This command may take a few minutes depending on connection
+git lfs pull
+```
+
+### Step 4: Create Conda Environment
+
+```bash
+# Create environment from specification file
+conda env create -f environment.yml
+```
+
+### Step 5: Activate the Environment
+
+```bash
+conda activate nf-ae
+```
+
+**Important**: Always activate the `nf-ae` environment before executing any framework commands.
+
+### Step 6: Verify Installation
+
+After completing the above steps, the framework will be ready to use. Proceed to the **Minimum Test** section to validate the installation.
+
+### (Optional) Feature Extraction from Raw Data
+
+> [!NOTE]
+> Derived datasets are already included in the repository via Git LFS, so this step is optional.
+
+If you have raw NetFlow data and want to extract features:
+
+```bash
+# Set environment variables
+export FILTER="dst as 65550"  # ASN65550 reserved for examples (RFC5398)
+export DATASET_DIR=/path/to/raw/dataset
+export OUTPUT_DIR=./datasets/dataset-name
+
+# Run conversion script
+./datasets/convert-to-csv.sh
+```
+
+## Minimal Test
+
+This section presents simple commands to validate that the installation was successful. The tests below execute in less than 1 minute and do not require significant computational resources.
+
+### Step 1: Display Help
+
+```bash
+python main.py --help
+```
+
+### Step 2: List Available Models
+
+```bash
+python main.py --list-models
+```
+
+## Experiments
+
+This section presents detailed instructions to reproduce the main results from the paper. Experiments are organized into claims that correspond to the presented tables and figures.
+
+### Dataset Context
+
+The framework was evaluated using three real DDoS attack datasets collected from operational Internet Transit Provider (ITP) networks:
+
+| Dataset | Attack Type | Characteristics |
+|---------|-------------|------------------|
+| **itp-downstream-http-flood** | HTTP Flood | Layer 7 attack targeting downstream customer |
+| **itp-multivector-udp-100gbps-peak** | Multi-vector UDP | Volumetric attack reaching 100+ Gbps peak |
+| **itp-synack-customer-outage** | SYN-ACK Reflection | Attack causing service degradation for two hours |
+
+Each dataset contains NetFlow v9 telemetry data with derived features including Shannon entropy, statistical moments, protocol indicators, and temporal/volumetric metrics.
+
+### Experiment Configuration
+
+All experiments use the following configurations:
+
+- **Temporal window (Δt)**: 1s, 10s, 60s, 300s
+- **PCC cutoff (θ)**: 0.50, 0.70, 0.90
+- **Models**: Autoencoder, Isolation Forest, One-Class SVM, Local Outlier Factor
+- **Metrics**: Accuracy, Precision, Recall, F₁-Score, FPR, MCC, Average Precision
+
+---
+
+### Claim #1: Model Performance Metrics (Δt=1s, θ=0.50)
+
+**Objective**: Reproduce the performance metrics table for the four models on the three datasets using 1-second temporal window and PCC threshold of 0.50.
+
+#### Execution Commands
+
+```bash
+# Activate environment
+conda activate nf-ae
+
+# Run PCC feature selection analysis
+python main.py --analyze-correlation --correlation-threshold 0.50
+
+# Run batch analysis for all datasets and models
+python main.py --batch --batch-time-spans 1 --force --force-retrain
+```
+
+#### Expected Results Table
 
 | Dataset | Model | Accuracy | Precision | Recall | F₁ | FPR | MCC |
 |---------|-------|----------|-----------|--------|-------|--------|--------|
@@ -183,10 +266,87 @@ The feature engineering pipeline automatically adapts to different temporal aggr
 | | Local Outlier Factor | 0.9792 | 0.5888 | 0.8360 | 0.6910 | 0.0167 | 0.6918 |
 | | One-Class SVM | 0.9893 | 0.7897 | **0.8377** | **0.8130** | 0.0064 | **0.8079** |
 
-*Where bold values indicate the best performance for each metric within each dataset. θ represents the PCC threshold.*
+*Bold values indicate best performance for each metric within each dataset.*
 
+#### Results Visualization
 
-### Feature Analysis
+To generate a consolidated summary:
+
+```bash
+python main.py --summary
+```
+
+---
+
+### Claim #2: Anomaly Detection Visualization
+
+**Objective**: Reproduce timeline graphs showing anomaly detection over time for the Autoencoder model.
+
+#### Execution Commands
+
+```bash
+# After running Claim #1, generate visualizations
+python main.py --generate-plots
+```
+
+### Claim #3: Precision-Recall Curves and Model Comparison
+
+**Objective**: Generate Precision-Recall curves comparing all models for each dataset.
+
+#### Execution Commands
+
+```bash
+# Generate cross-evaluation and comparisons
+python main.py --cross-evaluation
+```
+
+### Additional Experiments (Optional)
+
+#### Feature Correlation Analysis
+
+```bash
+python main.py --analyze-correlation --correlation-threshold 0.70
+```
+
+#### Hyperparameter Optimization
+
+```bash
+python main.py --batch --optimize --optimize-n-iter 5
+```
+
+#### PCC Threshold Comparison
+
+To reproduce results with different thresholds (0.50, 0.70, 0.90):
+
+```bash
+python main.py --save-run "pcc_070"
+python main.py --save-run "pcc_090"
+
+# Compare results
+python main.py --cross-evaluation
+```
+
+### Important Notes
+
+1. **Reproducibility**: Results may vary slightly (~1-2%) due to:
+   - Random initialization of Autoencoder weights
+
+2. **GPU Acceleration**: Autoencoder benefits significantly from GPU. For CPU-only execution:
+   ```bash
+   export CUDA_VISIBLE_DEVICES=""  # Disable GPU
+   ```
+
+3. **Partial Execution**: To test only one dataset:
+   ```bash
+   python main.py --dataset itp-downstream-http-flood --model autoencoder --time-window 1seconds
+   ```
+
+4. **Cache**: The framework uses cache to avoid recomputations. To force recalculation:
+   ```bash
+   python main.py --force --force-retrain
+   ```
+
+## Feature Visual Analysis
 
 The following visualizations show key features extracted from each dataset during the test phase (**Δt = 300s**). These features demonstrate the distinct behavioral patterns of different attack types:
 
@@ -262,17 +422,7 @@ The following visualizations show key features extracted from each dataset durin
   </tr>
 </table>
 
-
-## Results
-
-The experimental validation encompassed **144 distinct scenarios**, systematically combining:
-
-- **3 datasets**: Real-world DDoS attacks captured from ITP border routers (itp-downstream-http-flood, itp-multivector-udp-100gbps-peak, itp-synack-customer-outage)
-- **4 anomaly detection models**: Autoencoder (AE), Isolation Forest (IF), One-Class SVM (OCSVM), and Local Outlier Factor (LOF)
-- **4 temporal aggregation windows** (Δt): 1s, 10s, 60s, and 300s for feature extraction
-- **3 PCC thresholds** (θ): 0.50, 0.70, and 0.90 for correlation-based feature selection
-
-This comprehensive evaluation strategy ensures robust assessment across diverse attack patterns, model architectures, temporal resolutions, and feature dimensionality reduction approaches. Some results:
+### Complementary Visualizations
 
 <table>
   <tr>
@@ -324,6 +474,14 @@ This comprehensive evaluation strategy ensures robust assessment across diverse 
 
 A special thanks to the ITPs for granting access to operational telemetry and for their support in the collection used in this study. Without this collaboration, it would not have been possible to evaluate the proposed methods under realistic ITP traffic conditions.
 
+## LICENSE
+
+This project uses **dual licensing**:
+
+- **Code** (including scripts in `datasets/`) is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+- **Dataset files** (`.csv` files in `datasets/`) are licensed under the **Open Database License (ODbL) v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
+
+Utility scripts (`.sh` and `.py`) in the `datasets/` directory are considered code and remain under the MIT License.
 
 <!-- ## Citation
 

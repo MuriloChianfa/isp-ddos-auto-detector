@@ -91,7 +91,12 @@ class VisualizationManager:
             time_span=self.time_span
         )
         anomaly_viz.print_threshold_comparison(test_scores, all_thresholds)
-        anomaly_viz.plot_anomaly_detection(combined_features, threshold)
+        
+        # Get attack periods for ground truth visualization
+        from framework.utils import get_attack_periods
+        attack_periods = get_attack_periods(self.dataset_name, self.time_span)
+        
+        anomaly_viz.plot_anomaly_detection(combined_features, threshold, attack_periods=attack_periods)
         anomaly_viz.print_anomaly_statistics(combined_features, threshold)
     
     def generate_feature_reconstruction_error_plots(self, model: Any, processing_list: List[Tuple],

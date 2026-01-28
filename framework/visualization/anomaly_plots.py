@@ -19,7 +19,7 @@ class AnomalyVisualizer:
             self.results_dir = results_dir
         os.makedirs(self.results_dir, exist_ok=True)
         
-    def plot_anomaly_detection(self, combined_features, threshold, model_name="autoencoder"):
+    def plot_anomaly_detection(self, combined_features, threshold, model_name="autoencoder", attack_periods=None):
         """Create anomaly detection visualization focused on test dataset"""
         test_mask = combined_features['dataset'] == 'test'
         test_data = combined_features[test_mask]
@@ -27,13 +27,14 @@ class AnomalyVisualizer:
         # Create main test dataset plot using common function
         self._create_anomaly_plot(
             test_data, combined_features, threshold,
-            'Network Traffic Anomaly Detection',
+            'DDoS Detection Event Timeline',
             'anomaly_detection.png',
-            'green', 'Anomaly Scores'
+            'green', 'Anomaly Scores',
+            attack_periods=attack_periods
         )
         
         # Create a second plot focused on the threshold region for better visibility
-        self._plot_threshold_focused_view(combined_features, threshold, model_name)
+        self._plot_threshold_focused_view(combined_features, threshold, model_name, attack_periods=attack_periods)
         
         # Generate separate plots for train and validation datasets
         self._plot_train_validation_splits(combined_features, threshold, model_name)
@@ -42,27 +43,30 @@ class AnomalyVisualizer:
         print(f"Anomaly detection plot saved to: {filename}")
         return filename
         
-    def _plot_threshold_focused_view(self, combined_features, threshold, model_name="autoencoder"):
+    def _plot_threshold_focused_view(self, combined_features, threshold, model_name="autoencoder", attack_periods=None):
         """Create a focused view of the threshold region for better visibility"""
         test_mask = combined_features['dataset'] == 'test'
         test_data = combined_features[test_mask]
         
-        plt.figure(figsize=(20, 8))
+        # Create figure with two subplots - main plot and ground truth bar
+        fig, (ax_main, ax_gt) = plt.subplots(2, 1, figsize=(20, 9), 
+                                              gridspec_kw={'height_ratios': [15, 1], 'hspace': 0.05},
+                                              sharex=True)
         
         # Use common helper functions
         timestamps = pd.to_datetime(test_data['timestamp'])
         anomaly_scores = test_data['reconstruction_error']
         anomalies_mask = test_data['is_anomaly']
         
-        # Add anomaly highlights and plot data
-        self._add_anomaly_highlights(timestamps, anomalies_mask)
+        # Add anomaly highlights (red)
+        self._add_anomaly_highlights(ax_main, timestamps, anomalies_mask)
         
-        plt.step(timestamps, anomaly_scores, where='post',
+        ax_main.step(timestamps, anomaly_scores, where='post',
                 color='green', alpha=0.8, linewidth=1.5, 
                 label='Anomaly Scores', zorder=5)
         
         # Add threshold lines
-        self._add_threshold_lines(combined_features, threshold)
+        self._add_threshold_lines(ax_main, combined_features, threshold)
         
         # Calculate focused y-range around threshold region
         normal_mask = (combined_features['dataset'] == 'train') | (combined_features['dataset'] == 'validation')
@@ -70,10 +74,13 @@ class AnomalyVisualizer:
         mse_plus_std_anomaly_score = np.mean(normal_anomaly_scores) + np.std(normal_anomaly_scores)
         max_threshold = max(threshold, mse_plus_std_anomaly_score)
         focused_y_limit = max_threshold * 4
-        plt.ylim(bottom=-0.005, top=focused_y_limit)
+        ax_main.set_ylim(bottom=-0.005, top=focused_y_limit)
         
         # Configure appearance with focused title
-        self._configure_plot_appearance('Network Traffic Anomaly Detection - Threshold Focused View')
+        self._configure_plot_appearance(ax_main, 'Network Traffic Anomaly Detection - Threshold Focused View')
+        
+        # Add ground truth bar at the bottom
+        self._add_ground_truth_bar(ax_gt, timestamps, attack_periods)
         
         focused_filename = os.path.join(self.results_dir, f"anomaly_detection_focused.png")
         plt.savefig(focused_filename, dpi=300, bbox_inches='tight')
@@ -152,28 +159,120 @@ class AnomalyVisualizer:
         )
     
     def _create_anomaly_plot(self, plot_data, combined_features, threshold, title, filename, 
-                           line_color='green', data_label='Anomaly Scores'):
-        """Common function to create anomaly detection plots"""
-        plt.figure(figsize=(20, 10))
-        
+                           line_color='green', data_label='Anomaly Scores', attack_periods=None):
+        """Common function to create anomaly detection plots with broken y-axis and ground truth bar"""
         # Ensure timestamps are datetime objects
         timestamps = pd.to_datetime(plot_data['timestamp'])
         anomaly_scores = plot_data['reconstruction_error']
         anomalies_mask = plot_data['is_anomaly']
         
-        # Highlight anomaly periods
-        self._add_anomaly_highlights(timestamps, anomalies_mask)
+        # Determine best legend position - default to upper left, switch to upper right if anomalies on left
+        legend_loc = 'upper left'
+        if anomalies_mask.any():
+            anomaly_timestamps = timestamps[anomalies_mask]
+            time_range = timestamps.max() - timestamps.min()
+            midpoint = timestamps.min() + time_range / 2
+            # Count anomalies in left half vs right half
+            left_anomalies = (anomaly_timestamps <= midpoint).sum()
+            right_anomalies = (anomaly_timestamps > midpoint).sum()
+            # If more anomalies on the left, put legend on the right
+            if left_anomalies > right_anomalies:
+                legend_loc = 'upper right'
         
-        # Plot anomaly scores - use step plot for discrete time intervals (like 1-minute windows)
-        plt.step(timestamps, anomaly_scores, where='post',
-                color=line_color, alpha=0.8, linewidth=1.5, 
-                label=f'{data_label}', zorder=5)
+        # Calculate the break points for the y-axis
+        # Bottom section: focused on threshold region
+        normal_mask = (combined_features['dataset'] == 'train') | (combined_features['dataset'] == 'validation')
+        normal_anomaly_scores = combined_features[normal_mask]['reconstruction_error']
         
-        # Add threshold and reference lines
-        self._add_threshold_lines(combined_features, threshold)
+        if len(normal_anomaly_scores) > 0:
+            mse_plus_std = np.mean(normal_anomaly_scores) + np.std(normal_anomaly_scores)
+            max_threshold = max(threshold, mse_plus_std)
+        else:
+            max_threshold = threshold
         
-        # Configure plot appearance
-        self._configure_plot_appearance(title)
+        # Define y-axis ranges
+        bottom_ylim = (-0.005, max_threshold * 4)  # Focused view near threshold
+        
+        # Find max anomaly score for top section
+        max_score = anomaly_scores.max()
+        
+        # Only use broken axis if there are significant spikes above the bottom view
+        use_broken_axis = max_score > bottom_ylim[1] * 1.5
+        
+        if use_broken_axis:
+            # Create figure with three subplots - top (peaks), bottom (focused), ground truth bar
+            fig, (ax_top, ax_bottom, ax_gt) = plt.subplots(3, 1, figsize=(20, 12), 
+                                                  gridspec_kw={'height_ratios': [2, 8, 0.5], 'hspace': 0.02},
+                                                  sharex=True)
+            
+            # Top section: show peaks
+            top_ylim = (bottom_ylim[1] * 1.2, max_score * 1.1)
+            
+            # Plot on both axes
+            for ax in [ax_top, ax_bottom]:
+                # Highlight detected anomaly periods (red)
+                self._add_anomaly_highlights(ax, timestamps, anomalies_mask)
+                
+                # Plot anomaly scores
+                ax.step(timestamps, anomaly_scores, where='post',
+                        color=line_color, alpha=0.8, linewidth=1.5, 
+                        label=f'{data_label}', zorder=5)
+                
+                # Add threshold line
+                self._add_threshold_lines(ax, combined_features, threshold)
+            
+            # Set y-limits for each section
+            ax_top.set_ylim(top_ylim)
+            ax_bottom.set_ylim(bottom_ylim)
+            
+            # Hide the spines between the two plots
+            ax_top.spines['bottom'].set_visible(False)
+            ax_bottom.spines['top'].set_visible(False)
+            ax_top.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+            ax_top.tick_params(axis='y', labelsize=12)
+            ax_bottom.tick_params(axis='y', labelsize=12)
+            
+            # Add break indicators (diagonal lines)
+            d = 0.015  # Size of diagonal lines
+            kwargs = dict(transform=ax_top.transAxes, color='k', clip_on=False, linewidth=1)
+            ax_top.plot((-d, +d), (-d, +d), **kwargs)  # Bottom-left diagonal
+            ax_top.plot((1-d, 1+d), (-d, +d), **kwargs)  # Bottom-right diagonal
+            
+            kwargs.update(transform=ax_bottom.transAxes)
+            ax_bottom.plot((-d, +d), (1-d, 1+d), **kwargs)  # Top-left diagonal
+            ax_bottom.plot((1-d, 1+d), (1-d, 1+d), **kwargs)  # Top-right diagonal
+            
+            # Configure appearance
+            ax_top.set_title(title, fontsize=18, fontweight='bold')
+            ax_top.grid(True, alpha=0.3)
+            ax_top.legend(fontsize=16, loc=legend_loc)
+            
+            ax_bottom.set_ylabel('Anomaly Score (Reconstruction Error)', fontsize=14, fontweight='bold')
+            ax_bottom.grid(True, alpha=0.3)
+            ax_bottom.tick_params(axis='x', labelbottom=False)
+            
+        else:
+            # Regular plot without broken axis
+            fig, (ax_bottom, ax_gt) = plt.subplots(2, 1, figsize=(20, 11), 
+                                                  gridspec_kw={'height_ratios': [20, 1], 'hspace': 0.05},
+                                                  sharex=True)
+            
+            # Highlight detected anomaly periods (red)
+            self._add_anomaly_highlights(ax_bottom, timestamps, anomalies_mask)
+            
+            # Plot anomaly scores
+            ax_bottom.step(timestamps, anomaly_scores, where='post',
+                    color=line_color, alpha=0.8, linewidth=1.5, 
+                    label=f'{data_label}', zorder=5)
+            
+            # Add threshold line
+            self._add_threshold_lines(ax_bottom, combined_features, threshold)
+            
+            # Configure main plot appearance
+            self._configure_plot_appearance(ax_bottom, title, legend_loc=legend_loc)
+        
+        # Add ground truth bar at the bottom
+        self._add_ground_truth_bar(ax_gt, timestamps, attack_periods)
         
         # Save plot
         full_filename = os.path.join(self.results_dir, filename)
@@ -185,50 +284,84 @@ class AnomalyVisualizer:
         print(f"{data_label} plot saved to: {full_filename}")
         return full_filename
     
-    def _add_anomaly_highlights(self, timestamps, anomalies_mask):
-        """Add anomaly period highlights to the plot"""
+    def _add_anomaly_highlights(self, ax, timestamps, anomalies_mask):
+        """Add detected anomaly period highlights to the plot (red)"""
         anomaly_timestamps = timestamps[anomalies_mask]
         for i, anomaly_time in enumerate(anomaly_timestamps):
             window_start = anomaly_time - pd.Timedelta(minutes=2.5)
             window_end = anomaly_time + pd.Timedelta(minutes=2.5)
-            plt.axvspan(window_start, window_end, alpha=0.25, color='red', 
+            ax.axvspan(window_start, window_end, alpha=0.25, color='red', 
                        label='Detected Anomaly Period' if i == 0 else "", zorder=1)
     
-    def _add_threshold_lines(self, combined_features, threshold):
-        """Add threshold and reference lines to the plot"""
-        # Add threshold line
-        plt.axhline(y=threshold, color='red', linestyle='--', alpha=0.8, linewidth=2, 
-                   label=f'Anomaly Threshold: {threshold:.6f}')
+    def _add_ground_truth_bar(self, ax, timestamps, attack_periods):
+        """Add ground truth horizontal bar at the bottom of the plot"""
+        # Set up the ground truth bar
+        ax.set_ylim(0, 1)
+        ax.set_ylabel('GT', fontsize=12, fontweight='bold')
+        ax.set_yticks([])
+        ax.set_facecolor('white')
         
-        # Calculate statistics for normal data (train + validation)
-        normal_mask = (combined_features['dataset'] == 'train') | (combined_features['dataset'] == 'validation')
-        normal_anomaly_scores = combined_features[normal_mask]['reconstruction_error']
+        # Get time range from data
+        time_min = timestamps.min()
+        time_max = timestamps.max()
         
-        mae_anomaly_score = np.mean(np.abs(normal_anomaly_scores))
-        mse_anomaly_score = np.mean(normal_anomaly_scores)
-        mse_plus_std_anomaly_score = np.mean(normal_anomaly_scores) + np.std(normal_anomaly_scores)
+        # Draw background (no attack)
+        ax.axhspan(0, 1, color='lightgray', alpha=0.3)
         
-        plt.axhline(y=mae_anomaly_score, color='purple', linestyle='-.', alpha=0.7, linewidth=1.5, 
-                   label=f'MAE: {mae_anomaly_score:.6f}')
-        plt.axhline(y=mse_anomaly_score, color='orange', linestyle='-.', alpha=0.7, linewidth=1.5, 
-                   label=f'MSE: {mse_anomaly_score:.6f}')
-        plt.axhline(y=mse_plus_std_anomaly_score, color='brown', linestyle='-.', alpha=0.7, linewidth=1.5, 
-                   label=f'MSE + STD: {mse_plus_std_anomaly_score:.6f}')
+        if attack_periods:
+            # Convert attack periods to datetime
+            for start, end in attack_periods:
+                start_dt = pd.to_datetime(start)
+                end_dt = pd.to_datetime(end)
+                
+                # Check if timestamps are timezone-aware
+                if len(timestamps) > 0 and hasattr(timestamps.iloc[0], 'tz') and timestamps.iloc[0].tz is not None:
+                    timezone = timestamps.iloc[0].tz
+                    start_dt = start_dt.tz_localize(timezone)
+                    end_dt = end_dt.tz_localize(timezone)
+                
+                # Draw ground truth period as green bar
+                ax.axvspan(start_dt, end_dt, color='green', alpha=0.7)
+        
+        # Configure x-axis for the ground truth bar with dynamic interval
+        time_range_hours = (time_max - time_min).total_seconds() / 3600
+        if time_range_hours > 120:  # More than 5 days
+            major_interval = 24  # Show every day
+            minor_interval = 6
+        elif time_range_hours > 48:  # More than 2 days
+            major_interval = 12
+            minor_interval = 3
+        else:
+            major_interval = 4
+            minor_interval = 1
+        
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=major_interval))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        ax.xaxis.set_minor_locator(mdates.HourLocator(interval=minor_interval))
+        ax.tick_params(axis='x', labelsize=12, rotation=0)
+        ax.set_xlabel('Date Time (Aggregated Windows)', fontsize=14, fontweight='bold')
+        
+        # Add border
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_linewidth(0.5)
     
-    def _configure_plot_appearance(self, title):
+    def _add_threshold_lines(self, ax, combined_features, threshold):
+        # Add threshold line
+        ax.axhline(y=threshold, color='red', linestyle='--', alpha=0.8, linewidth=2, 
+                   label=f'Anomaly Threshold: {threshold:.6f}')
+    
+    def _configure_plot_appearance(self, ax, title, legend_loc='upper right'):
         """Configure common plot appearance settings"""
-        plt.xlabel('Time', fontsize=12)
-        plt.ylabel('Anomaly Score (Reconstruction Error)', fontsize=12)
-        plt.title(title, fontsize=14, fontweight='bold')
+        ax.set_ylabel('Anomaly Score (Reconstruction Error)', fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=18, fontweight='bold')
         
         # Keep original auto-scaling for the main plot to show all data
-        plt.ylim(bottom=-0.01)  # Only set bottom limit, let top auto-scale
+        ax.set_ylim(bottom=-0.01)  # Only set bottom limit, let top auto-scale
         
-        plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=4))
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
-        plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+        # Hide x-axis labels on main plot (will be shown on GT bar)
+        ax.tick_params(axis='x', labelbottom=False)
+        ax.tick_params(axis='y', labelsize=12)
         
-        plt.legend(fontsize=9, loc='upper right')
-        plt.grid(True, alpha=0.3)
-        plt.xticks(rotation=45)
-        plt.tight_layout()
+        ax.legend(fontsize=16, loc=legend_loc)
+        ax.grid(True, alpha=0.3)

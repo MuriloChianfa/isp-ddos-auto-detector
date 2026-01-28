@@ -32,6 +32,13 @@ class PCCComparisonVisualizer:
         0.90: '#2ecc71'   # Green
     }
     
+    # Marker map for PCC thresholds (for best F1 points)
+    PCC_MARKERS = {
+        0.50: '*',   # Star
+        0.70: 'p',   # Pentagon
+        0.90: 'o'    # Circle
+    }
+    
     def __init__(self, results_base_dir: str = './results', output_dir: str = './results/pcc_comparison'):
         """
         Initialize the PCC Comparison Visualizer.
@@ -205,36 +212,82 @@ class PCCComparisonVisualizer:
         # Create figure with scientific styling
         fig, ax = plt.subplots(figsize=(10, 8))
         
+        # Draw F1 iso-curves in the background
+        f1_values = [0.2, 0.4, 0.6, 0.8]
+        for f1_val in f1_values:
+            # For a given F1, precision = F1 * recall / (2 * recall - F1)
+            # The curve starts at recall = F1/(2-F1) where precision = 1
+            # and ends at recall = 1 where precision = F1/(2-F1)
+            recall_start = f1_val / (2 - f1_val)
+            # Add small epsilon to avoid division issues at the boundary
+            recall_range = np.linspace(recall_start + 1e-6, 1.0, 100)
+            precision_iso = (f1_val * recall_range) / (2 * recall_range - f1_val)
+            # Only plot valid values (precision between 0 and 1)
+            valid_mask = (precision_iso >= 0) & (precision_iso <= 1.0) & np.isfinite(precision_iso)
+            ax.plot(recall_range[valid_mask], precision_iso[valid_mask], 
+                   color='gray', alpha=0.3, linestyle='-', linewidth=1, zorder=1)
+            # Add F1 label at the end of each curve (right side)
+            valid_indices = np.where(valid_mask)[0]
+            if len(valid_indices) > 0:
+                label_idx = valid_indices[-1]
+                ax.annotate(r'$F_1$' + f'={f1_val}', 
+                           xy=(recall_range[label_idx], precision_iso[label_idx]),
+                           fontsize=10, color='gray', alpha=0.7,
+                           xytext=(5, 0), textcoords='offset points')
+        
         # Plot each PCC version's curve
         for curve_data in curves:
             precision = np.array(curve_data['precision'])
             recall = np.array(curve_data['recall'])
-            ap_score = curve_data['average_precision']
             pcc_threshold = curve_data['pcc_threshold']
             
-            # Get color for this PCC threshold
-            color = self.PCC_COLORMAP.get(pcc_threshold, '#95a5a6')
+            # Calculate F1-scores on-the-fly
+            with np.errstate(divide='ignore', invalid='ignore'):
+                f1_scores = 2 * (precision * recall) / (precision + recall)
+                f1_scores = np.nan_to_num(f1_scores)  # Handle division by zero
             
-            # Create label with PCC threshold and AP score
-            label = f"PCC={pcc_threshold:.2f} (AP={ap_score:.4f})"
+            # Find best F1 and its corresponding precision/recall
+            best_f1_idx = np.argmax(f1_scores)
+            best_f1 = f1_scores[best_f1_idx]
+            best_precision = precision[best_f1_idx]
+            best_recall = recall[best_f1_idx]
+            
+            # Get color and marker for this PCC threshold
+            color = self.PCC_COLORMAP.get(pcc_threshold, '#95a5a6')
+            marker = self.PCC_MARKERS.get(pcc_threshold, 'o')
+            
+            # Create label with PCC threshold and F1 score (using LaTeX notation)
+            label = f"PCC={pcc_threshold:.2f} (Best Achievable " + r"$F_1$" + f"={best_f1:.4f})"
             
             ax.plot(recall, precision, 
                    label=label, 
                    linewidth=2.5, 
                    alpha=0.85,
                    color=color)
+            
+            # Plot best F1 point as marker
+            ax.scatter(best_recall, best_precision,
+                      marker=marker,
+                      color=color,
+                      s=100,
+                      zorder=5,
+                      edgecolors='black',
+                      linewidths=1.5)
         
         # Scientific styling (matching evaluation_plots.py patterns)
-        ax.set_xlabel('Recall', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Precision', fontsize=14, fontweight='bold')
+        ax.set_xlabel('Recall', fontsize=18, fontweight='bold')
+        ax.set_ylabel('Precision', fontsize=18, fontweight='bold')
         
         time_value = window.replace('seconds', 's')
-        title = f'AUPRC: PCC Threshold Comparison\n'
+        title = f'Area Under the Precision-Recall Curve'
         # title += f'{model.replace("_", " ").title()} - {dataset} - {time_value}'
-        ax.set_title(title, fontsize=16, fontweight='bold', pad=10)
+        ax.set_title(title, fontsize=22, fontweight='bold', pad=10)
         
         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-        ax.legend(loc='lower left', fontsize=12, frameon=True, fancybox=True, shadow=True)
+        ax.legend(loc='lower left', fontsize=14, frameon=True, fancybox=True, shadow=True)
+        
+        # Increase tick label font size
+        ax.tick_params(axis='both', which='major', labelsize=14)
         
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
