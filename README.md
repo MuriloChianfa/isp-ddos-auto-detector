@@ -1,4 +1,4 @@
-<h1 align="center">Unsupervised DDoS Detection in High-Speed Networks:<br>An Evaluation Using Real Transit Provider Data</h1>
+<h2 align="center">Unsupervised DDoS Detection in High-Speed Networks:<br>An Evaluation Using Real Transit Provider Data</h2>
 
 <div align="center">
 
@@ -12,14 +12,12 @@
 
 </div>
 
-## Abstract
-
 Distributed denial-of-service (DDoS) attack detection has been widely studied in the past decade by academia. Despite progress having been made, recent surveys show that detection in environments such as Internet Transit Providers (ITP) remains challenging due to high-speed constraints. This study evaluates four anomaly detection algorithms, namely Autoencoder, Isolation Forest, Local Outlier Factor, and One Class Support Vector Machine, using three datasets collected from operational ITPs during confirmed DDoS attacks. The evaluation considers four temporal aggregation windows and three feature selection configurations, with the objective of analyzing the predictive capacity of the algorithms under different temporal and feature selection settings. The results show that the Autoencoder detection achieved the best results when using the most aggressive feature selection configuration and the shortest temporal aggregation windows.
 
-## README.md Structure
+## README Structure
 
 1. [**Title and Abstract**](#abstract): Research overview and objectives
-2. [**README.md Structure**](#agenda): Description of document organization
+2. [**README Structure**](#agenda): Description of document organization
 3. [**Basic Information**](#basic-information): Hardware and execution environment requirements
 4. [**Badges Considered**](#badges-considered): Declaration of badges requested for evaluation
 5. [**Dependencies**](#dependencies): Complete list of required libraries and tools
@@ -75,7 +73,7 @@ This artifact requests: **Available**, **Functional**, **Sustainable**, and **Re
 | **Available** | Complete source code, datasets, and results publicly available in this repository |
 | **Functional** | Fully executable with detailed setup, validation tests, and pinned dependencies |
 | **Sustainable** | Modular architecture with clear components and inline documentation |
-| **Reproducible** | Automated scripts and detailed instructions to reproduce all paper results |
+| **Reproducible** | Automated scripts and detailed instructions to reproduce principal paper results |
 
 
 ## Basic Information
@@ -87,8 +85,8 @@ Experiments were executed on a machine with the following specifications:
 - **Processor**: Dual Intel Xeon E5-2683 v4 @ 2.10 GHz
 - **RAM Memory**: 128 GB DDR4 2133MHz RDIMM ECC
 - **GPU**: NVIDIA GeForce GTX 1050 Ti with 4 GB of VRAM
-- **Storage**: Recommended at least 20 GB free space for datasets and results
-- **Operating System**: Linux (tested on Debian 12 Kernel 6.1.0-26-amd64)
+- **Storage**: At least 20 GB free space for the datasets
+- **Operating System**: Linux Debian 12 Kernel 6.1.0-26-amd64
 
 ### Software Requirements
 
@@ -110,8 +108,8 @@ The framework has well-defined dependencies, managed through Conda. All dependen
 
 1. **Computational Resource Consumption**:
    - Model training can consume significant amounts of RAM during hyperparameter optimization
-   - Batch executions can take several hours (up to 48h for all 144 complete scenarios even without hyperparameter optimization)
-   - It is recommended to monitor CPU/GPU/RAM usage during execution using `htop` and `nvidia-smi`
+   - Batch executions can take several hours (up to 96h for all 144 complete scenarios)
+   - It is recommended to monitor CPU/GPU/RAM usage during execution using `htop`/`nvidia-smi`
 
 2. **Large File Downloads**:
    - The `git lfs pull` command will download derived datasets that can total several GB
@@ -170,12 +168,14 @@ conda activate nf-ae
 
 ### Step 6: Verify Installation
 
-After completing the above steps, the framework will be ready to use. Proceed to the **Minimum Test** section to validate the installation.
+After completing the above steps, the framework will be ready to use.
+
+Proceed to the [**Minimal Test**](#minimal-test) section to validate the installation.
+
+
+---
 
 ### (Optional) Feature Extraction from Raw Data
-
-> [!NOTE]
-> Derived datasets are already included in the repository via Git LFS, so this step is optional.
 
 If you have raw NetFlow data and want to extract features:
 
@@ -188,6 +188,9 @@ export OUTPUT_DIR=./datasets/dataset-name
 # Run conversion script
 ./datasets/convert-to-csv.sh
 ```
+
+> [!NOTE]
+> Derived datasets are already included in the repository via Git LFS, so this step is optional.
 
 ## Minimal Test
 
@@ -276,9 +279,9 @@ python main.py --summary
 
 *Bold values indicate best performance for each metric within each dataset.*
 
----
+<!-- ### Claim #2: Precision-Recall Curves and Model Comparison
 
-### Claim #2: Precision-Recall Curves and Model Comparison
+---
 
 **Objective**: Generate Precision-Recall curves comparing all models for each dataset.
 
@@ -287,11 +290,11 @@ python main.py --summary
 ```bash
 # Generate cross-evaluation and comparisons
 python main.py --cross-evaluation
-```
+``` -->
+
+<!-- ### Additional Experiments (Optional)
 
 ---
-
-### Additional Experiments (Optional)
 
 #### Feature Correlation Analysis
 
@@ -316,11 +319,9 @@ python main.py --save-run "pcc_090"
 
 # Compare results
 python main.py --cross-evaluation
-```
+``` -->
 
-### Important Notes
-
-1. **Reproducibility**: Results may vary slightly (~3-4%) due to random initialization of Autoencoder weights
+- **Reproducibility**: Results may vary slightly (~3-4%) due to random initialization of Autoencoder weights
 
 ## Feature Visual Analysis
 
@@ -449,7 +450,7 @@ A special thanks to the ITPs for granting access to operational telemetry and fo
 This project uses **dual licensing**:
 
 - **Code** is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-- **Datasets** are licensed under the **Open Database License (ODbL) v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
+- **Datasets** are licensed under the **ODbL v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
 
 ## Citation
 
@@ -463,8 +464,6 @@ This project uses **dual licensing**:
   url = {https://github.com/MuriloChianfa/isp-ddos-auto-detector}
 }
 ```
-
----
 
 <div align="center">
   <sub>Always eager to help ISPs with the fight against DDoS attacks!</sub>
