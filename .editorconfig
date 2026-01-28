@@ -1,0 +1,61 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# Top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 4
+
+# CSV files (do not modify)
+[*.csv]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+# Configuration files
+[{package.json,*.yml,*.yaml}]
+indent_style = space
+indent_size = 2
+
+# Conda environment file
+[environment.yml]
+indent_style = space
+indent_size = 2
+
+# Git files
+[.gitattributes]
+indent_style = space
+indent_size = 2
+
+[.gitignore]
+indent_style = space
+indent_size = 2

@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this framework in your research, please cite it as below. Note that we do not have a DOI for this work yet."
+type: software
+title: "Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data"
+authors:
+  - family-names: Chianfa
+    given-names: Murilo A.
+    email: murilo.chianfa@uel.br
+    affiliation: "Computer Science Department, State University of Londrina (UEL)"
+  - family-names: Miani
+    given-names: Rodrigo S.
+    email: miani@ufu.br
+    affiliation: "School of Computer Science (FACOM), Federal University of Uberlândia (UFU)"
+  - family-names: Zarpelão
+    given-names: Bruno B.
+    email: brunozarpelao@uel.br
+    affiliation: "Computer Science Department, State University of Londrina (UEL)"
+repository-code: "https://github.com/MuriloChianfa/isp-ddos-auto-detector"
+url: "https://github.com/MuriloChianfa/isp-ddos-auto-detector"
+abstract: "Distributed denial-of-service (DDoS) attack detection has been widely studied in the past decade by academia. Despite progress having been made, recent surveys show that detection in environments such as Internet Transit Providers (ITP) remains challenging due to high-speed constraints. This study evaluates four anomaly detection algorithms, namely Autoencoder, Isolation Forest, Local Outlier Factor, and One Class Support Vector Machine, using three datasets collected from operational ITPs during confirmed DDoS attacks. The evaluation considers four temporal aggregation windows and three feature selection configurations, with the objective of analyzing the predictive capacity of the algorithms under different temporal and feature selection settings. The results show that the Autoencoder detection achieved the best results when using the most aggressive feature selection configuration and the shortest temporal aggregation windows."
+keywords:
+  - "AE"
+  - "ISP"
+  - "ITP"
+  - "DDoS"
+  - "NetFlow"
+  - "Autoencoder"
+  - "Machine Learning"
+  - "Network Security"
+  - "Anomaly Detection"
+  - "Unsupervised Learning"
+  - "Internet Transit Provider"
+license:
+  - MIT
+  - ODbL-1.0
+license-url:
+  - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE"
+  - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE-DS"
+version: 1.0.0
+date-released: "2026-01-27"

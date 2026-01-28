@@ -249,6 +249,14 @@ python main.py --analyze-correlation --correlation-threshold 0.50
 python main.py --batch --batch-time-spans 1 --force --force-retrain
 ```
 
+#### Results Visualization
+
+To generate a consolidated summary:
+
+```bash
+python main.py --summary
+```
+
 #### Expected Results Table
 
 | Dataset | Model | Accuracy | Precision | Recall | F₁ | FPR | MCC |
@@ -268,28 +276,9 @@ python main.py --batch --batch-time-spans 1 --force --force-retrain
 
 *Bold values indicate best performance for each metric within each dataset.*
 
-#### Results Visualization
-
-To generate a consolidated summary:
-
-```bash
-python main.py --summary
-```
-
 ---
 
-### Claim #2: Anomaly Detection Visualization
-
-**Objective**: Reproduce timeline graphs showing anomaly detection over time for the Autoencoder model.
-
-#### Execution Commands
-
-```bash
-# After running Claim #1, generate visualizations
-python main.py --generate-plots
-```
-
-### Claim #3: Precision-Recall Curves and Model Comparison
+### Claim #2: Precision-Recall Curves and Model Comparison
 
 **Objective**: Generate Precision-Recall curves comparing all models for each dataset.
 
@@ -299,6 +288,8 @@ python main.py --generate-plots
 # Generate cross-evaluation and comparisons
 python main.py --cross-evaluation
 ```
+
+---
 
 ### Additional Experiments (Optional)
 
@@ -319,6 +310,7 @@ python main.py --batch --optimize --optimize-n-iter 5
 To reproduce results with different thresholds (0.50, 0.70, 0.90):
 
 ```bash
+python main.py --save-run "pcc_050"
 python main.py --save-run "pcc_070"
 python main.py --save-run "pcc_090"
 
@@ -328,23 +320,7 @@ python main.py --cross-evaluation
 
 ### Important Notes
 
-1. **Reproducibility**: Results may vary slightly (~1-2%) due to:
-   - Random initialization of Autoencoder weights
-
-2. **GPU Acceleration**: Autoencoder benefits significantly from GPU. For CPU-only execution:
-   ```bash
-   export CUDA_VISIBLE_DEVICES=""  # Disable GPU
-   ```
-
-3. **Partial Execution**: To test only one dataset:
-   ```bash
-   python main.py --dataset itp-downstream-http-flood --model autoencoder --time-window 1seconds
-   ```
-
-4. **Cache**: The framework uses cache to avoid recomputations. To force recalculation:
-   ```bash
-   python main.py --force --force-retrain
-   ```
+1. **Reproducibility**: Results may vary slightly (~3-4%) due to random initialization of Autoencoder weights
 
 ## Feature Visual Analysis
 
@@ -431,17 +407,17 @@ The following visualizations show key features extracted from each dataset durin
     <th style="text-align: center;" width="33%">itp-synack-customer-outage</th>
   </tr>
   <tr>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Anomaly Detection Timeline (Autoencoder, 1s resolution)</p></i></td>
   </tr>
   <tr>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-downstream-http-flood_1seconds.png" width="100%" /></td>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png" width="100%" /></td>
-    <td><img src="./results/versions/0_90_pcc_n_iter_5/cross_evaluation/pr_curve_itp-synack-customer-outage_1seconds.png" width="100%" /></td>
+    <td><img src="./results/cross_evaluation/pr_curve_itp-downstream-http-flood_1seconds.png" width="100%" /></td>
+    <td><img src="./results/cross_evaluation/pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png" width="100%" /></td>
+    <td><img src="./results/cross_evaluation/pr_curve_itp-synack-customer-outage_1seconds.png" width="100%" /></td>
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Precision-Recall Curves (All Models, 1s resolution)</p></i></td>
@@ -464,12 +440,6 @@ The following visualizations show key features extracted from each dataset durin
   </tr>
 </table>
 
-<div align="center">
-  <img src="./results/pcc_comparison/avg_ap_comparison_1seconds.png" alt="Autoencoder showing the average precision for the three datasets" width="80%" />
-  <p><i>Cross-evaluation bars showing average Average Precision (AP) across each dataset</i></p>
-</div>
-
-
 ## Acknowledgments
 
 A special thanks to the ITPs for granting access to operational telemetry and for their support in the collection used in this study. Without this collaboration, it would not have been possible to evaluate the proposed methods under realistic ITP traffic conditions.
@@ -478,25 +448,21 @@ A special thanks to the ITPs for granting access to operational telemetry and fo
 
 This project uses **dual licensing**:
 
-- **Code** (including scripts in `datasets/`) is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-- **Dataset files** (`.csv` files in `datasets/`) are licensed under the **Open Database License (ODbL) v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
+- **Code** is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+- **Datasets** are licensed under the **Open Database License (ODbL) v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
 
-Utility scripts (`.sh` and `.py`) in the `datasets/` directory are considered code and remain under the MIT License.
-
-<!-- ## Citation
-
-If you use this framework in your research, please cite:
+## Citation
 
 ```bibtex
-@software{chianfa2025isp_ddos,
-  author = {Chianfa, Murilo},
-  title = {{title}},
-  year = {2025},
-  month = {November},
+@software{chianfa2026ispddos,
+  author = {Chianfa, Murilo A., Miani, Rodrigo S., and Zarpel{\~a}o, Bruno B.},
+  title = {Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data},
+  year = {2026},
+  month = {January},
   version = {1.0.0},
   url = {https://github.com/MuriloChianfa/isp-ddos-auto-detector}
 }
-``` -->
+```
 
 ---
 
