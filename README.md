@@ -408,14 +408,6 @@ The following visualizations show key features extracted from each dataset durin
     <th style="text-align: center;" width="33%">itp-synack-customer-outage</th>
   </tr>
   <tr>
-    <td><img src="./results/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-    <td><img src="./results/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
-  </tr>
-  <tr>
-    <td colspan="3" align="center"><p><i>Anomaly Detection Timeline (Autoencoder, 1s resolution)</p></i></td>
-  </tr>
-  <tr>
     <td><img src="./results/cross_evaluation/pr_curve_itp-downstream-http-flood_1seconds.png" width="100%" /></td>
     <td><img src="./results/cross_evaluation/pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png" width="100%" /></td>
     <td><img src="./results/cross_evaluation/pr_curve_itp-synack-customer-outage_1seconds.png" width="100%" /></td>
@@ -430,6 +422,14 @@ The following visualizations show key features extracted from each dataset durin
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Average Precision (AP) for Autoencoder on each of the PCC thresholds tested</p></i></td>
+  </tr>
+  <tr>
+    <td><img src="./results/itp-downstream-http-flood/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/itp-multivector-udp-100gbps-peak/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+    <td><img src="./results/itp-synack-customer-outage/1seconds/models/autoencoder/anomaly_detection.png" width="100%" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><p><i>Anomaly Detection Timeline (Autoencoder, 1s resolution)</p></i></td>
   </tr>
   <tr>
     <td><img src="./results/itp-downstream-http-flood/1seconds/features/correlation/correlation_heatmap.png" width="100%" /></td>
