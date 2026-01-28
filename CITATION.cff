@@ -32,9 +32,9 @@ keywords:
   - "Internet Transit Provider"
 license:
   - MIT
-  - ODbL-1.0
+  - CC-BY-4.0
 license-url:
   - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE"
-  - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE-DS"
+  - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE-CC"
 version: 1.0.0
 date-released: "2026-01-27"

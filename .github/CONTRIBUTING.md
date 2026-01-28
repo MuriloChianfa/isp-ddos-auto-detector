@@ -163,7 +163,7 @@ This is an academic research project. When contributing:
 ## License
 
 - **Code contributions**: Licensed under MIT License
-- **Dataset contributions**: Licensed under Open Database License (ODbL) v1.0
+- **Dataset contributions**: Licensed under Creative Commons Attribution 4.0 (CC BY 4.0)
 
 By contributing, you agree to license your contributions under these terms.
 

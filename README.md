@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![License: ODbL](https://img.shields.io/badge/License-ODbL-brightgreen.svg)](https://opendatacommons.org/licenses/odbl/)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
 [![Conda](https://img.shields.io/badge/conda-env-green.svg)](https://docs.conda.io/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange.svg)](https://www.tensorflow.org/)
@@ -27,7 +27,7 @@ Distributed denial-of-service (DDoS) attack detection has been widely studied in
 9. [**Experiments**](#experiments): Reproduction of main results presented in the paper
 10. [**Datasets**](#datasets): Description of data used in the experiments
 11. [**Acknowledgments**](#acknowledgments): Thanks to collaborating institutions
-12. [**LICENSE**](#license): Dual licensing (MIT for code / ODbL for datasets)
+12. [**LICENSE**](#license): Dual licensing (MIT for code / CC BY 4.0 for datasets)
 
 ### Repository Structure
 
@@ -450,7 +450,7 @@ A special thanks to the ITPs for granting access to operational telemetry and fo
 This project uses **dual licensing**:
 
 - **Code** is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-- **Datasets** are licensed under the **ODbL v1.0** - see the [LICENSE-DS](LICENSE-DS) file for details.
+- **Datasets** are licensed under the **CC BY 4.0** - see the [LICENSE-CC](LICENSE-CC) file for details.
 
 ## Citation
 
