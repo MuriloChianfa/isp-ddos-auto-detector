@@ -125,12 +125,12 @@ class ResultsManager:
                 print(f"  {dataset}: {count} anomalies")
         
         if len(anomalies_output) > 0:
-            print(f"Severity distribution:")
+            # print(f"Severity distribution:")
             severity_counts = anomalies_output['anomaly_severity'].value_counts()
             for severity in ['Low', 'Medium', 'High']:
                 count = severity_counts.get(severity, 0)
                 percentage = (count / len(anomalies_output)) * 100 if len(anomalies_output) > 0 else 0
-                print(f"  {severity}: {count} ({percentage:.1f}%)")
+                # print(f"  {severity}: {count} ({percentage:.1f}%)")
             
             print(f"Top 5 highest anomaly scores:")
             top_anomalies = anomalies_output.nlargest(5, 'reconstruction_error')

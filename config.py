@@ -122,7 +122,7 @@ DATASETS = {
                 'threshold_strategies': {
                     'autoencoder': 'mse_plus_40std',
                     'isolation_forest': 'percentile_99_5',
-                    'one_class_svm': 'mse_plus_8std',
+                    'one_class_svm': 'percentile_99_9',
                     'local_outlier_factor': 'mse_plus_3std'
                 }
             },

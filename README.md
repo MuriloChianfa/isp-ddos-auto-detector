@@ -151,14 +151,46 @@ cd isp-ddos-auto-detector
 git lfs pull
 ```
 
-### Step 4: Create Conda Environment
+### Step 4: Install Miniconda
+
+Follow the official installation guide for your operating system:
+
+[https://www.anaconda.com/docs/getting-started/miniconda/install/overview](https://www.anaconda.com/docs/getting-started/miniconda/install/overview)
+
+<details>
+<summary><b>Quick reference: non-interactive install on Linux x86_64 (click to expand)</b></summary>
+
+```bash
+# Download the latest Miniconda installer for linux x86_64
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/Miniconda3-latest-Linux-x86_64.sh
+
+# Run the installer in batch (non-interactive) mode into ~/miniconda3
+bash ~/Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
+
+# Make conda available in the current shell
+source $HOME/miniconda3/etc/profile.d/conda.sh
+
+# (Optional) Initialize conda for future shell sessions
+conda init bash
+
+# Accept the Anaconda Terms of Service for the default channels
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+# Verify installation
+conda --version
+```
+
+</details>
+
+### Step 5: Create Conda Environment
 
 ```bash
 # Create environment from specification file
 conda env create -f environment.yml
 ```
 
-### Step 5: Activate the Environment
+### Step 6: Activate the Environment
 
 ```bash
 conda activate nf-ae
@@ -166,7 +198,7 @@ conda activate nf-ae
 
 **Important**: Always activate the `nf-ae` environment before executing any framework commands.
 
-### Step 6: Verify Installation
+### Step 7: Verify Installation
 
 After completing the above steps, the framework will be ready to use.
 
@@ -198,14 +230,56 @@ This section presents simple commands to validate that the installation was succ
 
 ### Step 1: Display Help
 
+Verifies that the CLI loads and all dependencies resolve.
+
 ```bash
 python main.py --help
 ```
 
 ### Step 2: List Available Models
 
+Verifies that the model factory is correctly wired.
+
 ```bash
 python main.py --list-models
+```
+
+### Step 3: Run a minimal end-to-end detection
+
+This runs the **complete pipeline** for a single (dataset, model, window) combination, complete deterministic, and direct comparability with the paper: One-Class SVM on the DS2 dataset with Δt = 1s. The combination is exactly the one reported in [**Table 5**](#expected-results-table) for itp-downstream-http-flood x One-Class SVM.
+
+Typical time on the reference hardware: **under 30 seconds**.
+
+```bash
+python main.py -d itp-downstream-http-flood -m one_class_svm -t 1 --force-retrain
+```
+
+Expected console output (last lines):
+
+```text
+Confusion Matrix:
+                 Predicted
+               Normal  Attack
+Actual Normal   138860     331
+       Attack       21     298
+
+Basic Performance Metrics:
+  Accuracy:          0.9975
+  Precision:         0.4738
+  Recall:            0.9342
+  F1-Score:          0.6287
+  F2-Score:          0.7822
+
+Advanced Performance Metrics:
+  Matthews Correlation Coefficient: 0.6643
+  ROC AUC Score:     0.9659
+  Miss Rate (FNR):   0.0658
+  Fallout (FPR):     0.0024
+
+Sample Distribution:
+  Total Samples:     139,510
+  Attack Periods:    319
+  Detected Anomalies: 629
 ```
 
 ## Experiments
@@ -242,9 +316,6 @@ All experiments use the following configurations:
 #### Execution Commands
 
 ```bash
-# Activate environment
-conda activate nf-ae
-
 # Run PCC feature selection analysis
 python main.py --analyze-correlation --correlation-threshold 0.50
 
@@ -257,7 +328,7 @@ python main.py --batch --batch-time-spans 1 --force --force-retrain
 To generate a consolidated summary:
 
 ```bash
-python main.py --summary
+python main.py --summary --summary-no-optimal-params --summary-no-stats --summary-time-spans 1
 ```
 
 #### Expected Results Table
@@ -321,7 +392,7 @@ python main.py --save-run "pcc_090"
 python main.py --cross-evaluation
 ``` -->
 
-- **Reproducibility**: Results may vary slightly (~3-4%) due to random initialization of Autoencoder weights
+- **Reproducibility**: Results may vary slightly (~1-2%) due to random initialization of weights
 
 ## Feature Visual Analysis
 
