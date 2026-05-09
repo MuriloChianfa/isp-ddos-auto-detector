@@ -392,7 +392,7 @@ python main.py --save-run "pcc_090"
 python main.py --cross-evaluation
 ``` -->
 
-- **Reproducibility**: Results may vary slightly (~1-2%) due to random initialization of weights
+- **Reproducibility**: Results may vary slightly (~1-5%) due to random initialization of weights
 
 ## Feature Visual Analysis
 
