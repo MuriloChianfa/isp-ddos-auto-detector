@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this framework in your research, please cite it as below. Note that we do not have a DOI for this work yet."
+message: "If you use this framework or datasets in your research, please cite the SBRC paper below."
 type: software
 title: "Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data"
 authors:
@@ -38,3 +38,32 @@ license-url:
   - "https://github.com/MuriloChianfa/isp-ddos-auto-detector/blob/main/LICENSE-CC"
 version: 1.0.0
 date-released: "2026-01-27"
+preferred-citation:
+  type: conference-paper
+  title: "Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data"
+  authors:
+    - family-names: Chianfa
+      given-names: Murilo
+    - family-names: Miani
+      given-names: Rodrigo
+    - family-names: Zarpelão
+      given-names: Bruno
+  collection-title: "Anais do XLIV Simpósio Brasileiro de Redes de Computadores e Sistemas Distribuídos"
+  conference:
+    name: "Simpósio Brasileiro de Redes de Computadores e Sistemas Distribuídos"
+    acronym: SBRC
+    city: Praia do Forte
+    region: BA
+    country: BR
+    date-start: "2026-05-25"
+  start: 1485
+  end: 1498
+  doi: "10.5753/sbrc.2026.19291"
+  url: "https://sol.sbc.org.br/index.php/sbrc/article/view/42379"
+  date-published: "2026-05-25"
+  issn: "2177-9384"
+  publisher: SBC
+  keywords:
+    - DDoS
+    - ISP
+    - Unsupervised
