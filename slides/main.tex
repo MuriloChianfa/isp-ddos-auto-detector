@@ -1,0 +1,407 @@
+\documentclass{beamer}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{caption}
+\captionsetup{font=footnotesize,skip=6pt}
+\graphicspath{{images/}}
+\usepackage{amsmath,amssymb}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
+\usetheme{Berlin}
+\useinnertheme{circles}
+\beamertemplatenavigationsymbolsempty
+
+\makeatletter
+\patchcmd{\insertnavigation}{\hskip.3cm}{\hskip.225cm}{}{}%
+\patchcmd{\insertnavigation}{\hskip.3cm}{\hskip.225cm}{}{}%
+\beamer@theme@subsectionfalse
+\setbeamertemplate{headline}{%
+  \begin{beamercolorbox}{section in head/foot}%
+    \vskip2.5ex%
+    \vskip-\baselineskip%
+    \insertnavigation{\paperwidth}%
+    \vskip1.8ex%
+  \end{beamercolorbox}%
+}
+\makeatother
+\addtobeamertemplate{frametitle}{\nointerlineskip\vskip-2.5pt}{}
+
+\setbeamerfont{title}{size=\Large}
+
+\makeatletter
+\setbeamertemplate{title page}{%
+  \begin{minipage}[t][\dimexpr\textheight-3pt\relax][t]{\linewidth}%
+    \vfill
+    \begingroup
+    \centering
+
+    \begin{beamercolorbox}[
+      wd=.98\paperwidth,
+      ht=1.4cm,
+      dp=.4cm,
+      center
+    ]{title}
+      \usebeamerfont{title}\inserttitle\par
+    \end{beamercolorbox}
+    \vskip1.3em
+    {\usebeamerfont{author}\insertauthor\par}
+    \vskip1.2em
+    {\usebeamerfont{institute}\insertinstitute\par}
+    \vskip1.2em
+    {\usebeamerfont{date}\insertdate\par}
+    \vfill
+    \noindent
+    \begin{minipage}[b]{\linewidth}
+      \begin{minipage}[b]{0.24\linewidth}
+        \raggedright
+        \includegraphics[height=1.52cm,keepaspectratio]{uel-named-logo.png}
+      \end{minipage}%
+      \hfill
+      \begin{minipage}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth,height=1.75cm,keepaspectratio]{sbrc2026banner.png}
+      \end{minipage}%
+      \hfill
+      \begin{minipage}[b]{0.24\linewidth}
+        \raggedleft
+        \includegraphics[height=1.35cm,keepaspectratio]{ufu-logo.png}
+      \end{minipage}
+    \end{minipage}
+    \endgroup
+  \end{minipage}%
+}
+\makeatother
+
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.92\paperwidth,ht=2.5ex,dp=1ex,leftskip=1.5ex]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortauthor
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.08\paperwidth,ht=2.5ex,dp=1ex,center]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortinstitute
+    \end{beamercolorbox}%
+  }%
+  \vskip0pt%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.92\paperwidth,ht=2.5ex,dp=1ex,leftskip=1.5ex]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.08\paperwidth,ht=2.5ex,dp=1ex,center]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertframenumber\,/\,\inserttotalframenumber
+    \end{beamercolorbox}%
+  }%
+}
+
+\title[Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data]{Unsupervised DDoS Detection in High-Speed Networks:\\An Evaluation Using Real Transit Provider Data}
+
+\author{
+    Murilo A. Chianfa\inst{1},
+    Rodrigo S. Miani\inst{2},
+    Bruno B. Zarpelão\inst{1}
+}
+
+\institute[UEL]{
+{\scriptsize
+\inst{1}\textbf{Computer Science Department -- State University of Londrina (UEL)} \\
+P.O. Box 10.011 -- ZIP Code 86057-970 -- Londrina -- PR -- Brazil
+\\[0.8em]
+\inst{2}\textbf{School of Computer Science (FACOM) -- Federal University of Uberlândia (UFU)} \\
+P.O. Box 593 -- ZIP Code 38400-902 -- Uberlândia -- MG -- Brazil
+}}
+    
+\date{\textbf{27 de Maio de 2026}}
+%\date{}
+\logo{\vspace{-0.27cm}\includegraphics[width=.08\linewidth]{logo-uel.jpg}}
+
+% -----------------------------------------
+
+\begin{document}
+
+% -----------------------------------------
+
+{
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{}
+\logo{}
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+}
+
+% -----------------------------------------
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% =============================================================================
+\section[Introdução e Motivação]{Introdução e Motivação}
+
+\begin{frame}{Contexto}
+\begin{itemize}
+  \setlength{\itemsep}{0.55em}
+  \item Ataques DDoS continuam sendo uma grande ameaça em redes de grande porte que muitas vezes sustentam ASNs menores.
+  \item \textbf{Provedores de Trânsito (ITPs)} concentram políticas de roteamento e grande volume de tráfego, sendo alvo e, ao mesmo tempo, ponto de observação/mitigação (p.\,ex.\ engenharia de tráfego, BGP, RTBH, desvios para \emph{scrubbing}).
+  \item Cenários acima de \textbf{100~Gbps} impõem restrições operacionais: pouco rótulo, tráfego massivo e necessidade de cooperação entre downstream e upstream [Sriram and Montgomery, 2019].
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Objetivos}
+\begin{itemize}
+  \setlength{\itemsep}{0.55em}
+  \item Avaliar \textbf{quatro detectores \emph{one-class}} em agregados de fluxo, com dados reais de ITP durante ataques DDoS confirmados.%: \textbf{Autoencoder (AE)}, \textbf{Isolation Forest (IF)}, \textbf{Local Outlier Factor (LOF)} e \textbf{One-Class SVM (OCSVM)}.
+  \item Três conjuntos operacionais (\textbf{DS1}--\textbf{DS3}), altamente \textbf{desequilibrados} (fração mínima de ataques no teste).
+  %\item \alert{Objetivo:} Buscar um detector que apresente o melhor desempenho global e maior estabilidade entre cenário. \textbf{Janelas curtas} que favorecem detecção mais rápida, \textbf{Seleção de features} agressiva mantém qualidade com menos dimensionalidade.
+  \item \alert{Objetivo:} Buscar um detector que apresente o melhor desempenho global e maior estabilidade entre cenários.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Etapas do Experimento}
+\vspace{-0.5em}
+\begin{center}
+  \includegraphics[width=\linewidth,height=0.95\textheight,keepaspectratio]{pipeline.png}
+\end{center}
+\vspace{-0.5em}
+\end{frame}
+
+% =============================================================================
+\section[Coleta dos Dados]{Coleta dos Dados}
+
+\begin{frame}{Montando os Datasets}
+\vspace{-0.5em}
+\begin{center}
+  \includegraphics[width=\linewidth,height=0.95\textheight,keepaspectratio]{ip-transit.png}
+\end{center}
+\vspace{-0.5em}
+\end{frame}
+
+\begin{frame}{Montando os Datasets}
+\vspace{1.1em}
+\begin{center}
+  \includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{monitored-scenario.png}
+\end{center}
+\vspace{0.55em}
+{\footnotesize Coleta de \textbf{NetFlow v9} (RFC~3954) dos roteadores de borda do ITP. Os fluxos exportados foram filtrados para reter apenas o tráfego associado ao ISP alvo.}
+\end{frame}
+
+\begin{frame}[t]{Datasets operacionais (DS1--DS3)}
+\vspace{-0.25em}
+\footnotesize
+\begin{itemize}
+  \setlength{\itemsep}{0.28em}
+  \item \textbf{DS1}: HTTP flood em um enlace de downstream \(\sim\)10~Gb/s.
+  \item \textbf{DS2}: UDP multi-vetor (\emph{carpet bombing}) com pico da ordem de 100~Gb/s, volume de fluxos muito maior.
+  \item \textbf{DS3}: Ataques de \textbf{SYN-ACK} com indisponibilidade prolongada no cliente. Observado na borda do ITP por quase 2 horas.
+\end{itemize}
+\vspace{0.1em}
+\begin{center}
+\captionof{table}{Estatísticas dos datasets extraídos (NetFlow v9, RFC~3954; \texttt{nfdump}).}%
+\label{tab:datasets}
+\resizebox{\linewidth}{!}{%
+\footnotesize
+\setlength{\tabcolsep}{5pt}%
+\begin{tabular}{l c c c c c}
+\hline
+\textbf{Dataset} & \textbf{Duração} & \textbf{\#Fluxos} & \textbf{Tamanho} & \textbf{Amostragem} $k$ & $T_{\text{ativo}}/T_{\text{inativo}}$ \\
+\hline
+DS1 & 3d 14h 45m & 9{,}430{,}000 & 1024~MB & 1000 & 1800\,s / 15\,s \\
+DS2 & 8d 2h 0m & 195{,}000{,}000 & 20.76~GB & 1000 & 60\,s / 15\,s \\
+DS3 & 7d 18h 20m & 2{,}250{,}000 & 230~MB & 4000 & 60\,s / 15\,s \\
+\hline
+\end{tabular}%
+}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Fluxos por tempo}
+\vspace{1em}
+{\hfuzz=12pt\relax
+\centering
+\includegraphics[width=1.02\linewidth,height=0.95\textheight,keepaspectratio]{flows-by-time.png}\par
+}
+\end{frame}
+
+\begin{frame}[t]{Criando as Features}
+\vspace{0.3em}
+{\hfuzz=12pt\relax
+\centering
+\includegraphics[width=1.02\linewidth,height=0.95\textheight,keepaspectratio]{creating-the-features.png}\par
+}
+\end{frame}
+
+
+\begin{frame}[t]{Exemplo: Entropia dos IPs de origem}
+\vspace{0.3em}
+\includegraphics[width=1\linewidth,height=0.83\textheight,keepaspectratio]{src_ip_entropy.png}
+\end{frame}
+  
+\begin{frame}{Rotulando os Datasets}
+\vspace{-0.35em}
+\footnotesize
+A avaliação usa séries temporais com rótulo por segundo: intervalos de DDoS confirmados pelo ITP são marcados como anômalos.
+
+\vspace{0.45em}
+\begin{center}
+\captionof{table}{Períodos de ataque no conjunto de teste.}%
+\label{tab:datasets-labels}
+\begin{tabular}{l c c c}
+\hline
+ & \textbf{DS1} & \textbf{DS2} & \textbf{DS3} \\
+\hline
+Tempo total (s) & 139{,}800 & 353{,}100 & 239{,}100 \\
+Segundos com DDoS & 319 & 2{,}734 & 6{,}591 \\
+Fração anômala & {\normalsize\textbf{\textcolor{red}{0{,}23\,\%}}} & {\normalsize\textbf{\textcolor{red}{0{,}77\,\%}}} & {\normalsize\textbf{\textcolor{red}{2{,}76\,\%}}} \\[0.5em]
+
+IPs de origem únicos & 108{,}442 & 1{,}723{,}678 & 38{,}152 \\
+IPs de destino únicos & 2{,}464 & 5{,}120 & 1{,}536 \\
+\hline
+\end{tabular}
+\end{center}
+\end{frame}
+
+% =============================================================================
+\section[Abordagem Proposta]{Abordagem Proposta}
+
+\begin{frame}[t]{Divisão dos Datasets}
+\vspace{0.45em}
+\includegraphics[width=1\linewidth,height=0.9\textheight,keepaspectratio]{datasets-splits.png}
+\end{frame}
+
+\begin{frame}[t]{Correlação de Pearson no split de treino (DS2)}
+\vspace{0.1em}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.58\textwidth}
+\includegraphics[width=\linewidth,height=0.83\textheight,keepaspectratio]{pcc-ds2.png}
+\end{column}
+\begin{column}{0.4\textwidth}
+\vspace{2.2em}
+\centering
+{\footnotesize\textbf{Número de features após o corte com as variações de $\theta$}}\\[0.55em]
+\footnotesize
+\setlength{\tabcolsep}{6pt}%
+\begin{tabular}{c c}
+\hline
+\textbf{$\theta$} & \textbf{$\Delta t = 1\,$s features} \\
+\hline
+0{,}90 & 76 \\
+0{,}70 & 40 \\
+0{,}50 & 25 \\
+\hline
+\end{tabular}\\[0.45em]
+{\scriptsize Do original de 147 features.}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Modelos e Métricas Utilizadas}
+\begin{itemize}
+  \setlength{\itemsep}{0.55em}
+  \item Modelos utilizados:\space\textbf{AE / IF / LOF / OCSVM}.
+  \item Métricas: \textbf{$F_1$} como métrica principal. \textbf{AUPRC} como complemento (adequado para datasets desbalanceados).
+\end{itemize}
+\end{frame}
+
+% =============================================================================
+\section[Avaliação e Resultados]{Avaliação e Resultados}
+
+\begin{frame}[t]{Curvas Precision-Recall + $F_1$ - Todos os modelos (DS1)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_itp-downstream-http-flood_1seconds.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Curvas Precision-Recall + $F_1$ - Todos os modelos (DS2)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_itp-multivector-udp-100gbps-peak_1seconds.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Curvas Precision-Recall + $F_1$ - Todos os modelos (DS3)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_itp-synack-customer-outage_1seconds.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Comparação de \(F_1\) por correlation cutoff (DS1)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_pcc_comparison_itp-downstream-http-flood_1seconds_autoencoder.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Comparação de \(F_1\) por correlation cutoff (DS2)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_pcc_comparison_itp-multivector-udp-100gbps-peak_1seconds_autoencoder.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Comparação de \(F_1\) por correlation cutoff (DS3)}
+\vspace{-1.25em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.9\textheight,keepaspectratio]{pr_curve_pcc_comparison_itp-synack-customer-outage_1seconds_autoencoder.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Linha do tempo de detecção - AE (DS1)}
+\vspace{-1.45em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.82\textheight,keepaspectratio]{ds1-timeline.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Linha do tempo de detecção - AE (DS2)}
+\vspace{-1.45em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.82\textheight,keepaspectratio]{ds2-timeline.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[t]{Linha do tempo de detecção - AE (DS3)}
+\vspace{-1.55em}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.82\textheight,keepaspectratio]{ds3-timeline.png}
+\end{center}
+\end{frame}
+
+% =============================================================================
+\section[Conclusão e Perspectivas]{Conclusão e Perspectivas}
+
+\begin{frame}{Conclusão e limitações}
+\begin{itemize}
+  \setlength{\itemsep}{0.55em}
+  \item \textbf{Conclusão:} detecção não supervisionada por fluxo em ITP é viável com \textbf{AE} como candidato com as melhores métricas para cenários distintos até mesmo com poucas features.
+  \item \textbf{Limitações:} Carece de estudo de \textbf{\emph{concept drift}} e necessidade de re-treinamento. Custos de latência, CPU e memória não foram todos quantificados.
+  \item \textbf{Futuro:} validação em produção com aprendizado \textbf{online} e análise de custo operacional ponta a ponta.
+\end{itemize}
+\end{frame}
+
+\logo{}
+
+\begin{frame}
+\centering
+\vspace{1.2cm}
+{\Huge \textbf{Obrigado!}}
+\vspace{0.4cm}
+\vspace{0.9cm}
+\vfill
+\begin{center}
+\includegraphics[height=1.8cm]{uel-named-logo.png}
+\hspace{0.7cm}
+\includegraphics[height=1.4cm]{made4it-logo2.png}
+\hspace{1.0cm}
+\includegraphics[height=1.5cm]{ufu-logo.png}
+\end{center}
+\vspace{0.5cm}
+\end{frame}
+\end{document}
