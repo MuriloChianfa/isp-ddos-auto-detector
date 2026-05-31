@@ -2,6 +2,16 @@
 
 <div align="center">
 
+[![SBRC 2026](https://img.shields.io/badge/SBRC-2026-blue)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
+[![DOI](https://img.shields.io/badge/DOI-10.5753%2Fsbrc.2026.19291-blue)](https://doi.org/10.5753/sbrc.2026.19291)
+[![Paper](https://img.shields.io/badge/Paper-SBC-green)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
+[![Slides](https://img.shields.io/badge/Slides-Beamer-orange)](slides/)
+
+<a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloD.png" alt="SBRC 2026 Artifact Available badge" height="104"></a>
+<a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloF.png" alt="SBRC 2026 Artifact Functional badge" height="104"></a>
+<a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloS.png" alt="SBRC 2026 Artifact Sustainable badge" height="104"></a>
+<a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloR.png" alt="SBRC 2026 Artifact Reproducible badge" height="104"></a>
+
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
@@ -19,15 +29,14 @@ Distributed denial-of-service (DDoS) attack detection has been widely studied in
 1. [**Title and Abstract**](#abstract): Research overview and objectives
 2. [**README Structure**](#agenda): Description of document organization
 3. [**Basic Information**](#basic-information): Hardware and execution environment requirements
-4. [**Badges Considered**](#badges-considered): Declaration of badges requested for evaluation
-5. [**Dependencies**](#dependencies): Complete list of required libraries and tools
-6. [**Security Concerns**](#security-concerns): Potential risks and security procedures
-7. [**Installation**](#installation): Step-by-step instructions for environment setup
-8. [**Minimal Test**](#minimal-test): Simple commands to validate installation
-9. [**Experiments**](#experiments): Reproduction of main results presented in the paper
-10. [**Datasets**](#datasets): Description of data used in the experiments
-11. [**Acknowledgments**](#acknowledgments): Thanks to collaborating institutions
-12. [**LICENSE**](#license): Dual licensing (MIT for code / CC BY 4.0 for datasets)
+4. [**Dependencies**](#dependencies): Complete list of required libraries and tools
+5. [**Security Concerns**](#security-concerns): Potential risks and security procedures
+6. [**Installation**](#installation): Step-by-step instructions for environment setup
+7. [**Minimal Test**](#minimal-test): Simple commands to validate installation
+8. [**Experiments**](#experiments): Reproduction of main results presented in the paper
+9. [**Datasets**](#datasets): Description of data used in the experiments
+10. [**Acknowledgments**](#acknowledgments): Thanks to collaborating institutions
+11. [**LICENSE**](#license): Dual licensing (MIT for code / CC BY 4.0 for datasets)
 
 ### Repository Structure
 
@@ -63,18 +72,6 @@ isp-ddos-auto-detector/
     ├── comparisons/             # Comparison reports
     └── runs_index.json          # Index of all saved runs
 ```
-
-## Badges Considered
-
-This artifact requests: **Available**, **Functional**, **Sustainable**, and **Reproducible** badges.
-
-| Badge | Justification |
-|-------|---------------|
-| **Available** | Complete source code, datasets, and results publicly available in this repository |
-| **Functional** | Fully executable with detailed setup, validation tests, and pinned dependencies |
-| **Sustainable** | Modular architecture with clear components and inline documentation |
-| **Reproducible** | Automated scripts and detailed instructions to reproduce principal paper results |
-
 
 ## Basic Information
 
@@ -509,6 +506,25 @@ The following visualizations show key features extracted from each dataset durin
   </tr>
   <tr>
     <td colspan="3" align="center"><p><i>Feature Correlation Heatmaps (Pearson's Correlation, 1s resolution)</p></i></td>
+  </tr>
+</table>
+
+<table align="center">
+  <tr>
+    <td align="center" valign="middle">
+      <a href="https://sol.sbc.org.br/index.php/sbrc/article/view/42379">
+        <img src="slides/images/sbrc2026paper-cover.png" alt="SBRC 2026 paper cover" height="420">
+      </a>
+    </td>
+    <td align="center" valign="middle">
+      <a href="slides/main.pdf">
+        <img src="slides/images/sbrc2026paper-presentation-cover.png" alt="SBRC 2026 presentation title slide" height="205">
+      </a>
+      <br>
+      <a href="slides/main.pdf">
+        <img src="slides/images/sbrc2026paper-presentation-cover2.png" alt="SBRC 2026 presentation slide" height="205">
+      </a>
+    </td>
   </tr>
 </table>
 
