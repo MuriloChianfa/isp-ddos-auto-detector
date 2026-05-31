@@ -526,13 +526,19 @@ This project uses **dual licensing**:
 ## Citation
 
 ```bibtex
-@software{chianfa2026ispddos,
-  author = {Chianfa, Murilo A., Miani, Rodrigo S., and Zarpel{\~a}o, Bruno B.},
-  title = {Unsupervised DDoS Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data},
+@inproceedings{chianfa2026sbrc,
+  author = {Chianfa, Murilo and Miani, Rodrigo and Zarpel{\~a}o, Bruno},
+  title = {Unsupervised {DDoS} Detection in High-Speed Networks: An Evaluation Using Real Transit Provider Data},
+  booktitle = {Anais do XLIV Simpósio Brasileiro de Redes de Computadores e Sistemas Distribuídos},
+  location = {Praia do Forte/BA},
   year = {2026},
-  month = {January},
-  version = {1.0.0},
-  url = {https://github.com/MuriloChianfa/isp-ddos-auto-detector}
+  keywords = {DDoS, ISP, Unsupervised},
+  issn = {2177-9384},
+  pages = {1485--1498},
+  publisher = {SBC},
+  address = {Porto Alegre, RS, Brasil},
+  doi = {10.5753/sbrc.2026.19291},
+  url = {https://sol.sbc.org.br/index.php/sbrc/article/view/42379}
 }
 ```
 
