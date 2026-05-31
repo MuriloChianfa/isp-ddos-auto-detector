@@ -2,15 +2,15 @@
 
 <div align="center">
 
-[![SBRC 2026](https://img.shields.io/badge/SBRC-2026-blue)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
-[![DOI](https://img.shields.io/badge/DOI-10.5753%2Fsbrc.2026.19291-blue)](https://doi.org/10.5753/sbrc.2026.19291)
-[![Paper](https://img.shields.io/badge/Paper-SBC-green)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
-[![Slides](https://img.shields.io/badge/Slides-Beamer-orange)](slides/)
-
 <a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloD.png" alt="SBRC 2026 Artifact Available badge" height="104"></a>
 <a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloF.png" alt="SBRC 2026 Artifact Functional badge" height="104"></a>
 <a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloS.png" alt="SBRC 2026 Artifact Sustainable badge" height="104"></a>
 <a href="https://doc-artefatos.github.io/sbrc2026/results.html"><img src="slides/images/SBRC25_SF_SeloR.png" alt="SBRC 2026 Artifact Reproducible badge" height="104"></a>
+
+[![SBRC 2026](https://img.shields.io/badge/SBRC-2026-blue)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
+[![DOI](https://img.shields.io/badge/DOI-10.5753%2Fsbrc.2026.19291-blue)](https://doi.org/10.5753/sbrc.2026.19291)
+[![Paper](https://img.shields.io/badge/Paper-SBC-green)](https://sol.sbc.org.br/index.php/sbrc/article/view/42379)
+[![Slides](https://img.shields.io/badge/Slides-Beamer-orange)](slides/main.pdf)
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
